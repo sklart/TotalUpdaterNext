@@ -42,7 +42,7 @@ namespace TotalUpdater.Next.Tests
             using (var http = new HttpService(ApplicationMetadata.Version))
             {
                 var catalog = new CatalogService(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".json"));
-                var providers = new IUpdateSourceProvider[] { new TotalCmdNetSourceProvider(http), new GhislerSourceProvider(http), new GitHubReleaseSourceProvider(http), new GenericHtmlSourceProvider(http) };
+                var providers = new IUpdateSourceProvider[] { new TotalCmdNetSourceProvider(http), new TotalCmdNetIndexProvider(http), new GhislerSourceProvider(http), new GhislerPluginsSourceProvider(http), new GitHubReleaseSourceProvider(http), new GenericHtmlSourceProvider(http) };
                 var service = new UpdateService(catalog, providers);
                 foreach (var id in new[] { "totalcmd", "fileinfo", "total7zip", "7zip-plugin", "imagine", "webdav", "sftp", "anytag", "glimpse-wlx", "glimpse-wcx" })
                 {
@@ -60,7 +60,7 @@ namespace TotalUpdater.Next.Tests
             using (var http = new HttpService(ApplicationMetadata.Version))
             {
                 var catalog = new CatalogService(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".json")); var entries = catalog.Load();
-                var providers = new IUpdateSourceProvider[] { new TotalCmdNetSourceProvider(http), new GhislerSourceProvider(http), new GitHubReleaseSourceProvider(http), new GenericHtmlSourceProvider(http) };
+                var providers = new IUpdateSourceProvider[] { new TotalCmdNetSourceProvider(http), new TotalCmdNetIndexProvider(http), new GhislerSourceProvider(http), new GhislerPluginsSourceProvider(http), new GitHubReleaseSourceProvider(http), new GenericHtmlSourceProvider(http) };
                 var failures = 0; var output = new System.Collections.Concurrent.ConcurrentBag<string>();
                 using (var gate = new System.Threading.SemaphoreSlim(4))
                 {
@@ -83,7 +83,7 @@ namespace TotalUpdater.Next.Tests
             using (var http = new HttpService(ApplicationMetadata.Version))
             {
                 var catalog = new CatalogService(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".json")); var entries = catalog.Load().Where(x => x.PluginType != PluginType.TotalCommander).ToList();
-                var providers = new IUpdateSourceProvider[] { new TotalCmdNetSourceProvider(http), new GhislerSourceProvider(http), new GitHubReleaseSourceProvider(http), new GenericHtmlSourceProvider(http) };
+                var providers = new IUpdateSourceProvider[] { new TotalCmdNetSourceProvider(http), new TotalCmdNetIndexProvider(http), new GhislerSourceProvider(http), new GhislerPluginsSourceProvider(http), new GitHubReleaseSourceProvider(http), new GenericHtmlSourceProvider(http) };
                 var failed = 0; var output = new System.Collections.Concurrent.ConcurrentBag<string>();
                 using (var gate = new System.Threading.SemaphoreSlim(4))
                 {
@@ -277,7 +277,8 @@ namespace TotalUpdater.Next.Tests
             try
             {
                 var user = Path.Combine(root, "user.json"); var catalog = new CatalogService(user); var baseCatalog = catalog.LoadWithDiagnostics();
-                Assert(baseCatalog.Entries.Count >= 10 && baseCatalog.Entries.Single(x => x.Id == "fileinfo").Sources.Count == 1 && baseCatalog.Entries.Single(x => x.Id == "fileinfo").LocalVersionStrategy == "fileinfo", "Catalog v2 embedded deserialize");
+                var fileInfoEntry = baseCatalog.Entries.Single(x => x.Id == "fileinfo");
+                Assert(baseCatalog.Entries.Count >= 10 && fileInfoEntry.Sources.Count >= 2 && fileInfoEntry.Sources.Any(x => x.AuthorityValue == SourceAuthority.OfficialTotalCommander) && fileInfoEntry.LocalVersionStrategy == "fileinfo", "Catalog v2 embedded deserialize");
                 File.WriteAllText(user, "[{\"id\":\"fileinfo\",\"name\":\"FileInfo override\",\"type\":\"Wlx\",\"aliases\":[\"myfileinfo.wlx\"],\"localVersionStrategy\":\"fileinfo\",\"sources\":[{\"provider\":\"totalcmd.net\",\"id\":\"fileinfo\",\"priority\":200}]}]");
                 Assert(catalog.Load().Single(x => x.Id == "fileinfo").Name == "FileInfo override", "user catalog completely overrides embedded entry");
                 File.WriteAllText(user, "[{\"id\":\"fileinfo\",\"name\":\"\",\"type\":\"Wlx\",\"aliases\":[\"bad.wlx\"],\"sources\":[]}]");
