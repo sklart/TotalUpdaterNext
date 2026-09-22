@@ -17,7 +17,7 @@ namespace TotalUpdater.Next.Tests
         {
             try
             {
-                Versions(); Paths(); DiscoveryRealIniFormats(); FileInfoSpecificStrategy(); CatalogAliases(); ApplicationMetadataAndUserAgent();
+                Versions(); Paths(); DiscoveryRealIniFormats(); FileInfoPeVersionStrategy(); StrategyPriorityAndFallback(); CatalogAliases(); ApplicationMetadataAndUserAgent();
                 Console.WriteLine("PASS " + _count + " tests"); return 0;
             }
             catch (Exception ex) { Console.Error.WriteLine("FAIL: " + ex.Message); return 1; }
@@ -73,17 +73,25 @@ namespace TotalUpdater.Next.Tests
             }
             finally { Directory.Delete(root, true); }
         }
-        private static void FileInfoSpecificStrategy()
+        private static void FileInfoPeVersionStrategy()
         {
-            var root = Path.Combine(Path.GetTempPath(), "tunext-tests-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(root);
-            try
-            {
-                var plugin = Path.Combine(root, "fileinfo.wlx"); File.WriteAllBytes(plugin, new byte[0]);
-                File.WriteAllText(Path.Combine(root, "fileinfo.version"), "Public version: 2.23");
-                var version = new LocalVersionResolver().Resolve(plugin, new PluginIdentity { Id = "fileinfo", Name = "FileInfo", Type = PluginType.Wlx });
-                Assert(version.ParsedValue.Raw == "2.23" && version.Source == VersionSource.CustomRule, "FileInfo custom public-version strategy");
-            }
-            finally { Directory.Delete(root, true); }
+            var x86 = FileInfoVersionStrategy.FromPeFileVersion("2.2.3.0");
+            var x64 = FileInfoVersionStrategy.FromPeFileVersion("2.2.3.0");
+            Assert(x86.ParsedValue.Raw == "2.23" && x86.Source == VersionSource.CustomRule, "FileInfo PE 2.2.3.0 -> public 2.23");
+            Assert(x86.ParsedValue.CompareTo(x64.ParsedValue) == VersionComparison.Equal, "FileInfo x86/x64 public version matches");
+            Assert(!FileInfoVersionStrategy.FromPeFileVersion("2.2.3").ParsedValue.IsKnown, "FileInfo requires a PE four-part version");
+        }
+        private static void StrategyPriorityAndFallback()
+        {
+            var custom = FileInfoVersionStrategy.FromPeFileVersion("2.2.3.0");
+            var generic = FileVersionProbe.Create("9.9.9.9", VersionSource.FileVersion, VersionConfidence.Exact);
+            var resolver = new LocalVersionResolver(new IPluginSpecificVersionStrategy[] { new FixedFileInfoStrategy(custom) }, new IVersionProbe[] { new FixedProbe(generic) });
+            var fileInfo = resolver.Resolve("not-used", new PluginIdentity { Id = "fileinfo", Type = PluginType.Wlx });
+            Assert(fileInfo.ParsedValue.Raw == "2.23" && fileInfo.Source == VersionSource.CustomRule, "FileInfo strategy precedes generic FileVersion");
+
+            var fallbackResolver = new LocalVersionResolver(new IPluginSpecificVersionStrategy[] { new FixedFileInfoStrategy(LocalVersion.Unknown) }, new IVersionProbe[] { new FixedProbe(generic) });
+            Assert(fallbackResolver.Resolve("not-used", new PluginIdentity { Id = "fileinfo", Type = PluginType.Wlx }).Source == VersionSource.FileVersion, "Unknown strategy falls back to FileVersion");
+            Assert(resolver.Resolve("not-used", new PluginIdentity { Id = "ordinary", Type = PluginType.Wlx }).Source == VersionSource.FileVersion, "ordinary plugin uses FileVersion fallback");
         }
         private static void CatalogAliases()
         {
@@ -95,6 +103,19 @@ namespace TotalUpdater.Next.Tests
             Assert(ApplicationMetadata.Version == typeof(ApplicationMetadata).Assembly.GetName().Version.ToString(3), "application metadata version");
             using (var http = new HttpService(ApplicationMetadata.Version))
                 Assert(http.UserAgent == "TotalUpdaterNext/" + ApplicationMetadata.Version, "user agent follows application version");
+        }
+        private sealed class FixedFileInfoStrategy : IPluginSpecificVersionStrategy
+        {
+            private readonly LocalVersion _version;
+            public FixedFileInfoStrategy(LocalVersion version) { _version = version; }
+            public bool CanHandle(PluginIdentity identity) { return identity != null && identity.Id == "fileinfo"; }
+            public LocalVersion Probe(string filePath) { return _version; }
+        }
+        private sealed class FixedProbe : IVersionProbe
+        {
+            private readonly LocalVersion _version;
+            public FixedProbe(LocalVersion version) { _version = version; }
+            public LocalVersion Probe(string filePath) { return _version; }
         }
         private static void Assert(bool condition, string name) { if (!condition) throw new InvalidOperationException(name); _count++; }
     }

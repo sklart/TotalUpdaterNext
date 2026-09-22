@@ -14,15 +14,29 @@ namespace TotalUpdater.Next.TotalCommander
 
     public sealed class LocalVersionResolver
     {
-        private readonly IList<IVersionProbe> _probes;
-        public LocalVersionResolver() { _probes = new List<IVersionProbe> { new FileVersionProbe(), new ProductVersionProbe(), new FileInfoVersionStrategy(), new TextVersionProbe() }; }
+        private readonly IList<IPluginSpecificVersionStrategy> _strategies;
+        private readonly IList<IVersionProbe> _genericProbes;
+
+        public LocalVersionResolver()
+            : this(new IPluginSpecificVersionStrategy[] { new FileInfoVersionStrategy() }, new IVersionProbe[] { new FileVersionProbe(), new ProductVersionProbe(), new TextVersionProbe() }) { }
+
+        public LocalVersionResolver(IEnumerable<IPluginSpecificVersionStrategy> strategies, IEnumerable<IVersionProbe> genericProbes)
+        {
+            _strategies = (strategies ?? Enumerable.Empty<IPluginSpecificVersionStrategy>()).ToList();
+            _genericProbes = (genericProbes ?? Enumerable.Empty<IVersionProbe>()).ToList();
+        }
+
         public LocalVersion Resolve(string path) { return Resolve(path, new PluginIdentity()); }
         public LocalVersion Resolve(string path, PluginIdentity identity)
         {
-            foreach (var probe in _probes)
+            foreach (var strategy in _strategies)
             {
-                var pluginSpecific = probe as IPluginSpecificVersionStrategy;
-                if (pluginSpecific != null && !pluginSpecific.CanHandle(identity)) continue;
+                if (!strategy.CanHandle(identity)) continue;
+                var version = strategy.Probe(path);
+                if (version.ParsedValue.IsKnown) return version;
+            }
+            foreach (var probe in _genericProbes)
+            {
                 var version = probe.Probe(path);
                 if (version.ParsedValue.IsKnown) return version;
             }
@@ -34,20 +48,23 @@ namespace TotalUpdater.Next.TotalCommander
 
     public sealed class FileInfoVersionStrategy : IPluginSpecificVersionStrategy
     {
-        private static readonly Regex Pattern = new Regex(@"(?:version|ver\.)\s*[:=#-]?\s*([0-9]+(?:[.,][0-9]+){1,3})", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         public bool CanHandle(PluginIdentity identity) { return identity != null && identity.Id.Equals("fileinfo", StringComparison.OrdinalIgnoreCase); }
         public LocalVersion Probe(string path)
         {
             try
             {
-                var customFile = Path.Combine(Path.GetDirectoryName(path), "fileinfo.version");
-                if (!File.Exists(customFile)) return LocalVersion.Unknown;
-                var match = Pattern.Match(File.ReadAllText(customFile, Encoding.Default));
-                if (!match.Success) return LocalVersion.Unknown;
-                var parsed = VersionValue.Parse(match.Groups[1].Value);
-                return parsed.IsKnown ? new LocalVersion { RawValue = match.Groups[1].Value, ParsedValue = parsed, Source = VersionSource.CustomRule, Confidence = VersionConfidence.Probable } : LocalVersion.Unknown;
+                return FromPeFileVersion(FileVersionInfo.GetVersionInfo(path).FileVersion);
             }
             catch { return LocalVersion.Unknown; }
+        }
+
+        public static LocalVersion FromPeFileVersion(string peVersion)
+        {
+            var pe = VersionValue.Parse(peVersion);
+            if (!pe.IsKnown || pe.Numbers.Count != 4) return LocalVersion.Unknown;
+            var publicVersion = pe.Numbers[0].ToString() + "." + pe.Numbers[1].ToString() + pe.Numbers[2].ToString();
+            var parsed = VersionValue.Parse(publicVersion);
+            return new LocalVersion { RawValue = publicVersion, ParsedValue = parsed, Source = VersionSource.CustomRule, Confidence = VersionConfidence.Exact };
         }
     }
 
