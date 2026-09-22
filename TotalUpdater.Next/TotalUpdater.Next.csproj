@@ -4,15 +4,16 @@
     <TargetFramework>net48</TargetFramework>
     <UseWPF>true</UseWPF>
     <LangVersion>latest</LangVersion>
-    <Nullable>enable</Nullable>
-    <AssemblyName>TotalUpdater.Next</AssemblyName>
+    <AssemblyName>TotalUpdater</AssemblyName>
     <RootNamespace>TotalUpdater.Next</RootNamespace>
-    <Version>0.1.0</Version>
-    <AssemblyVersion>0.1.0.0</AssemblyVersion>
-    <FileVersion>0.1.0.0</FileVersion>
+    <Version>0.2.0</Version>
+    <AssemblyVersion>0.2.0.0</AssemblyVersion>
+    <FileVersion>0.2.0.0</FileVersion>
   </PropertyGroup>
+  <ItemGroup><EmbeddedResource Include="Catalog\plugin-catalog.json" /></ItemGroup>
   <ItemGroup>
-    <None Update="Rules\plugin-sources.json" CopyToOutputDirectory="PreserveNewest" />
+    <Compile Remove="Models\**\*.cs" />
+    <Compile Remove="Services\**\*.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System.Net.Http" />

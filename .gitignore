@@ -14,3 +14,6 @@ plugin-sources.user.json
 # Local configuration created by the historical utility
 /TotalUpdater.ini
 /upluginfo.ini
+
+# Ephemeral local smoke-test workspace
+/tmp/

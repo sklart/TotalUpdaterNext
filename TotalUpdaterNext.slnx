@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="TotalUpdater.Next.Tests/TotalUpdater.Next.Tests.csproj" />
+  <Project Path="TotalUpdater.Next/TotalUpdater.Next.csproj" />
+</Solution>

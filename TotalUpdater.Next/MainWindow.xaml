@@ -1,38 +1,34 @@
 <Window x:Class="TotalUpdater.Next.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Total Updater Next" Height="700" Width="1080" MinHeight="520" MinWidth="820">
-  <DockPanel Margin="16">
-    <StackPanel DockPanel.Dock="Top">
-      <TextBlock FontSize="30" FontWeight="Bold">TOTAL <Run Foreground="#16802B">Updater</Run> <Run Foreground="#777" FontSize="18">Next</Run></TextBlock>
-      <TextBlock Margin="1,0,0,14" FontSize="15">Проверка обновлений Total Commander и его плагинов</TextBlock>
-      <Grid Margin="0,0,0,12">
-        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-        <TextBlock VerticalAlignment="Center" Margin="0,0,10,0">wincmd.ini:</TextBlock>
-        <TextBox x:Name="IniPathBox" Grid.Column="1" VerticalContentAlignment="Center" IsReadOnly="True"/>
-        <Button Grid.Column="2" Content="Выбрать…" Click="BrowseIni_Click" Margin="8,0,0,0"/>
-      </Grid>
-      <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-        <Button Content="Найти плагины" Background="{StaticResource AccentBrush}" Foreground="White" Click="FindPlugins_Click"/>
-        <Button Content="Проверить источники" Click="CheckSources_Click"/>
-        <Button Content="Скачать выделенные" Click="DownloadSelected_Click"/>
-        <Button Content="Пользовательские правила" Click="OpenRules_Click"/>
-        <TextBlock x:Name="SummaryText" VerticalAlignment="Center" Foreground="#555" />
-      </StackPanel>
-    </StackPanel>
-    <DataGrid x:Name="PluginGrid" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" SelectionMode="Extended" GridLinesVisibility="Horizontal" Margin="0,4,0,10" MouseDoubleClick="PluginGrid_MouseDoubleClick">
-      <DataGrid.Columns>
-        <DataGridCheckBoxColumn Binding="{Binding IsSelected}" Header="✓" Width="35" IsReadOnly="False" />
-        <DataGridTextColumn Binding="{Binding Category}" Header="Тип" Width="190" />
-        <DataGridTextColumn Binding="{Binding Name}" Header="Имя" Width="150" />
-        <DataGridTextColumn Binding="{Binding LocalVersion}" Header="Установлена" Width="110" />
-        <DataGridTextColumn Binding="{Binding LatestVersion}" Header="Новейшая" Width="110" />
-        <DataGridTextColumn Binding="{Binding Status}" Header="Статус" Width="150" />
-        <DataGridTextColumn Binding="{Binding FilePath}" Header="Файл (двойной щелчок — открыть источник)" Width="*" />
-      </DataGrid.Columns>
-    </DataGrid>
-    <Border DockPanel.Dock="Bottom" Background="#F3F3F3" Padding="10">
-      <TextBlock TextWrapping="Wrap">Скачивание сохраняет архивы в папку «Загрузки\TotalUpdaterNext» и не распаковывает/не заменяет плагины. Для неизвестных плагинов добавьте правило.</TextBlock>
-    </Border>
+        xmlns:ui="clr-namespace:TotalUpdater.Next.UI"
+        Title="Total Updater Next" Width="980" Height="680" MinWidth="760" MinHeight="500"
+        WindowStartupLocation="CenterScreen" UseLayoutRounding="True" SnapsToDevicePixels="True">
+  <Window.Resources>
+    <ui:FilterConverter x:Key="FilterConverter" />
+    <Style TargetType="Button"><Setter Property="Padding" Value="12,6"/><Setter Property="Margin" Value="0,0,8,0"/></Style>
+    <Style TargetType="DataGridColumnHeader"><Setter Property="FontWeight" Value="SemiBold"/></Style>
+  </Window.Resources>
+  <DockPanel Margin="14">
+    <Border DockPanel.Dock="Top" Padding="0,0,0,10"><StackPanel><TextBlock FontSize="28" FontWeight="Bold">TOTAL <Run Foreground="#16802B">Updater</Run> <Run FontSize="16" Foreground="#777">Next</Run></TextBlock><TextBlock FontSize="14">Обновление Total Commander и его плагинов</TextBlock></StackPanel></Border>
+    <Border DockPanel.Dock="Bottom" Background="#F2F2F2" Padding="9"><TextBlock Text="{Binding StatusText}" TextTrimming="CharacterEllipsis"/></Border>
+    <TabControl>
+      <TabItem Header="Обновления">
+        <DockPanel Margin="8">
+          <StackPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">
+            <StackPanel Orientation="Horizontal"><Button Content="Найти плагины" Command="{Binding DiscoverCommand}"/><Button Content="Проверить обновления" Command="{Binding CheckCommand}"/><Button Content="Скачать отмеченные" Command="{Binding DownloadCommand}"/></StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,8,0,0"><RadioButton Content="Все" IsChecked="{Binding FilterName, Converter={StaticResource FilterConverter}, ConverterParameter=All}"/><RadioButton Content="Обновления" Margin="18,0,0,0" IsChecked="{Binding FilterName, Converter={StaticResource FilterConverter}, ConverterParameter=Updates}"/><RadioButton Content="Неизвестные" Margin="18,0,0,0" IsChecked="{Binding FilterName, Converter={StaticResource FilterConverter}, ConverterParameter=Unknown}"/><RadioButton Content="Ошибки" Margin="18,0,0,0" IsChecked="{Binding FilterName, Converter={StaticResource FilterConverter}, ConverterParameter=Errors}"/></StackPanel>
+          </StackPanel>
+          <DataGrid ItemsSource="{Binding ItemsView}" AutoGenerateColumns="False" CanUserAddRows="False" SelectionMode="Extended" GridLinesVisibility="Horizontal">
+            <DataGrid.GroupStyle><GroupStyle><GroupStyle.HeaderTemplate><DataTemplate><TextBlock Text="{Binding Name}" FontWeight="Bold" Foreground="#38659A" Margin="3,8,0,3"/></DataTemplate></GroupStyle.HeaderTemplate></GroupStyle></DataGrid.GroupStyle>
+            <DataGrid.ContextMenu><ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}"><MenuItem Header="Информация" Command="{Binding InfoCommand}" CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/><MenuItem Header="Открыть сайт" Command="{Binding OpenSiteCommand}" CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/><MenuItem Header="Открыть расположение файла" Command="{Binding OpenPathCommand}" CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/><MenuItem Header="Копировать путь" Command="{Binding CopyPathCommand}" CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/></ContextMenu></DataGrid.ContextMenu>
+            <DataGrid.Columns><DataGridCheckBoxColumn Header="✓" Binding="{Binding IsChecked, UpdateSourceTrigger=PropertyChanged}" Width="35"/><DataGridTextColumn Header="Имя" Binding="{Binding Name}" Width="*" IsReadOnly="True"/><DataGridTextColumn Header="Тип" Binding="{Binding Type}" Width="65" IsReadOnly="True"/><DataGridTextColumn Header="Установлена" Binding="{Binding InstalledVersion}" Width="120" IsReadOnly="True"/><DataGridTextColumn Header="Новейшая" Binding="{Binding AvailableVersion}" Width="110" IsReadOnly="True"/><DataGridTextColumn Header="Статус" Binding="{Binding Status}" Width="200" IsReadOnly="True"/></DataGrid.Columns>
+          </DataGrid>
+        </DockPanel>
+      </TabItem>
+      <TabItem Header="Настройки"><Grid Margin="18"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions><Grid.ColumnDefinitions><ColumnDefinition Width="190"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center">wincmd.ini:</TextBlock><TextBox Grid.Column="1" Text="{Binding IniPath}" IsReadOnly="True"/><Button Grid.Column="2" Content="Выбрать…" Command="{Binding BrowseIniCommand}"/><TextBlock Grid.Row="1" Margin="0,12,0,0">Каталог Total Commander:</TextBlock><TextBlock Grid.Row="1" Grid.Column="1" Margin="0,12,0,0" Text="{Binding InstallDirectory}" TextWrapping="Wrap"/><TextBlock Grid.Row="2" Margin="0,12,0,0">Каталог загрузок:</TextBlock><TextBlock Grid.Row="2" Grid.Column="1" Margin="0,12,0,0" Text="{Binding DownloadDirectory}" TextWrapping="Wrap"/><TextBlock Grid.Row="3" Margin="0,12,0,0">Режим хранения:</TextBlock><TextBlock Grid.Row="3" Grid.Column="1" Margin="0,12,0,0" Text="{Binding StorageMode}"/><CheckBox Grid.Row="4" Grid.ColumnSpan="3" Margin="0,20,0,0" Content="Автоматически устанавливать обновления" IsEnabled="False" ToolTip="Будет доступно после реализации безопасного установщика и резервного копирования."/></Grid></TabItem>
+      <TabItem Header="Локальная БД"><DockPanel Margin="18"><StackPanel DockPanel.Dock="Top"><TextBlock Text="Пользовательская база имеет приоритет над встроенным каталогом."/><TextBlock Margin="0,10,0,10" Text="{Binding UserCatalogPath}" TextWrapping="Wrap"/><Button Content="Открыть / создать пользовательскую БД" Command="{Binding OpenUserCatalogCommand}" HorizontalAlignment="Left" Margin="0,0,0,10"/></StackPanel><DataGrid ItemsSource="{Binding UserCatalogEntries}" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"><DataGrid.Columns><DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="180"/><DataGridTextColumn Header="Имя" Binding="{Binding Name}" Width="*"/><DataGridTextColumn Header="Тип" Binding="{Binding Type}" Width="80"/></DataGrid.Columns></DataGrid></DockPanel></TabItem>
+      <TabItem Header="О программе"><StackPanel Margin="18"><TextBlock FontSize="22" FontWeight="Bold">Total Updater Next</TextBlock><TextBlock Margin="0,12,0,0">Версия 0.1.0</TextBlock><TextBlock Margin="0,4,0,0">Windows 7 SP1+ · .NET Framework 4.8 · WPF</TextBlock><TextBlock Margin="0,12,0,0">GitHub: https://github.com/sklart/TotalUpdaterNext</TextBlock><TextBlock Margin="0,20,0,0" TextWrapping="Wrap">Новая независимая реализация. Программа скачивает пакеты отдельно и не устанавливает их автоматически.</TextBlock></StackPanel></TabItem>
+    </TabControl>
   </DockPanel>
 </Window>
