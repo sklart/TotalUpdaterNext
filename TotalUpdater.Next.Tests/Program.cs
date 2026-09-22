@@ -61,16 +61,17 @@ namespace TotalUpdater.Next.Tests
             {
                 var catalog = new CatalogService(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".json")); var entries = catalog.Load();
                 var providers = new IUpdateSourceProvider[] { new TotalCmdNetSourceProvider(http), new TotalCmdNetIndexProvider(http), new GhislerSourceProvider(http), new GhislerPluginsSourceProvider(http), new GitHubReleaseSourceProvider(http), new GenericHtmlSourceProvider(http) };
-                var failures = 0; var output = new System.Collections.Concurrent.ConcurrentBag<string>();
+                var failures = 0; var output = new System.Collections.Concurrent.ConcurrentBag<string>(); var service = new UpdateService(catalog, providers); var cache = new SourceResponseCache();
                 using (var gate = new System.Threading.SemaphoreSlim(4))
                 {
                     var tasks = entries.Select(async entry =>
                     {
-                        var source = entry.Sources.OrderByDescending(x => x.Priority).First(); var provider = providers.FirstOrDefault(x => x.CanHandle(source)); SourceQueryResult result = null;
-                        try { await gate.WaitAsync(); try { result = await provider.QueryAsync(source, System.Threading.CancellationToken.None); } finally { gate.Release(); } }
-                        catch (Exception ex) { result = new SourceQueryResult { Status = SourceQueryStatus.Unavailable, Details = ex.Message }; }
-                        if (result.Status != SourceQueryStatus.Success) System.Threading.Interlocked.Increment(ref failures);
-                        output.Add(entry.Id + " | " + result.Status + " | " + (result.Release == null ? "" : result.Release.Version.Raw) + " | " + result.Details);
+                        UpdateCandidate candidate;
+                        try { await gate.WaitAsync(); try { candidate = await service.CheckAsync(new InstalledPlugin { Identity = new PluginIdentity { Id = entry.Id }, LocalVersion = FileVersionProbe.Create("0", VersionSource.FileVersion, VersionConfidence.Exact) }, System.Threading.CancellationToken.None, cache); } finally { gate.Release(); } }
+                        catch (Exception ex) { candidate = new UpdateCandidate { State = UpdateState.Error, Details = ex.Message }; }
+                        if (candidate.Observations.Any(x => x.Status != SourceQueryStatus.Success)) System.Threading.Interlocked.Increment(ref failures);
+                        var observations = String.Join("; ", candidate.Observations.Select(x => x.ProviderName + " | " + x.Authority + " | " + x.Purpose + " | " + x.Status + " | " + (x.Release == null ? "" : x.Release.Version.Raw)));
+                        output.Add(entry.Id + "\n  " + observations + "\n  canonical | " + (candidate.CanonicalVersionSource == null ? "" : candidate.AvailableVersion.Raw + " | " + candidate.CanonicalVersionSource.ProviderName) + "\n  disagreement | " + (candidate.HasSourceDisagreement ? "yes" : "no") + " | conflict | " + (candidate.AuthorityConflict ? "yes" : "no") + "\n  download | " + (candidate.DownloadSource == null ? "none" : candidate.DownloadSource.ProviderName));
                     }).ToArray(); System.Threading.Tasks.Task.WaitAll(tasks);
                 }
                 foreach (var line in output.OrderBy(x => x, StringComparer.OrdinalIgnoreCase)) Console.WriteLine(line);
