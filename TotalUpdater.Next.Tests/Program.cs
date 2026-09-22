@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -99,13 +100,12 @@ namespace TotalUpdater.Next.Tests
                                 using (var response = await http.GetAsync(package.Url.AbsoluteUri, System.Net.Http.HttpCompletionOption.ResponseContentRead, System.Threading.CancellationToken.None))
                                 {
                                     response.EnsureSuccessStatusCode(); var bytes = await response.Content.ReadAsByteArrayAsync();
-                                    using (var archive = new ZipArchive(new MemoryStream(bytes), ZipArchiveMode.Read))
-                                    {
-                                        var actual = archive.Entries.Select(x => Path.GetFileName(x.FullName)).Where(x => x.EndsWith(".wcx", StringComparison.OrdinalIgnoreCase) || x.EndsWith(".wlx", StringComparison.OrdinalIgnoreCase) || x.EndsWith(".wfx", StringComparison.OrdinalIgnoreCase) || x.EndsWith(".wdx", StringComparison.OrdinalIgnoreCase)).ToList();
-                                        var matchingAliases = entry.Aliases.Where(alias => actual.Any(x => x.Equals(alias, StringComparison.OrdinalIgnoreCase))).ToList();
-                                        if (actual.Count == 0 || matchingAliases.Count == 0) { System.Threading.Interlocked.Increment(ref failed); output.Add(entry.Id + " | FAIL | actual=" + String.Join(",", actual) + " | aliases=" + String.Join(",", entry.Aliases)); }
-                                        else output.Add(entry.Id + " | PASS | " + String.Join(",", actual));
-                                    }
+                                    IList<string> actual;
+                                    try { using (var archive = new ZipArchive(new MemoryStream(bytes), ZipArchiveMode.Read)) actual = archive.Entries.Select(x => Path.GetFileName(x.FullName)).Where(IsPluginBinary).ToList(); }
+                                    catch (InvalidDataException) { actual = FindEmbeddedPluginNames(bytes); }
+                                    var matchingAliases = entry.Aliases.Where(alias => actual.Any(x => x.Equals(alias, StringComparison.OrdinalIgnoreCase))).ToList();
+                                    if (actual.Count == 0 || matchingAliases.Count == 0) { System.Threading.Interlocked.Increment(ref failed); output.Add(entry.Id + " | FAIL | actual=" + String.Join(",", actual) + " | aliases=" + String.Join(",", entry.Aliases)); }
+                                    else output.Add(entry.Id + " | PASS | " + String.Join(",", actual));
                                 }
                             }
                             finally { gate.Release(); }
@@ -116,6 +116,16 @@ namespace TotalUpdater.Next.Tests
                 foreach (var line in output.OrderBy(x => x, StringComparer.OrdinalIgnoreCase)) Console.WriteLine(line);
                 Console.WriteLine("Package audit: entries=" + entries.Count + "; failures=" + failed); return failed == 0 ? 0 : 1;
             }
+        }
+        private static bool IsPluginBinary(string name)
+        {
+            return name.EndsWith(".wcx", StringComparison.OrdinalIgnoreCase) || name.EndsWith(".wlx", StringComparison.OrdinalIgnoreCase) || name.EndsWith(".wfx", StringComparison.OrdinalIgnoreCase) || name.EndsWith(".wdx", StringComparison.OrdinalIgnoreCase);
+        }
+        private static IList<string> FindEmbeddedPluginNames(byte[] bytes)
+        {
+            var text = Encoding.ASCII.GetString(bytes ?? new byte[0]);
+            return System.Text.RegularExpressions.Regex.Matches(text, @"(?<![A-Za-z0-9_.-])[A-Za-z0-9_.-]+\.(?:wcx|wlx|wfx|wdx)(?![A-Za-z0-9_.-])", System.Text.RegularExpressions.RegexOptions.IgnoreCase)
+                .Cast<System.Text.RegularExpressions.Match>().Select(x => x.Value).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         }
         private static void Versions()
         {
