@@ -15,7 +15,12 @@ namespace TotalUpdater.Next.Core
         private readonly IList<IUpdateSourceProvider> _providers;
         public UpdateService(CatalogService catalog, IEnumerable<IUpdateSourceProvider> providers) { _catalog = catalog; _providers = providers.ToList(); }
 
-        public async Task<UpdateCandidate> CheckAsync(InstalledPlugin plugin, CancellationToken cancellationToken)
+        public Task<UpdateCandidate> CheckAsync(InstalledPlugin plugin, CancellationToken cancellationToken)
+        {
+            return CheckAsync(plugin, cancellationToken, null);
+        }
+
+        public async Task<UpdateCandidate> CheckAsync(InstalledPlugin plugin, CancellationToken cancellationToken, SourceResponseCache sourceCache)
         {
             var entry = _catalog.FindById(plugin.Identity == null ? null : plugin.Identity.Id);
             if (entry == null) return Candidate(plugin, plugin.HasVersionConflict ? UpdateState.LocalVersionConflict : UpdateState.PluginNotRecognized, null, null, "");
@@ -25,7 +30,13 @@ namespace TotalUpdater.Next.Core
                 var provider = _providers.FirstOrDefault(p => p.CanHandle(source));
                 if (provider == null) { details.Add(source.Provider + ": provider не найден"); continue; }
                 SourceQueryResult result;
-                try { result = await provider.QueryAsync(source, cancellationToken).ConfigureAwait(false); }
+                try
+                {
+                    var cachedProvider = provider as ICachedUpdateSourceProvider;
+                    result = cachedProvider == null || sourceCache == null
+                        ? await provider.QueryAsync(source, cancellationToken).ConfigureAwait(false)
+                        : await cachedProvider.QueryAsync(source, sourceCache, cancellationToken).ConfigureAwait(false);
+                }
                 catch (OperationCanceledException) { throw; }
                 catch (Exception ex) { details.Add(provider.Name + ": " + ex.Message); continue; }
                 if (result == null || result.Status != SourceQueryStatus.Success || result.Release == null || !result.Release.Version.IsKnown)

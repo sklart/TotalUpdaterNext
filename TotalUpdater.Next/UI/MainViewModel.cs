@@ -70,6 +70,7 @@ namespace TotalUpdater.Next.UI
             var target = CheckedOrAll(); if (target.Count == 0) return;
             var previous = _checkCancellation; if (previous != null) previous.Cancel();
             var cancellation = new CancellationTokenSource(); _checkCancellation = cancellation; var generation = ++_checkGeneration;
+            var sourceCache = new Sources.SourceResponseCache();
             foreach (var row in target) row.SetChecking();
             var completed = 0;
             using (var gate = new SemaphoreSlim(4))
@@ -81,7 +82,7 @@ namespace TotalUpdater.Next.UI
                         await gate.WaitAsync(cancellation.Token);
                         try
                         {
-                            var candidate = await _updates.CheckAsync(row.Plugin, cancellation.Token);
+                            var candidate = await _updates.CheckAsync(row.Plugin, cancellation.Token, sourceCache);
                             if (generation == _checkGeneration && !cancellation.IsCancellationRequested) row.Apply(candidate);
                         }
                         finally { gate.Release(); }

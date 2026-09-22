@@ -21,7 +21,7 @@ namespace TotalUpdater.Next.Tests
             {
                 if (args != null && args.Any(x => x.Equals("--live-sources", StringComparison.OrdinalIgnoreCase))) { LiveSources(); return 0; }
                 if (args != null && args.Any(x => x.Equals("--validate-catalog", StringComparison.OrdinalIgnoreCase))) { ValidateCatalog(); return 0; }
-                Versions(); Paths(); DiscoveryRealIniFormats(); ArchitectureAwareDiscovery(); FamilyIdentityAndConflict(); CatalogV2AndProviders(); FileInfoPeVersionStrategy(); StrategyPriorityAndFallback(); ConfigurationDetection(); ConfigurationPrecedenceFinalization(); RedirectSections(); IniEncodingsAndPathExpansion(); CatalogAliases(); ApplicationMetadataAndUserAgent();
+                Versions(); Paths(); DiscoveryRealIniFormats(); ArchitectureAwareDiscovery(); FamilyIdentityAndConflict(); CatalogV2AndProviders(); CatalogScaleAndCache(); FileInfoPeVersionStrategy(); StrategyPriorityAndFallback(); ConfigurationDetection(); ConfigurationPrecedenceFinalization(); RedirectSections(); IniEncodingsAndPathExpansion(); CatalogAliases(); ApplicationMetadataAndUserAgent();
                 Console.WriteLine("PASS " + _count + " tests"); return 0;
             }
             catch (Exception ex) { Console.Error.WriteLine("FAIL: " + ex.Message); return 1; }
@@ -408,6 +408,23 @@ namespace TotalUpdater.Next.Tests
             Assert(catalog.FindByAlias("fileinfo.wlx").Id == "fileinfo", "fileinfo alias"); Assert(catalog.FindByAlias("fileinfo64.wlx").Id == "fileinfo", "fileinfo64 alias");
             Assert(catalog.FindByAlias("fileinfo.uwlx").Id == "fileinfo" && catalog.FindByAlias("fileinfo.wlx64").Id == "fileinfo", "catalog recognizes Unicode and x64 companion aliases");
         }
+        private static void CatalogScaleAndCache()
+        {
+            var root = NewRoot();
+            try
+            {
+                var catalog = new CatalogService(Path.Combine(root, "user.json")); var loaded = catalog.LoadWithDiagnostics();
+                Assert(loaded.Diagnostics.Count(x => x.Severity == CatalogDiagnosticSeverity.Error) == 0, "embedded catalog has no validation errors");
+                Assert(loaded.Entries.Count >= 50, "catalog has at least 50 entries");
+                Assert(loaded.Entries.Count(x => x.PluginType == PluginType.Wcx) >= 15 && loaded.Entries.Count(x => x.PluginType == PluginType.Wlx) >= 15 && loaded.Entries.Count(x => x.PluginType == PluginType.Wfx) >= 10 && loaded.Entries.Count(x => x.PluginType == PluginType.Wdx) >= 10, "catalog type distribution");
+                var cache = new SourceResponseCache(); var provider = new CachedTestProvider(); var service = new UpdateService(catalog, new IUpdateSourceProvider[] { provider });
+                var first = new InstalledPlugin { Identity = new PluginIdentity { Id = "glimpse-wlx" }, LocalVersion = FileVersionProbe.Create("0.1", VersionSource.FileVersion, VersionConfidence.Exact) };
+                var second = new InstalledPlugin { Identity = new PluginIdentity { Id = "glimpse-wcx" }, LocalVersion = FileVersionProbe.Create("0.1", VersionSource.FileVersion, VersionConfidence.Exact) };
+                System.Threading.Tasks.Task.WaitAll(service.CheckAsync(first, System.Threading.CancellationToken.None, cache), service.CheckAsync(second, System.Threading.CancellationToken.None, cache));
+                Assert(provider.Fetches == 1 && provider.Filters == 2, "same GitHub source reuses raw response and filters each entry");
+            }
+            finally { Directory.Delete(root, true); }
+        }
         private static void ApplicationMetadataAndUserAgent()
         {
             Assert(ApplicationMetadata.Version == typeof(ApplicationMetadata).Assembly.GetName().Version.ToString(3), "application metadata version");
@@ -454,6 +471,18 @@ namespace TotalUpdater.Next.Tests
             public System.Threading.Tasks.Task<SourceQueryResult> QueryAsync(CatalogSource source, System.Threading.CancellationToken cancellationToken)
             {
                 _calls++; return System.Threading.Tasks.Task.FromResult(_results.Count == 0 ? new SourceQueryResult { Status = SourceQueryStatus.Unavailable, Details = "no scripted result" } : _results.Dequeue());
+            }
+        }
+        private sealed class CachedTestProvider : ICachedUpdateSourceProvider
+        {
+            public int Fetches; public int Filters;
+            public string Name { get { return "cached-test"; } }
+            public bool CanHandle(CatalogSource source) { return source != null && source.Provider == "github"; }
+            public System.Threading.Tasks.Task<SourceQueryResult> QueryAsync(CatalogSource source, System.Threading.CancellationToken cancellationToken) { return QueryAsync(source, null, cancellationToken); }
+            public async System.Threading.Tasks.Task<SourceQueryResult> QueryAsync(CatalogSource source, SourceResponseCache cache, System.Threading.CancellationToken cancellationToken)
+            {
+                var raw = cache == null ? "raw" : await cache.GetOrAdd("github:" + source.Repository, () => { Fetches++; return System.Threading.Tasks.Task.FromResult("raw"); });
+                Filters++; return new SourceQueryResult { Status = SourceQueryStatus.Success, Release = new RemoteRelease { VersionText = "1.0", Version = VersionValue.Parse("1.0"), SourceUrl = new Uri("https://example.test/" + raw) } };
             }
         }
         private sealed class FakeRegistry : IRegistryConfigurationReader

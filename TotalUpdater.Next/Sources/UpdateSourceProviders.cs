@@ -45,7 +45,7 @@ namespace TotalUpdater.Next.Sources
         Task<SourceQueryResult> QueryAsync(CatalogSource source, CancellationToken cancellationToken);
     }
 
-    public class GenericHtmlSourceProvider : IUpdateSourceProvider
+    public class GenericHtmlSourceProvider : ICachedUpdateSourceProvider
     {
         protected readonly HttpService Http;
         public GenericHtmlSourceProvider(HttpService http) { Http = http; }
@@ -53,9 +53,13 @@ namespace TotalUpdater.Next.Sources
         public virtual bool CanHandle(CatalogSource source) { return source != null && source.Provider.Equals("generic-html", StringComparison.OrdinalIgnoreCase); }
         public virtual async Task<SourceQueryResult> QueryAsync(CatalogSource source, CancellationToken cancellationToken)
         {
+            return await QueryAsync(source, null, cancellationToken).ConfigureAwait(false);
+        }
+        public virtual async Task<SourceQueryResult> QueryAsync(CatalogSource source, SourceResponseCache cache, CancellationToken cancellationToken)
+        {
             try
             {
-                var html = await Http.GetStringAsync(source.Url, cancellationToken).ConfigureAwait(false);
+                var html = cache == null ? await Http.GetStringAsync(source.Url, cancellationToken).ConfigureAwait(false) : await cache.GetOrAdd("generic-html:" + source.Url, () => Http.GetStringAsync(source.Url, cancellationToken)).ConfigureAwait(false);
                 var match = Regex.Match(html, source.VersionPattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
                 if (!match.Success || match.Groups.Count < 2) return Result(SourceQueryStatus.NotFound, null, "Версия не найдена на странице.");
                 var version = VersionValue.Parse(match.Groups[1].Value);
@@ -108,7 +112,11 @@ namespace TotalUpdater.Next.Sources
         public override bool CanHandle(CatalogSource source) { return source != null && source.Provider.Equals("totalcmd.net", StringComparison.OrdinalIgnoreCase); }
         public override async Task<SourceQueryResult> QueryAsync(CatalogSource source, CancellationToken cancellationToken)
         {
-            try { return Parse(source.Id, await Http.GetStringAsync(CanonicalUrl(source.Id), cancellationToken).ConfigureAwait(false)); }
+            return await QueryAsync(source, null, cancellationToken).ConfigureAwait(false);
+        }
+        public override async Task<SourceQueryResult> QueryAsync(CatalogSource source, SourceResponseCache cache, CancellationToken cancellationToken)
+        {
+            try { var url = CanonicalUrl(source.Id); return Parse(source.Id, cache == null ? await Http.GetStringAsync(url, cancellationToken).ConfigureAwait(false) : await cache.GetOrAdd("totalcmd.net:" + source.Id, () => Http.GetStringAsync(url, cancellationToken)).ConfigureAwait(false)); }
             catch (OperationCanceledException) { throw; }
             catch (Exception ex) { return Result(SourceQueryStatus.Unavailable, null, ex.Message); }
         }
@@ -133,8 +141,12 @@ namespace TotalUpdater.Next.Sources
         public override bool CanHandle(CatalogSource source) { return source != null && source.Provider.Equals("ghisler", StringComparison.OrdinalIgnoreCase); }
         public override async Task<SourceQueryResult> QueryAsync(CatalogSource source, CancellationToken cancellationToken)
         {
+            return await QueryAsync(source, null, cancellationToken).ConfigureAwait(false);
+        }
+        public override async Task<SourceQueryResult> QueryAsync(CatalogSource source, SourceResponseCache cache, CancellationToken cancellationToken)
+        {
             const string url = "https://www.ghisler.com/download.htm";
-            try { return Parse(await Http.GetStringAsync(url, cancellationToken).ConfigureAwait(false)); }
+            try { return Parse(cache == null ? await Http.GetStringAsync(url, cancellationToken).ConfigureAwait(false) : await cache.GetOrAdd("ghisler", () => Http.GetStringAsync(url, cancellationToken)).ConfigureAwait(false)); }
             catch (OperationCanceledException) { throw; }
             catch (Exception ex) { return Result(SourceQueryStatus.Unavailable, null, ex.Message); }
         }
@@ -147,7 +159,7 @@ namespace TotalUpdater.Next.Sources
         }
     }
 
-    public sealed class GitHubReleaseSourceProvider : IUpdateSourceProvider
+    public sealed class GitHubReleaseSourceProvider : ICachedUpdateSourceProvider
     {
         private readonly HttpService _http;
         public GitHubReleaseSourceProvider(HttpService http) { _http = http; }
@@ -155,9 +167,14 @@ namespace TotalUpdater.Next.Sources
         public bool CanHandle(CatalogSource source) { return source != null && source.Provider.Equals("github", StringComparison.OrdinalIgnoreCase); }
         public async Task<SourceQueryResult> QueryAsync(CatalogSource source, CancellationToken cancellationToken)
         {
+            return await QueryAsync(source, null, cancellationToken).ConfigureAwait(false);
+        }
+        public async Task<SourceQueryResult> QueryAsync(CatalogSource source, SourceResponseCache cache, CancellationToken cancellationToken)
+        {
             try
             {
-                var json = await _http.GetStringAsync("https://api.github.com/repos/" + source.Repository + "/releases", cancellationToken).ConfigureAwait(false);
+                var url = "https://api.github.com/repos/" + source.Repository + "/releases";
+                var json = cache == null ? await _http.GetStringAsync(url, cancellationToken).ConfigureAwait(false) : await cache.GetOrAdd("github:" + source.Repository, () => _http.GetStringAsync(url, cancellationToken)).ConfigureAwait(false);
                 return Parse(json, source);
             }
             catch (OperationCanceledException) { throw; }
