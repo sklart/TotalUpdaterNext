@@ -31,12 +31,19 @@ namespace TotalUpdater.Next.Core.Versions
             if (String.IsNullOrWhiteSpace(raw)) return Unknown;
             var match = Pattern.Match(raw.Trim());
             if (!match.Success) return Unknown;
-            var numbers = match.Groups["numbers"].Value.Replace(',', '.').Split('.').Select(x => Int32.Parse(x.Trim(), CultureInfo.InvariantCulture)).ToList();
+            var numbers = new List<int>();
+            foreach (var part in match.Groups["numbers"].Value.Replace(',', '.').Split('.'))
+            {
+                int number;
+                if (!Int32.TryParse(part.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out number)) return Unknown;
+                numbers.Add(number);
+            }
             var stageText = match.Groups["stage"].Value;
             var stage = stageText.Equals("rc", StringComparison.OrdinalIgnoreCase) ? VersionStage.Rc :
                 String.IsNullOrWhiteSpace(stageText) ? VersionStage.Final : VersionStage.Beta;
             var stageNumberText = match.Groups["stageNumber"].Value;
-            var stageNumber = String.IsNullOrEmpty(stageNumberText) ? 0 : Int32.Parse(stageNumberText, CultureInfo.InvariantCulture);
+            int stageNumber = 0;
+            if (!String.IsNullOrEmpty(stageNumberText) && !Int32.TryParse(stageNumberText, NumberStyles.None, CultureInfo.InvariantCulture, out stageNumber)) return Unknown;
             return new VersionValue(match.Value.Trim(), numbers, stage, stageText.ToLowerInvariant(), stageNumber, true);
         }
 

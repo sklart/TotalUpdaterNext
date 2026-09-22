@@ -160,7 +160,7 @@ namespace TotalUpdater.Next.Sources
         public static SourceQueryResult Parse(string id, string text)
         {
             var matches = (text ?? "").TrimStart('\uFEFF').Split('\n').Select(x => x.TrimEnd('\r').Split('|').Select(y => y.Trim()).ToArray())
-                .Where(x => x.Length >= 7 && !String.IsNullOrWhiteSpace(x[0]) && !String.IsNullOrWhiteSpace(x[2]) && x[0].Equals(id ?? "", StringComparison.OrdinalIgnoreCase)).ToList();
+                .Where(x => x.Length >= 7 && !String.IsNullOrWhiteSpace(x[0]) && VersionValue.Parse(x[2]).IsKnown && x[0].Equals(id ?? "", StringComparison.OrdinalIgnoreCase)).ToList();
             if (matches.Count == 0) return Result(SourceQueryStatus.NotFound, null, "Запись не найдена в индексе.");
             if (matches.Count > 1) return Result(SourceQueryStatus.InvalidResponse, null, "Повторяющийся ID в индексе: " + id);
             var fields = matches[0];

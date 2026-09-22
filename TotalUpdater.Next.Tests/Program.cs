@@ -635,6 +635,8 @@ namespace TotalUpdater.Next.Tests
                 var duplicate = "fileinfo|FileInfo|2.23|d|lister|x32||\nfileinfo|FileInfo|2.24|d|lister|x32||\n";
                 Assert(TotalCmdNetIndexProvider.Parse("fileinfo", duplicate).Status == SourceQueryStatus.InvalidResponse, "duplicate index ID has diagnostic");
                 Assert(TotalCmdNetIndexProvider.Parse("fileinfo", "broken|1.0\nfileinfo|FileInfo|2.23|d|lister|x32||\n").Release.Version.Raw == "2.23", "malformed index rows ignored");
+                Assert(TotalCmdNetIndexProvider.Parse("fileinfo", "fileinfo|FileInfo|not-a-version|d|lister|x32||\nfileinfo|FileInfo|2.23|d|lister|x32||\n").Release.Version.Raw == "2.23", "matching malformed index row does not mask a valid row");
+                Assert(!VersionValue.Parse("999999999999999999999.1").IsKnown, "overflowed version is unknown rather than an exception");
                 var legacyBytes = Encoding.GetEncoding(1251).GetBytes("russian|Русский|1.0|d|lister|x32||\n");
                 Assert(HttpService.DecodeTotalCmdIndex(legacyBytes).Contains("Русский"), "index Windows-1251 decoding");
                 var utf8Bom = Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes("fileinfo|FileInfo|2.23|d|lister|x32||\n")).ToArray();
