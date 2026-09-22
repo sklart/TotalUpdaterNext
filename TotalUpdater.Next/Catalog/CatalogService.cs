@@ -156,7 +156,13 @@ namespace TotalUpdater.Next.Catalog
             using (var stream = assembly.GetManifestResourceStream(EmbeddedResourceName))
             {
                 if (stream == null) throw new InvalidOperationException("Встроенный каталог не найден.");
-                return Read(stream);
+                var entries = Read(stream);
+                foreach (var source in entries.SelectMany(x => x.Sources))
+                {
+                    if (String.IsNullOrWhiteSpace(source.Authority)) source.Authority = source.Provider.Equals("ghisler", StringComparison.OrdinalIgnoreCase) ? "OfficialTotalCommander" : "CommunityCatalog";
+                    if (String.IsNullOrWhiteSpace(source.Purpose)) source.Purpose = "MetadataAndDownload";
+                }
+                return entries;
             }
         }
 
