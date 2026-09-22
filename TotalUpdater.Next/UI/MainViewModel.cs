@@ -79,7 +79,11 @@ namespace TotalUpdater.Next.UI
             {
                 if (generation == _checkGeneration && !cancellation.IsCancellationRequested) StatusText = "Проверено " + completed + " из " + total;
             })), cancellation.Token);
-            if (generation == _checkGeneration && !cancellation.IsCancellationRequested) { ItemsView.Refresh(); StatusText = String.Format(Text.Get("CheckedCount"), target.Count) + " · Обновлений: " + target.Count(x => x.HasUpdate) + " · Ошибок источников: " + target.Count(x => x.HasError); }
+            if (generation == _checkGeneration && !cancellation.IsCancellationRequested)
+            {
+                ItemsView.Refresh();
+                StatusText = String.Format(Text.Get("CheckedCount"), target.Count) + " · Обновлений: " + target.Count(x => x.HasUpdate) + " · Ошибок источников: " + target.Count(x => x.HasError) + " · Не распознано: " + target.Count(x => x.Candidate != null && x.Candidate.State == UpdateState.PluginNotRecognized);
+            }
         }
 
         private async Task DownloadAsync()
