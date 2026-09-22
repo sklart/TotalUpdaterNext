@@ -18,7 +18,7 @@ namespace TotalUpdater.Next.Tests
         {
             try
             {
-                Versions(); Paths(); DiscoveryRealIniFormats(); FileInfoPeVersionStrategy(); StrategyPriorityAndFallback(); ConfigurationDetection(); ConfigurationPrecedenceFinalization(); RedirectSections(); IniEncodingsAndPathExpansion(); CatalogAliases(); ApplicationMetadataAndUserAgent();
+                Versions(); Paths(); DiscoveryRealIniFormats(); ArchitectureAwareDiscovery(); FileInfoPeVersionStrategy(); StrategyPriorityAndFallback(); ConfigurationDetection(); ConfigurationPrecedenceFinalization(); RedirectSections(); IniEncodingsAndPathExpansion(); CatalogAliases(); ApplicationMetadataAndUserAgent();
                 Console.WriteLine("PASS " + _count + " tests"); return 0;
             }
             catch (Exception ex) { Console.Error.WriteLine("FAIL: " + ex.Message); return 1; }
@@ -71,6 +71,56 @@ namespace TotalUpdater.Next.Tests
                 Assert(found.Count(x => x.Type == PluginType.Wcx) == 1 && found.Count(x => x.Type == PluginType.Wlx) == 1 && found.Count(x => x.Type == PluginType.Wfx) == 1 && found.Count(x => x.Type == PluginType.Wdx) == 1, "real WCX/WLX/WFX/WDX sections");
                 Assert(found.Single(x => x.Type == PluginType.Wcx).Identity.Id == "total7zip", "WCX flags,path format");
                 Assert(found.Single(x => x.Type == PluginType.Wfx).DisplayName == "CloudDrive", "WFX plugin name key");
+            }
+            finally { Directory.Delete(root, true); }
+        }
+        private static void ArchitectureAwareDiscovery()
+        {
+            var root = NewRoot();
+            try
+            {
+                var plugins = Path.Combine(root, "Programs64", "plugins"); Directory.CreateDirectory(plugins);
+                foreach (var file in new[] { "fileinfo.wlx", "fileinfo.uwlx", "fileinfo.wlx64", "x64only.wlx64", "physical64.wlx64", "reverse.wlx", "shared.wcx", "shared.wcx64", "cloud.wfx", "cloud.wfx64", "content.wdx", "content.wdx64", "plain.wlx", "conflict.wlx", "conflict.wlx64", "TOTALCMD.EXE", "TOTALCMD64.EXE" })
+                    File.WriteAllBytes(Path.Combine(plugins, file), new byte[0]);
+                var ini = WriteIni(root, "wincmd.ini",
+                    "[Configuration]\r\nInstallDir=" + plugins + "\r\n" +
+                    "[PackerPlugins]\r\n7z=735,shared.wcx\r\nzip=735,shared.wcx\r\n" +
+                    "[PackerPlugins64]\r\n7z=1\r\nzip=1\r\n" +
+                    "[ListerPlugins]\r\n0=fileinfo.wlx\r\n1=x64only.wlx\r\n2=physical64.wlx\r\n3=reverse.wlx64\r\n4=plain.wlx\r\n5=conflict.wlx\r\n6=missing.wlx\r\n" +
+                    "[ListerPlugins64]\r\n0=1\r\n1=1\r\n6=1\r\n" +
+                    "[FileSystemPlugins]\r\nCloud=cloud.wfx\r\n" +
+                    "[FileSystemPlugins64]\r\nCloud=1\r\n" +
+                    "[ContentPlugins]\r\n0=content.wdx\r\n" +
+                    "[ContentPlugins64]\r\n0=1\r\n");
+                var resolver = new TotalCommanderConfigurationResolver(); var configuration = resolver.Resolve(ini);
+                var versions = new PathProbe(new System.Collections.Generic.Dictionary<string, LocalVersion>(StringComparer.OrdinalIgnoreCase)
+                {
+                    [Path.Combine(plugins, "conflict.wlx")] = FileVersionProbe.Create("1.0", VersionSource.FileVersion, VersionConfidence.Exact),
+                    [Path.Combine(plugins, "conflict.wlx64")] = FileVersionProbe.Create("2.0", VersionSource.FileVersion, VersionConfidence.Exact),
+                    [Path.Combine(plugins, "fileinfo.wlx")] = FileVersionProbe.Create("2.23", VersionSource.FileVersion, VersionConfidence.Exact),
+                    [Path.Combine(plugins, "fileinfo.wlx64")] = FileVersionProbe.Create("2.23", VersionSource.FileVersion, VersionConfidence.Exact)
+                });
+                var found = new PluginDiscoveryService(resolver, new LocalVersionResolver(new IPluginSpecificVersionStrategy[0], new IVersionProbe[] { versions }), new CatalogService(Path.Combine(root, "user.json"))).Discover(configuration);
+                var fileInfo = found.Single(x => x.Identity.Id == "fileinfo");
+                Assert(fileInfo.Binaries.Count == 3 && fileInfo.RelatedFiles.Count == 3 && fileInfo.Architecture == (PluginArchitecture.X86 | PluginArchitecture.X64), "ANSI Unicode and x64 companions merge into one family");
+                Assert(!fileInfo.HasVersionConflict && fileInfo.LocalVersion.RawValue == "2.23", "same binary versions form family version");
+                var x64only = found.Single(x => x.PrimaryPath.EndsWith("x64only.wlx64", StringComparison.OrdinalIgnoreCase));
+                Assert(x64only.FileExists && x64only.Architecture == PluginArchitecture.X64, "x64-only plugin discovered from normal section and marker");
+                Assert(found.Single(x => x.PrimaryPath.EndsWith("physical64.wlx64", StringComparison.OrdinalIgnoreCase)).Architecture == PluginArchitecture.X64, "physical x64 companion found without marker");
+                Assert(found.Single(x => x.PrimaryPath.EndsWith("reverse.wlx", StringComparison.OrdinalIgnoreCase)).Architecture == PluginArchitecture.X86, "configured wlx64 finds physical wlx companion");
+                Assert(found.Single(x => x.PrimaryPath.EndsWith("plain.wlx", StringComparison.OrdinalIgnoreCase)).Architecture == PluginArchitecture.X86, "directory name containing 64 does not change binary architecture");
+                var packer = found.Single(x => x.Type == PluginType.Wcx);
+                Assert(packer.ConfigurationKeys.Count == 2 && packer.Binaries.Count == 3 && packer.Architecture == (PluginArchitecture.X86 | PluginArchitecture.X64), "one WCX assigned to many extensions stays one family");
+                Assert(found.Single(x => x.Type == PluginType.Wfx).Architecture == (PluginArchitecture.X86 | PluginArchitecture.X64) && found.Single(x => x.Type == PluginType.Wdx).Architecture == (PluginArchitecture.X86 | PluginArchitecture.X64), "WFX and WDX x86+x64 companions merge");
+                Assert(found.Single(x => x.PrimaryPath.EndsWith("conflict.wlx", StringComparison.OrdinalIgnoreCase)).HasVersionConflict, "different x86 and x64 versions are not silently selected");
+                var commander = found.Single(x => x.Type == PluginType.TotalCommander);
+                Assert(commander.Binaries.Count == 2 && commander.Architecture == (PluginArchitecture.X86 | PluginArchitecture.X64), "TOTALCMD.EXE and TOTALCMD64.EXE merge");
+                Assert(configuration.Warnings.Any(x => x.IndexOf("missing", StringComparison.OrdinalIgnoreCase) >= 0), "missing marked x64 companion is diagnostic only");
+
+                var redirected = WriteIni(root, "plugins64.ini", "[ListerPlugins64]\r\n0=1");
+                var redirectMain = WriteIni(root, "redirect-main.ini", "[Configuration]\r\nInstallDir=" + plugins + "\r\n[ListerPlugins]\r\n0=x64only.wlx\r\n[ListerPlugins64]\r\nRedirectSection=plugins64.ini");
+                var redirectFound = new PluginDiscoveryService(resolver, new LocalVersionResolver(), new CatalogService(Path.Combine(root, "second-user.json"))).Discover(resolver.Resolve(redirectMain));
+                Assert(redirectFound.Single(x => x.Type == PluginType.Wlx).Architecture == PluginArchitecture.X64, "Plugins64 marker follows RedirectSection");
             }
             finally { Directory.Delete(root, true); }
         }
@@ -218,6 +268,7 @@ namespace TotalUpdater.Next.Tests
         {
             var catalog = new CatalogService(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".json"));
             Assert(catalog.FindByAlias("fileinfo.wlx").Id == "fileinfo", "fileinfo alias"); Assert(catalog.FindByAlias("fileinfo64.wlx").Id == "fileinfo", "fileinfo64 alias");
+            Assert(catalog.FindByAlias("fileinfo.uwlx").Id == "fileinfo" && catalog.FindByAlias("fileinfo.wlx64").Id == "fileinfo", "catalog recognizes Unicode and x64 companion aliases");
         }
         private static void ApplicationMetadataAndUserAgent()
         {
@@ -237,6 +288,12 @@ namespace TotalUpdater.Next.Tests
             private readonly LocalVersion _version;
             public FixedProbe(LocalVersion version) { _version = version; }
             public LocalVersion Probe(string filePath) { return _version; }
+        }
+        private sealed class PathProbe : IVersionProbe
+        {
+            private readonly System.Collections.Generic.IDictionary<string, LocalVersion> _versions;
+            public PathProbe(System.Collections.Generic.IDictionary<string, LocalVersion> versions) { _versions = versions; }
+            public LocalVersion Probe(string filePath) { LocalVersion value; return _versions.TryGetValue(filePath, out value) ? value : LocalVersion.Unknown; }
         }
         private sealed class FakeRegistry : IRegistryConfigurationReader
         {

@@ -99,7 +99,7 @@ namespace TotalUpdater.Next.UI
         private void OpenUserCatalog() { _catalog.EnsureUserCatalog(); UserCatalogEntries.Clear(); foreach (var entry in _catalog.LoadUserCatalog()) UserCatalogEntries.Add(entry); Process.Start(new ProcessStartInfo("notepad.exe", "\"" + _paths.UserCatalogPath + "\"") { UseShellExecute = true }); }
         private static void OpenSite(PluginRowViewModel row) { Process.Start(new ProcessStartInfo(row.Candidate.SourceUrl.AbsoluteUri) { UseShellExecute = true }); }
         private static void OpenPath(PluginRowViewModel row) { Process.Start(new ProcessStartInfo("explorer.exe", "/select,\"" + row.Path + "\"") { UseShellExecute = true }); }
-        private static void ShowInfo(PluginRowViewModel row) { System.Windows.MessageBox.Show(System.Windows.Application.Current.MainWindow, row.Path + Environment.NewLine + row.InstalledVersion + Environment.NewLine + row.Status, row.Name, System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information); }
+        private static void ShowInfo(PluginRowViewModel row) { System.Windows.MessageBox.Show(System.Windows.Application.Current.MainWindow, row.Information + Environment.NewLine + row.Status, row.Name, System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information); }
         public void Dispose() { }
         public event PropertyChangedEventHandler PropertyChanged;
         private void Changed(string propertyName) { var handler = PropertyChanged; if (handler != null) handler(this, new PropertyChangedEventArgs(propertyName)); }

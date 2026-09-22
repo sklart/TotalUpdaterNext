@@ -5,7 +5,9 @@ using TotalUpdater.Next.Core.Versions;
 namespace TotalUpdater.Next.Core
 {
     public enum PluginType { TotalCommander, Wcx, Wlx, Wfx, Wdx, Other }
-    public enum PluginArchitecture { Unknown, X86, X64, AnyCpu }
+    [Flags]
+    public enum PluginArchitecture { Unknown = 0, X86 = 1, X64 = 2, AnyCpu = 4 }
+    public enum PluginBinaryVariant { Ansi, Unicode, Native64, Other }
     public enum VersionSource { FileVersion, ProductVersion, TextFile, CustomRule, Unknown }
     public enum VersionConfidence { Exact, Probable, Heuristic, Unknown }
     public enum UpdateState { Unknown, NotChecked, Checking, UpToDate, UpdateAvailable, DevelopmentVersion, VersionComparisonUnknown, SourceUnavailable, PluginNotRecognized, Error }
@@ -32,10 +34,23 @@ namespace TotalUpdater.Next.Core
         public PluginType Type { get; set; }
         public string DisplayName { get; set; } = "";
         public string PrimaryPath { get; set; } = "";
+        public List<PluginBinary> Binaries { get; set; } = new List<PluginBinary>();
         public List<string> RelatedFiles { get; set; } = new List<string>();
+        public List<string> ConfigurationKeys { get; set; } = new List<string>();
         public LocalVersion LocalVersion { get; set; } = LocalVersion.Unknown;
         public PluginArchitecture Architecture { get; set; }
+        public PluginArchitecture Architectures { get { return Architecture; } set { Architecture = value; } }
         public bool FileExists { get; set; }
+        public bool HasVersionConflict { get; set; }
+    }
+
+    public sealed class PluginBinary
+    {
+        public string Path { get; set; } = "";
+        public PluginArchitecture Architecture { get; set; }
+        public PluginBinaryVariant Variant { get; set; }
+        public bool Exists { get; set; }
+        public LocalVersion LocalVersion { get; set; } = LocalVersion.Unknown;
     }
 
     public sealed class UpdateCandidate

@@ -20,7 +20,7 @@ dotnet run --project .\TotalUpdater.Next.Tests\TotalUpdater.Next.Tests.csproj
 
 ## Single EXE
 
-Release-архив [`../release/TotalUpdater-0.3.3-win7plus.zip`](../release/TotalUpdater-0.3.3-win7plus.zip) содержит только `TotalUpdater.exe`. Стандартный каталог находится внутри EXE как embedded resource; внешний JSON не требуется на первом запуске.
+Release-архив [`../release/TotalUpdater-0.4.0-win7plus.zip`](../release/TotalUpdater-0.4.0-win7plus.zip) содержит только `TotalUpdater.exe`. Стандартный каталог находится внутри EXE как embedded resource; внешний JSON не требуется на первом запуске.
 
 Пользовательская БД создаётся только по явной команде: рядом с EXE в portable-режиме либо в `%APPDATA%\TotalUpdaterNext` при read-only установке.
 

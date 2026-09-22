@@ -27,7 +27,17 @@ namespace TotalUpdater.Next.Catalog
 
         public PluginCatalogEntry FindByAlias(string fileName)
         {
-            return Load().FirstOrDefault(x => x.Aliases.Any(alias => alias.Equals(fileName, StringComparison.OrdinalIgnoreCase)));
+            var entry = Load().FirstOrDefault(x => x.Aliases.Any(alias => alias.Equals(fileName, StringComparison.OrdinalIgnoreCase)));
+            return entry ?? Load().FirstOrDefault(x => x.Aliases.Any(alias => alias.Equals(NormalizeCompanionAlias(fileName), StringComparison.OrdinalIgnoreCase)));
+        }
+
+        private static string NormalizeCompanionAlias(string fileName)
+        {
+            var extension = Path.GetExtension(fileName);
+            if (extension.Length < 4 || (!extension.StartsWith(".w", StringComparison.OrdinalIgnoreCase) && !extension.StartsWith(".uw", StringComparison.OrdinalIgnoreCase))) return fileName;
+            if (extension.StartsWith(".uw", StringComparison.OrdinalIgnoreCase)) return Path.GetFileNameWithoutExtension(fileName) + ".w" + extension.Substring(3);
+            if (extension.EndsWith("64", StringComparison.OrdinalIgnoreCase)) return Path.GetFileNameWithoutExtension(fileName) + extension.Substring(0, extension.Length - 2);
+            return fileName;
         }
 
         public void EnsureUserCatalog()
