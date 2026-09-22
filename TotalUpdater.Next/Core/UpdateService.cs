@@ -18,20 +18,21 @@ namespace TotalUpdater.Next.Core
         public async Task<UpdateCandidate> CheckAsync(InstalledPlugin plugin, CancellationToken cancellationToken)
         {
             var entry = _catalog.FindByAlias(System.IO.Path.GetFileName(plugin.PrimaryPath));
-            if (entry == null) return Candidate(plugin, UpdateState.PluginNotRecognized, null, null, "");
+            if (entry == null) return Candidate(plugin, plugin.HasVersionConflict ? UpdateState.LocalVersionConflict : UpdateState.PluginNotRecognized, null, null, "");
             var provider = _providers.FirstOrDefault(p => p.CanHandle(entry.Source));
-            if (provider == null) return Candidate(plugin, UpdateState.SourceUnavailable, null, null, "");
+            if (provider == null) return Candidate(plugin, plugin.HasVersionConflict ? UpdateState.LocalVersionConflict : UpdateState.SourceUnavailable, null, null, "");
             try
             {
                 var release = await provider.GetLatestReleaseAsync(entry.Source, cancellationToken).ConfigureAwait(false);
-                if (release == null || !release.Version.IsKnown) return Candidate(plugin, UpdateState.SourceUnavailable, null, null, "");
+                if (release == null || !release.Version.IsKnown) return Candidate(plugin, plugin.HasVersionConflict ? UpdateState.LocalVersionConflict : UpdateState.SourceUnavailable, null, null, "");
+                if (plugin.HasVersionConflict) return Candidate(plugin, UpdateState.LocalVersionConflict, release, provider.Name, "");
                 var comparison = plugin.LocalVersion.ParsedValue.CompareTo(release.Version);
                 var state = comparison == VersionComparison.Less ? UpdateState.UpdateAvailable : comparison == VersionComparison.Greater ? UpdateState.DevelopmentVersion :
                     comparison == VersionComparison.Equal ? UpdateState.UpToDate : UpdateState.VersionComparisonUnknown;
                 return Candidate(plugin, state, release, provider.Name, "");
             }
             catch (OperationCanceledException) { throw; }
-            catch (Exception ex) { return Candidate(plugin, UpdateState.SourceUnavailable, null, provider.Name, ex.Message); }
+            catch (Exception ex) { return Candidate(plugin, plugin.HasVersionConflict ? UpdateState.LocalVersionConflict : UpdateState.SourceUnavailable, null, provider.Name, ex.Message); }
         }
 
         private static UpdateCandidate Candidate(InstalledPlugin plugin, UpdateState state, RemoteRelease release, string source, string details)

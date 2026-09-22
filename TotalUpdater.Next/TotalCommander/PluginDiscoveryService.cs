@@ -48,7 +48,7 @@ namespace TotalUpdater.Next.TotalCommander
                     var identity = entry == null
                         ? new PluginIdentity { Id = "family:" + pair.Value + "|" + familyPath.ToLowerInvariant(), Name = fallbackName, Type = pair.Value }
                         : new PluginIdentity { Id = entry.Id, Name = entry.Name, Type = entry.PluginType };
-                    var familyKey = entry == null ? identity.Id : "catalog:" + identity.Id;
+                    var familyKey = identity.Id + "|" + pair.Value + "|" + familyPath;
                     PluginFamily family;
                     if (!families.TryGetValue(familyKey, out family))
                     {

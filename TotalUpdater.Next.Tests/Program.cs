@@ -8,6 +8,7 @@ using TotalUpdater.Next.Core.Versions;
 using TotalUpdater.Next.Infrastructure;
 using TotalUpdater.Next.Sources;
 using TotalUpdater.Next.TotalCommander;
+using TotalUpdater.Next.UI;
 
 namespace TotalUpdater.Next.Tests
 {
@@ -18,7 +19,7 @@ namespace TotalUpdater.Next.Tests
         {
             try
             {
-                Versions(); Paths(); DiscoveryRealIniFormats(); ArchitectureAwareDiscovery(); FileInfoPeVersionStrategy(); StrategyPriorityAndFallback(); ConfigurationDetection(); ConfigurationPrecedenceFinalization(); RedirectSections(); IniEncodingsAndPathExpansion(); CatalogAliases(); ApplicationMetadataAndUserAgent();
+                Versions(); Paths(); DiscoveryRealIniFormats(); ArchitectureAwareDiscovery(); FamilyIdentityAndConflict(); FileInfoPeVersionStrategy(); StrategyPriorityAndFallback(); ConfigurationDetection(); ConfigurationPrecedenceFinalization(); RedirectSections(); IniEncodingsAndPathExpansion(); CatalogAliases(); ApplicationMetadataAndUserAgent();
                 Console.WriteLine("PASS " + _count + " tests"); return 0;
             }
             catch (Exception ex) { Console.Error.WriteLine("FAIL: " + ex.Message); return 1; }
@@ -121,6 +122,49 @@ namespace TotalUpdater.Next.Tests
                 var redirectMain = WriteIni(root, "redirect-main.ini", "[Configuration]\r\nInstallDir=" + plugins + "\r\n[ListerPlugins]\r\n0=x64only.wlx\r\n[ListerPlugins64]\r\nRedirectSection=plugins64.ini");
                 var redirectFound = new PluginDiscoveryService(resolver, new LocalVersionResolver(), new CatalogService(Path.Combine(root, "second-user.json"))).Discover(resolver.Resolve(redirectMain));
                 Assert(redirectFound.Single(x => x.Type == PluginType.Wlx).Architecture == PluginArchitecture.X64, "Plugins64 marker follows RedirectSection");
+            }
+            finally { Directory.Delete(root, true); }
+        }
+        private static void FamilyIdentityAndConflict()
+        {
+            var root = NewRoot();
+            try
+            {
+                var first = Path.Combine(root, "first"); var second = Path.Combine(root, "second"); Directory.CreateDirectory(first); Directory.CreateDirectory(second);
+                File.WriteAllBytes(Path.Combine(first, "fileinfo.wlx"), new byte[0]); File.WriteAllBytes(Path.Combine(second, "fileinfo.wlx"), new byte[0]);
+                File.WriteAllBytes(Path.Combine(first, "shared.wcx"), new byte[0]);
+                var ini = WriteIni(root, "families.ini", "[Configuration]\r\nInstallDir=" + root + "\r\n[ListerPlugins]\r\n0=first\\fileinfo.wlx\r\n1=first\\fileinfo.wlx\r\n2=second\\fileinfo.wlx\r\n[PackerPlugins]\r\n7z=1,first\\shared.wcx\r\nzip=1,first\\shared.wcx\r\nrar=1,first\\shared.wcx");
+                var resolver = new TotalCommanderConfigurationResolver(); var discovered = new PluginDiscoveryService(resolver, new LocalVersionResolver(), new CatalogService(Path.Combine(root, "user.json"))).Discover(resolver.Resolve(ini));
+                var fileInfos = discovered.Where(x => x.Identity.Id == "fileinfo").ToList();
+                Assert(fileInfos.Count == 2, "same catalog id in different directories remains two families");
+                Assert(fileInfos.Single(x => x.PrimaryPath.StartsWith(first, StringComparison.OrdinalIgnoreCase)).ConfigurationKeys.Count == 2, "same catalog id and family path merges into one family");
+                Assert(discovered.Single(x => x.Type == PluginType.Wcx).ConfigurationKeys.Count == 3, "same WCX for 7z zip rar merges into one family");
+
+                var equal = new InstalledPlugin { FileExists = true, Architecture = PluginArchitecture.X86 | PluginArchitecture.X64, LocalVersion = FileVersionProbe.Create("1.0", VersionSource.FileVersion, VersionConfidence.Exact), Binaries = new System.Collections.Generic.List<PluginBinary>
+                {
+                    new PluginBinary { Exists = true, Architecture = PluginArchitecture.X86, LocalVersion = FileVersionProbe.Create("1.0", VersionSource.FileVersion, VersionConfidence.Exact) },
+                    new PluginBinary { Exists = true, Architecture = PluginArchitecture.X64, LocalVersion = FileVersionProbe.Create("1.0", VersionSource.FileVersion, VersionConfidence.Exact) }
+                } };
+                Assert(!equal.HasVersionConflict && equal.LocalVersion.ParsedValue.IsKnown, "equal x86 and x64 versions have no conflict");
+
+                var conflict = new InstalledPlugin
+                {
+                    Identity = new PluginIdentity { Id = "fileinfo", Name = "FileInfo", Type = PluginType.Wlx }, Type = PluginType.Wlx, DisplayName = "FileInfo", PrimaryPath = "fileinfo.wlx", FileExists = true,
+                    Architecture = PluginArchitecture.X86 | PluginArchitecture.X64, HasVersionConflict = true, LocalVersion = LocalVersion.Unknown,
+                    Binaries = new System.Collections.Generic.List<PluginBinary>
+                    {
+                        new PluginBinary { Path = @"C:\plugins\fileinfo.wlx", Exists = true, Architecture = PluginArchitecture.X86, Variant = PluginBinaryVariant.Ansi, LocalVersion = FileVersionProbe.Create("1.0", VersionSource.FileVersion, VersionConfidence.Exact) },
+                        new PluginBinary { Path = @"C:\plugins\fileinfo.wlx64", Exists = true, Architecture = PluginArchitecture.X64, Variant = PluginBinaryVariant.Native64, LocalVersion = FileVersionProbe.Create("2.0", VersionSource.FileVersion, VersionConfidence.Exact) }
+                    }
+                };
+                var service = new UpdateService(new CatalogService(Path.Combine(root, "conflict-user.json")), new IUpdateSourceProvider[] { new FixedRemoteProvider("3.0") });
+                var candidate = service.CheckAsync(conflict, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+                Assert(candidate.State == UpdateState.LocalVersionConflict && candidate.AvailableVersion.Raw == "3.0", "conflict survives online check and still receives remote version");
+                Assert(candidate.State != UpdateState.UpdateAvailable && candidate.State != UpdateState.UpToDate && candidate.State != UpdateState.DevelopmentVersion, "conflict never becomes normal update state");
+                var row = new PluginRowViewModel(conflict); row.SetChecking(); row.Apply(candidate);
+                Assert(row.Status == "Версии вариантов плагина различаются" && row.Candidate.State == UpdateState.LocalVersionConflict, "conflict survives UI Apply");
+                Assert(!row.CanDownload, "conflict cannot be downloaded normally");
+                Assert(row.Information.Contains("Внимание: версии вариантов плагина различаются") && row.Information.Contains("x86: 1.0") && row.Information.Contains("x64: 2.0") && row.Information.Contains(@"C:\plugins\fileinfo.wlx64"), "information contains individual binary versions");
             }
             finally { Directory.Delete(root, true); }
         }
@@ -294,6 +338,17 @@ namespace TotalUpdater.Next.Tests
             private readonly System.Collections.Generic.IDictionary<string, LocalVersion> _versions;
             public PathProbe(System.Collections.Generic.IDictionary<string, LocalVersion> versions) { _versions = versions; }
             public LocalVersion Probe(string filePath) { LocalVersion value; return _versions.TryGetValue(filePath, out value) ? value : LocalVersion.Unknown; }
+        }
+        private sealed class FixedRemoteProvider : IUpdateSourceProvider
+        {
+            private readonly VersionValue _version;
+            public FixedRemoteProvider(string version) { _version = VersionValue.Parse(version); }
+            public string Name { get { return "test"; } }
+            public bool CanHandle(CatalogSource source) { return true; }
+            public System.Threading.Tasks.Task<RemoteRelease> GetLatestReleaseAsync(CatalogSource source, System.Threading.CancellationToken cancellationToken)
+            {
+                return System.Threading.Tasks.Task.FromResult(new RemoteRelease { VersionText = _version.Raw, Version = _version, SourceUrl = new Uri("https://example.test/source"), DownloadUrl = new Uri("https://example.test/download") });
+            }
         }
         private sealed class FakeRegistry : IRegistryConfigurationReader
         {

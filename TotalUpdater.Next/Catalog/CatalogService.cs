@@ -27,8 +27,9 @@ namespace TotalUpdater.Next.Catalog
 
         public PluginCatalogEntry FindByAlias(string fileName)
         {
-            var entry = Load().FirstOrDefault(x => x.Aliases.Any(alias => alias.Equals(fileName, StringComparison.OrdinalIgnoreCase)));
-            return entry ?? Load().FirstOrDefault(x => x.Aliases.Any(alias => alias.Equals(NormalizeCompanionAlias(fileName), StringComparison.OrdinalIgnoreCase)));
+            var entries = Load();
+            var entry = entries.FirstOrDefault(x => x.Aliases.Any(alias => alias.Equals(fileName, StringComparison.OrdinalIgnoreCase)));
+            return entry ?? entries.FirstOrDefault(x => x.Aliases.Any(alias => alias.Equals(NormalizeCompanionAlias(fileName), StringComparison.OrdinalIgnoreCase)));
         }
 
         private static string NormalizeCompanionAlias(string fileName)

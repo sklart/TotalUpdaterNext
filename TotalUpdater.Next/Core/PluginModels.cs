@@ -10,7 +10,7 @@ namespace TotalUpdater.Next.Core
     public enum PluginBinaryVariant { Ansi, Unicode, Native64, Other }
     public enum VersionSource { FileVersion, ProductVersion, TextFile, CustomRule, Unknown }
     public enum VersionConfidence { Exact, Probable, Heuristic, Unknown }
-    public enum UpdateState { Unknown, NotChecked, Checking, UpToDate, UpdateAvailable, DevelopmentVersion, VersionComparisonUnknown, SourceUnavailable, PluginNotRecognized, Error }
+    public enum UpdateState { Unknown, NotChecked, Checking, UpToDate, UpdateAvailable, DevelopmentVersion, VersionComparisonUnknown, LocalVersionConflict, SourceUnavailable, PluginNotRecognized, Error }
 
     public sealed class PluginIdentity
     {
@@ -39,7 +39,6 @@ namespace TotalUpdater.Next.Core
         public List<string> ConfigurationKeys { get; set; } = new List<string>();
         public LocalVersion LocalVersion { get; set; } = LocalVersion.Unknown;
         public PluginArchitecture Architecture { get; set; }
-        public PluginArchitecture Architectures { get { return Architecture; } set { Architecture = value; } }
         public bool FileExists { get; set; }
         public bool HasVersionConflict { get; set; }
     }

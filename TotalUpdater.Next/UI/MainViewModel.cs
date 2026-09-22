@@ -80,6 +80,11 @@ namespace TotalUpdater.Next.UI
             var done = 0;
             foreach (var row in target)
             {
+                if (row.Plugin.HasVersionConflict || (row.Candidate != null && row.Candidate.State == UpdateState.LocalVersionConflict))
+                {
+                    row.Apply(row.Candidate ?? new UpdateCandidate { Plugin = row.Plugin, State = UpdateState.LocalVersionConflict });
+                    continue;
+                }
                 if (row.Candidate == null || row.Candidate.DownloadUrl == null) { row.Apply(new UpdateCandidate { Plugin = row.Plugin, State = UpdateState.Error, Details = Text.Get("NoDownload") }); continue; }
                 try { var path = await _downloads.DownloadAsync(row.Candidate.DownloadUrl, _paths.DownloadDirectory, CancellationToken.None); row.Apply(new UpdateCandidate { Plugin = row.Plugin, State = UpdateState.UpdateAvailable, AvailableVersion = row.Candidate.AvailableVersion, SourceUrl = row.Candidate.SourceUrl, DownloadUrl = row.Candidate.DownloadUrl, Details = String.Format(Text.Get("Downloaded"), Path.GetFileName(path)) }); done++; }
                 catch (Exception ex) { row.Apply(new UpdateCandidate { Plugin = row.Plugin, State = UpdateState.Error, Details = ex.Message }); }
