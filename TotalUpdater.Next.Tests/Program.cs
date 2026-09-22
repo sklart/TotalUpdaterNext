@@ -25,7 +25,7 @@ namespace TotalUpdater.Next.Tests
                 if (args != null && args.Any(x => x.Equals("--validate-catalog", StringComparison.OrdinalIgnoreCase))) { ValidateCatalog(); return 0; }
                 if (args != null && args.Any(x => x.Equals("--audit-catalog-sources", StringComparison.OrdinalIgnoreCase))) return AuditCatalogSources();
                 if (args != null && args.Any(x => x.Equals("--audit-catalog-packages", StringComparison.OrdinalIgnoreCase))) return AuditCatalogPackages();
-                Versions(); Paths(); DiscoveryRealIniFormats(); ArchitectureAwareDiscovery(); FamilyIdentityAndConflict(); CatalogV2AndProviders(); CatalogScaleAndCache(); AuthorityResolution(); DownloadProvenance(); AuthorityRuntimeFinalization(); ScalableCheckRunner(); FileInfoPeVersionStrategy(); StrategyPriorityAndFallback(); ConfigurationDetection(); ConfigurationPrecedenceFinalization(); RedirectSections(); IniEncodingsAndPathExpansion(); CatalogAliases(); ApplicationMetadataAndUserAgent();
+                Versions(); Paths(); DiscoveryRealIniFormats(); ArchitectureAwareDiscovery(); FamilyIdentityAndConflict(); CatalogV2AndProviders(); CatalogScaleAndCache(); AuthorityResolution(); DownloadProvenance(); AuthorityRuntimeFinalization(); LazySourcesAndCache(); SourceInputHardening(); ScalableCheckRunner(); FileInfoPeVersionStrategy(); StrategyPriorityAndFallback(); ConfigurationDetection(); ConfigurationPrecedenceFinalization(); RedirectSections(); IniEncodingsAndPathExpansion(); CatalogAliases(); ApplicationMetadataAndUserAgent();
                 Console.WriteLine("PASS " + _count + " tests"); return 0;
             }
             catch (Exception ex) { Console.Error.WriteLine("FAIL: " + ex.Message); return 1; }
@@ -57,7 +57,7 @@ namespace TotalUpdater.Next.Tests
                         if (query.Release != null) foreach (var package in query.Release.Packages) Console.WriteLine("    " + package.FileName + " | " + package.Architecture + " | " + package.Url);
                     }
                     var plugin = new InstalledPlugin { Identity = new PluginIdentity { Id = id }, Architecture = PluginArchitecture.X86 | PluginArchitecture.X64, LocalVersion = FileVersionProbe.Create("0.0", VersionSource.FileVersion, VersionConfidence.Exact) };
-                    var result = service.CheckAsync(plugin, System.Threading.CancellationToken.None, cache).GetAwaiter().GetResult();
+                    var result = service.CheckAsync(plugin, System.Threading.CancellationToken.None, cache, SourceQueryMode.AuditAllSources).GetAwaiter().GetResult();
                     Console.WriteLine("  UpdateService.CheckAsync: " + result.State + " | selected=" + (result.DownloadUrl == null ? "none/ambiguous" : result.DownloadUrl.AbsoluteUri) + " | details=" + result.Details);
                 }
             }
@@ -74,7 +74,7 @@ namespace TotalUpdater.Next.Tests
                     var tasks = entries.Select(async entry =>
                     {
                         UpdateCandidate candidate;
-                        try { await gate.WaitAsync(); try { candidate = await service.CheckAsync(new InstalledPlugin { Identity = new PluginIdentity { Id = entry.Id }, LocalVersion = FileVersionProbe.Create("0", VersionSource.FileVersion, VersionConfidence.Exact) }, System.Threading.CancellationToken.None, cache); } finally { gate.Release(); } }
+                        try { await gate.WaitAsync(); try { candidate = await service.CheckAsync(new InstalledPlugin { Identity = new PluginIdentity { Id = entry.Id }, LocalVersion = FileVersionProbe.Create("0", VersionSource.FileVersion, VersionConfidence.Exact) }, System.Threading.CancellationToken.None, cache, SourceQueryMode.AuditAllSources); } finally { gate.Release(); } }
                         catch (Exception ex) { candidate = new UpdateCandidate { State = UpdateState.Error, Details = ex.Message }; }
                         if (candidate.Observations.Any(x => x.Status != SourceQueryStatus.Success)) System.Threading.Interlocked.Increment(ref failures);
                         var observations = String.Join("; ", candidate.Observations.Select(x => x.ProviderName + " | " + x.Authority + " | " + x.Purpose + " | " + x.Status + " | " + (x.Release == null ? "" : x.Release.Version.Raw)));
@@ -102,7 +102,7 @@ namespace TotalUpdater.Next.Tests
                             await gate.WaitAsync();
                             try
                             {
-                                var candidate = await service.CheckAsync(new InstalledPlugin { Identity = new PluginIdentity { Id = entry.Id }, Architecture = PluginArchitecture.X86 | PluginArchitecture.X64, LocalVersion = FileVersionProbe.Create("0", VersionSource.FileVersion, VersionConfidence.Exact) }, System.Threading.CancellationToken.None, cache);
+                                var candidate = await service.CheckAsync(new InstalledPlugin { Identity = new PluginIdentity { Id = entry.Id }, Architecture = PluginArchitecture.X86 | PluginArchitecture.X64, LocalVersion = FileVersionProbe.Create("0", VersionSource.FileVersion, VersionConfidence.Exact) }, System.Threading.CancellationToken.None, cache, SourceQueryMode.AuditAllSources);
                                 var package = candidate.DownloadSource == null || candidate.DownloadSource.Release == null || candidate.DownloadUrl == null ? null : candidate.DownloadSource.Release.Packages.FirstOrDefault(x => x.Url != null && x.Url == candidate.DownloadUrl);
                                 if (package == null || package.Url == null) { System.Threading.Interlocked.Increment(ref skipped); output.Add(entry.Id + " | SKIP | no production-selected package | canonical=" + (candidate.AvailableVersion.IsKnown ? candidate.AvailableVersion.Raw : "")); return; }
                                 System.Threading.Interlocked.Increment(ref checkedPackages);
@@ -575,6 +575,73 @@ namespace TotalUpdater.Next.Tests
             }
             finally { Directory.Delete(root, true); }
         }
+        private static void LazySourcesAndCache()
+        {
+            var root = NewRoot();
+            try
+            {
+                var user = Path.Combine(root, "lazy.json");
+                File.WriteAllText(user, "[{\"id\":\"fileinfo\",\"name\":\"FileInfo\",\"type\":\"Wlx\",\"aliases\":[\"fileinfo.wlx\"],\"sources\":[{\"provider\":\"totalcmd.net-index\",\"id\":\"fileinfo\",\"authority\":\"CommunityCatalog\",\"purpose\":\"Metadata\",\"priority\":150},{\"provider\":\"totalcmd.net\",\"id\":\"fileinfo\",\"authority\":\"CommunityCatalog\",\"purpose\":\"MetadataAndDownload\",\"priority\":100}]}]");
+                var catalog = new CatalogService(user);
+                var current = new InstalledPlugin { Identity = new PluginIdentity { Id = "fileinfo" }, Architecture = PluginArchitecture.X86, LocalVersion = FileVersionProbe.Create("2.0", VersionSource.FileVersion, VersionConfidence.Exact) };
+                var older = new InstalledPlugin { Identity = current.Identity, Architecture = PluginArchitecture.X86, LocalVersion = FileVersionProbe.Create("1.0", VersionSource.FileVersion, VersionConfidence.Exact) };
+                var provider = new LazyTestProvider(false); var service = new UpdateService(catalog, new IUpdateSourceProvider[] { provider });
+                var upToDate = service.CheckAsync(current, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+                Assert(upToDate.State == UpdateState.UpToDate && provider.IndexCalls == 1 && provider.DetailCalls == 0, "UpToDate skips detail page");
+                var update = service.CheckAsync(older, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+                Assert(update.DownloadUrl != null && provider.DetailCalls == 1, "UpdateAvailable fetches detail package once");
+                var audit = service.CheckAsync(current, System.Threading.CancellationToken.None, null, SourceQueryMode.AuditAllSources).GetAwaiter().GetResult();
+                Assert(audit.Observations.Count == 2 && provider.DetailCalls == 2, "AuditAllSources queries detail even when local version is current");
+                var unavailable = new LazyTestProvider(true); var fallback = new UpdateService(catalog, new IUpdateSourceProvider[] { unavailable }).CheckAsync(older, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+                Assert(fallback.AvailableVersion.Raw == "2.0" && unavailable.DetailCalls == 1, "index unavailable falls back to detail");
+
+                var cache = new SourceResponseCache(); var calls = 0;
+                var tasks = Enumerable.Range(0, 20).Select(_ => System.Threading.Tasks.Task.Run(() => cache.GetOrAdd("path/Item?X=1", () => { System.Threading.Interlocked.Increment(ref calls); return System.Threading.Tasks.Task.Delay(30).ContinueWith(t => "value"); }))).ToArray();
+                System.Threading.Tasks.Task.WaitAll(tasks); Assert(calls == 1 && tasks.All(x => x.Result == "value"), "20 simultaneous same-key calls invoke factory once");
+                cache.GetOrAdd("path/item?X=1", () => { System.Threading.Interlocked.Increment(ref calls); return System.Threading.Tasks.Task.FromResult("other"); }).GetAwaiter().GetResult();
+                Assert(calls == 2, "cache keys preserve path case");
+            }
+            finally { Directory.Delete(root, true); }
+        }
+
+        private static void SourceInputHardening()
+        {
+            var root = NewRoot();
+            try
+            {
+                var user = Path.Combine(root, "input.json");
+                File.WriteAllText(user, "[{\"id\":\"fileinfo\",\"name\":\"FileInfo\",\"type\":\"Wlx\",\"aliases\":[\"fileinfo.wlx\"],\"sources\":[{\"provider\":\"manual\",\"authority\":\"ManualOverride\",\"purpose\":\"Metadata\",\"priority\":100,\"manualOverride\":{\"version\":\"2.1\",\"evidenceUrl\":\"https://evidence.test/v2\",\"reason\":\"checked\",\"verifiedAt\":\"2026-09-22\"}}]}]");
+                var catalog = new CatalogService(user); var plugin = new InstalledPlugin { Identity = new PluginIdentity { Id = "fileinfo" }, LocalVersion = FileVersionProbe.Create("1.0", VersionSource.FileVersion, VersionConfidence.Exact) };
+                var manual = new UpdateService(catalog, new IUpdateSourceProvider[0]).CheckAsync(plugin, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+                Assert(manual.AvailableVersion.Raw == "2.1" && manual.Observations.Single().ProviderName == "Manual override" && manual.DownloadUrl == null, "provider manual works without HTTP provider");
+                Assert(catalog.LoadWithDiagnostics().Diagnostics.All(x => x.Severity != CatalogDiagnosticSeverity.Error), "new manual provider validates");
+                var legacy = "[{\"id\":\"fileinfo\",\"name\":\"FileInfo\",\"type\":\"Wlx\",\"aliases\":[\"fileinfo.wlx\"],\"sources\":[{\"provider\":\"totalcmd.net\",\"id\":\"fileinfo\",\"authority\":\"ManualOverride\",\"purpose\":\"Metadata\",\"priority\":100,\"manualOverride\":{\"version\":\"2.1\",\"evidenceUrl\":\"https://evidence.test/v2\",\"reason\":\"checked\",\"verifiedAt\":\"2026-09-22\"}}]}]";
+                File.WriteAllText(user, legacy); Assert(new CatalogService(user).LoadWithDiagnostics().Diagnostics.Any(x => x.Severity == CatalogDiagnosticSeverity.Warning && x.Message.Contains("provider")), "0.7.1 legacy manual format retained with warning");
+                File.WriteAllText(user, legacy.Replace("https://evidence.test/v2", "file:///bad")); Assert(new CatalogService(user).LoadWithDiagnostics().Diagnostics.Any(x => x.Severity == CatalogDiagnosticSeverity.Error), "manual evidence requires HTTP or HTTPS");
+                File.WriteAllText(user, legacy.Replace("2026-09-22", "22.09.2026")); Assert(new CatalogService(user).LoadWithDiagnostics().Diagnostics.Any(x => x.Severity == CatalogDiagnosticSeverity.Error), "manual date requires yyyy-MM-dd");
+                File.WriteAllText(user, "[{\"id\":\"mirror\",\"name\":\"Mirror\",\"type\":\"Wlx\",\"aliases\":[\"mirror.wlx\"],\"sources\":[{\"provider\":\"totalcmd.net\",\"id\":\"mirror\",\"authority\":\"Mirror\",\"purpose\":\"Metadata\",\"priority\":10}]}]");
+                Assert(new CatalogService(user).LoadWithDiagnostics().Diagnostics.Any(x => x.Severity == CatalogDiagnosticSeverity.Error), "mirror alone cannot provide metadata");
+                File.WriteAllText(user, "[{\"id\":\"mirror\",\"name\":\"Mirror\",\"type\":\"Wlx\",\"aliases\":[\"mirror.wlx\"],\"sources\":[{\"provider\":\"totalcmd.net\",\"id\":\"mirror\",\"authority\":\"Mirror\",\"purpose\":\"Metadata\",\"priority\":10},{\"provider\":\"totalcmd.net-index\",\"id\":\"mirror\",\"authority\":\"CommunityCatalog\",\"purpose\":\"Metadata\",\"priority\":20}]}]");
+                Assert(new CatalogService(user).LoadWithDiagnostics().Entries.Any(x => x.Id == "mirror"), "mirror metadata with authoritative metadata is valid");
+                File.WriteAllText(user, "[{\"id\":\"unsafe\",\"name\":\"Unsafe\",\"type\":\"Wlx\",\"aliases\":[\"unsafe.wlx\"],\"sources\":[{\"provider\":\"generic-html\",\"url\":\"file:///etc/passwd\",\"versionPattern\":\"(1.0)\",\"priority\":10}]}]");
+                Assert(new CatalogService(user).LoadWithDiagnostics().Diagnostics.Any(x => x.Severity == CatalogDiagnosticSeverity.Error), "non-HTTP source URL rejected");
+                var regex = GenericHtmlSourceProvider.Parse(new CatalogSource { Url = "https://example.test", VersionPattern = "(a+)+$" }, new string('a', 4000) + "!");
+                Assert(regex.Status == SourceQueryStatus.InvalidResponse && regex.Details.Contains("время"), "user versionPattern timeout returns InvalidResponse");
+                var githubJson = "[{\"tag_name\":\"v1.0\",\"draft\":false,\"prerelease\":false,\"html_url\":\"https://github.test/release\",\"assets\":[{\"name\":\"" + new string('a', 4000) + "!\",\"browser_download_url\":\"https://github.test/archive.zip\"}]}]";
+                var githubRegex = GitHubReleaseSourceProvider.Parse(githubJson, new CatalogSource { AssetPattern = "(a+)+$" });
+                Assert(githubRegex.Status == SourceQueryStatus.InvalidResponse, "user assetPattern timeout returns InvalidResponse");
+                var bom = "\uFEFFfileinfo | FileInfo | 2.23 | today | lister | x32+x64 ||\r\n";
+                Assert(TotalCmdNetIndexProvider.Parse("fileinfo", bom).Release.Version.Raw == "2.23", "index trims BOM fields and CRLF");
+                var duplicate = "fileinfo|FileInfo|2.23|d|lister|x32||\nfileinfo|FileInfo|2.24|d|lister|x32||\n";
+                Assert(TotalCmdNetIndexProvider.Parse("fileinfo", duplicate).Status == SourceQueryStatus.InvalidResponse, "duplicate index ID has diagnostic");
+                Assert(TotalCmdNetIndexProvider.Parse("fileinfo", "broken|1.0\nfileinfo|FileInfo|2.23|d|lister|x32||\n").Release.Version.Raw == "2.23", "malformed index rows ignored");
+                var legacyBytes = Encoding.GetEncoding(1251).GetBytes("russian|Русский|1.0|d|lister|x32||\n");
+                Assert(HttpService.DecodeTotalCmdIndex(legacyBytes).Contains("Русский"), "index Windows-1251 decoding");
+                var utf8Bom = Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes("fileinfo|FileInfo|2.23|d|lister|x32||\n")).ToArray();
+                Assert(TotalCmdNetIndexProvider.Parse("fileinfo", HttpService.DecodeTotalCmdIndex(utf8Bom)).Status == SourceQueryStatus.Success, "index UTF-8 BOM and LF accepted");
+            }
+            finally { Directory.Delete(root, true); }
+        }
         private static void ScalableCheckRunner()
         {
             var root = NewRoot();
@@ -708,6 +775,25 @@ namespace TotalUpdater.Next.Tests
                     return new SourceQueryResult { Status = SourceQueryStatus.Success, Release = new RemoteRelease { VersionText = "2.0", Version = VersionValue.Parse("2.0"), SourceUrl = new Uri("https://example.test/" + raw) } };
                 }
                 return new SourceQueryResult { Status = SourceQueryStatus.Unavailable, Details = "not needed" };
+            }
+        }
+        private sealed class LazyTestProvider : IUpdateSourceProvider
+        {
+            private readonly bool _indexUnavailable;
+            public int IndexCalls; public int DetailCalls;
+            public LazyTestProvider(bool indexUnavailable) { _indexUnavailable = indexUnavailable; }
+            public string Name { get { return "lazy-test"; } }
+            public bool CanHandle(CatalogSource source) { return source.Provider == "totalcmd.net-index" || source.Provider == "totalcmd.net"; }
+            public System.Threading.Tasks.Task<SourceQueryResult> QueryAsync(CatalogSource source, System.Threading.CancellationToken token)
+            {
+                if (source.Provider == "totalcmd.net-index")
+                {
+                    IndexCalls++;
+                    if (_indexUnavailable) return System.Threading.Tasks.Task.FromResult(new SourceQueryResult { Status = SourceQueryStatus.Unavailable });
+                    return System.Threading.Tasks.Task.FromResult(new SourceQueryResult { Status = SourceQueryStatus.Success, Release = Release("2.0") });
+                }
+                DetailCalls++;
+                return System.Threading.Tasks.Task.FromResult(new SourceQueryResult { Status = SourceQueryStatus.Success, Release = Release("2.0", RemotePackageArchitecture.Combined) });
             }
         }
         private sealed class FakeRegistry : IRegistryConfigurationReader

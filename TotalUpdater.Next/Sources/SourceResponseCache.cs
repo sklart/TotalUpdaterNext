@@ -9,10 +9,10 @@ namespace TotalUpdater.Next.Sources
     // so entries from the same GitHub release can apply different asset filters.
     public sealed class SourceResponseCache
     {
-        private readonly ConcurrentDictionary<string, Task<string>> _responses = new ConcurrentDictionary<string, Task<string>>(StringComparer.OrdinalIgnoreCase);
+        private readonly ConcurrentDictionary<string, Lazy<Task<string>>> _responses = new ConcurrentDictionary<string, Lazy<Task<string>>>(StringComparer.Ordinal);
         public Task<string> GetOrAdd(string key, Func<Task<string>> factory)
         {
-            return _responses.GetOrAdd(key, _ => factory());
+            return _responses.GetOrAdd(key, _ => new Lazy<Task<string>>(factory, LazyThreadSafetyMode.ExecutionAndPublication)).Value;
         }
     }
 

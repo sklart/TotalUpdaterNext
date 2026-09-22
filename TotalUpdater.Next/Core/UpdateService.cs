@@ -9,6 +9,8 @@ using TotalUpdater.Next.Sources;
 
 namespace TotalUpdater.Next.Core
 {
+    public enum SourceQueryMode { Normal, AuditAllSources }
+
     public sealed class UpdateService
     {
         private readonly CatalogService _catalog;
@@ -18,44 +20,32 @@ namespace TotalUpdater.Next.Core
 
         public Task<UpdateCandidate> CheckAsync(InstalledPlugin plugin, CancellationToken cancellationToken)
         {
-            return CheckAsync(plugin, cancellationToken, null);
+            return CheckAsync(plugin, cancellationToken, null, SourceQueryMode.Normal);
         }
 
-        public async Task<UpdateCandidate> CheckAsync(InstalledPlugin plugin, CancellationToken cancellationToken, SourceResponseCache sourceCache)
+        public Task<UpdateCandidate> CheckAsync(InstalledPlugin plugin, CancellationToken cancellationToken, SourceResponseCache sourceCache)
+        {
+            return CheckAsync(plugin, cancellationToken, sourceCache, SourceQueryMode.Normal);
+        }
+
+        public async Task<UpdateCandidate> CheckAsync(InstalledPlugin plugin, CancellationToken cancellationToken, SourceResponseCache sourceCache, SourceQueryMode mode)
         {
             var entry = _catalog.FindById(plugin.Identity == null ? null : plugin.Identity.Id);
             if (entry == null) return Candidate(plugin, plugin.HasVersionConflict ? UpdateState.LocalVersionConflict : UpdateState.PluginNotRecognized, null, null, "");
             var details = new List<string>(); var observations = new List<RemoteVersionObservation>();
-            foreach (var source in entry.Sources.OrderByDescending(x => x.Priority))
+            var ordered = entry.Sources.OrderByDescending(x => x.Priority).ToList();
+            var metadata = mode == SourceQueryMode.AuditAllSources ? ordered : ordered.Where(x => !IsDetailSource(x)).ToList();
+            foreach (var source in metadata)
+                await QuerySourceAsync(source, sourceCache, cancellationToken, details, observations).ConfigureAwait(false);
+            if (mode == SourceQueryMode.Normal)
             {
-                if (source.AuthorityValue == SourceAuthority.ManualOverride)
-                {
-                    var manual = source.ManualOverride;
-                    var manualVersion = manual == null ? VersionValue.Unknown : VersionValue.Parse(manual.Version);
-                    Uri evidence;
-                    if (manualVersion.IsKnown && manual != null && Uri.TryCreate(manual.EvidenceUrl, UriKind.Absolute, out evidence))
-                        observations.Add(new RemoteVersionObservation { Source = source, ProviderName = "Manual override", Authority = SourceAuthority.ManualOverride, Purpose = SourcePurpose.Metadata, Status = SourceQueryStatus.Success, Release = new RemoteRelease { VersionText = manual.Version, Version = manualVersion, SourceUrl = evidence, Packages = new List<RemotePackage>() } });
-                    else
-                        observations.Add(new RemoteVersionObservation { Source = source, ProviderName = "Manual override", Authority = SourceAuthority.ManualOverride, Purpose = SourcePurpose.Metadata, Status = SourceQueryStatus.InvalidResponse, Details = "Некорректный ManualOverride." });
-                    continue;
-                }
-                var provider = _providers.FirstOrDefault(p => p.CanHandle(source));
-                if (provider == null) { details.Add(source.Provider + ": provider не найден"); observations.Add(new RemoteVersionObservation { Source = source, Authority = source.AuthorityValue, Purpose = source.PurposeValue, Status = SourceQueryStatus.Unavailable, Details = "provider не найден" }); continue; }
-                SourceQueryResult result;
-                try
-                {
-                    var cachedProvider = provider as ICachedUpdateSourceProvider;
-                    result = cachedProvider == null || sourceCache == null
-                        ? await provider.QueryAsync(source, cancellationToken).ConfigureAwait(false)
-                        : await cachedProvider.QueryAsync(source, sourceCache, cancellationToken).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException) { throw; }
-                catch (Exception ex) { details.Add(provider.Name + ": " + ex.Message); observations.Add(new RemoteVersionObservation { Source = source, ProviderName = provider.Name, Authority = source.AuthorityValue, Purpose = source.PurposeValue, Status = SourceQueryStatus.Unavailable, Details = ex.Message }); continue; }
-                observations.Add(new RemoteVersionObservation { Source = source, ProviderName = provider.Name, Authority = source.AuthorityValue, Purpose = source.PurposeValue, Status = result == null ? SourceQueryStatus.InvalidResponse : result.Status, Release = result == null ? null : result.Release, Details = result == null ? "пустой ответ" : result.Details });
-                if (result == null || result.Status != SourceQueryStatus.Success || result.Release == null || !result.Release.Version.IsKnown)
-                {
-                    details.Add(provider.Name + ": " + (result == null ? "пустой ответ" : result.Details)); continue;
-                }
+                var preliminary = _authority.Resolve(observations);
+                var needsDetail = preliminary.Canonical == null || (!plugin.HasVersionConflict &&
+                    plugin.LocalVersion.ParsedValue.CompareTo(preliminary.Canonical.Release.Version) == VersionComparison.Less &&
+                    !preliminary.HasConflict && !HasSelectablePackage(plugin, observations, preliminary.Canonical));
+                if (needsDetail)
+                    foreach (var source in ordered.Where(IsDetailSource))
+                        await QuerySourceAsync(source, sourceCache, cancellationToken, details, observations).ConfigureAwait(false);
             }
             var resolution = _authority.Resolve(observations); var canonical = resolution.Canonical;
             if (canonical == null) { var unavailable = Candidate(plugin, plugin.HasVersionConflict ? UpdateState.LocalVersionConflict : UpdateState.SourceUnavailable, null, null, String.Join(" · ", details)); unavailable.Observations = observations; return unavailable; }
@@ -70,6 +60,48 @@ namespace TotalUpdater.Next.Core
                 else if (!String.IsNullOrWhiteSpace(packageDetails)) candidate.Details = packageDetails;
             }
             return candidate;
+        }
+
+        private static bool IsDetailSource(CatalogSource source)
+        {
+            return source.Provider.Equals("totalcmd.net", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool HasSelectablePackage(InstalledPlugin plugin, IList<RemoteVersionObservation> observations, RemoteVersionObservation canonical)
+        {
+            Uri url; string details;
+            return SelectDownloadObservation(plugin, observations, canonical, out url, out details) != null;
+        }
+
+        private async Task QuerySourceAsync(CatalogSource source, SourceResponseCache sourceCache, CancellationToken cancellationToken, IList<string> details, IList<RemoteVersionObservation> observations)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (source.AuthorityValue == SourceAuthority.ManualOverride)
+            {
+                var manual = source.ManualOverride;
+                var manualVersion = manual == null ? VersionValue.Unknown : VersionValue.Parse(manual.Version);
+                Uri evidence;
+                if (manualVersion.IsKnown && manual != null && Uri.TryCreate(manual.EvidenceUrl, UriKind.Absolute, out evidence))
+                    observations.Add(new RemoteVersionObservation { Source = source, ProviderName = "Manual override", Authority = SourceAuthority.ManualOverride, Purpose = SourcePurpose.Metadata, Status = SourceQueryStatus.Success, Release = new RemoteRelease { VersionText = manual.Version, Version = manualVersion, SourceUrl = evidence, Packages = new List<RemotePackage>() } });
+                else
+                    observations.Add(new RemoteVersionObservation { Source = source, ProviderName = "Manual override", Authority = SourceAuthority.ManualOverride, Purpose = SourcePurpose.Metadata, Status = SourceQueryStatus.InvalidResponse, Details = "Некорректный ManualOverride." });
+                return;
+            }
+            var provider = _providers.FirstOrDefault(p => p.CanHandle(source));
+            if (provider == null) { details.Add(source.Provider + ": provider не найден"); observations.Add(new RemoteVersionObservation { Source = source, Authority = source.AuthorityValue, Purpose = source.PurposeValue, Status = SourceQueryStatus.Unavailable, Details = "provider не найден" }); return; }
+            SourceQueryResult result;
+            try
+            {
+                var cachedProvider = provider as ICachedUpdateSourceProvider;
+                result = cachedProvider == null || sourceCache == null
+                    ? await provider.QueryAsync(source, cancellationToken).ConfigureAwait(false)
+                    : await cachedProvider.QueryAsync(source, sourceCache, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex) { details.Add(provider.Name + ": " + ex.Message); observations.Add(new RemoteVersionObservation { Source = source, ProviderName = provider.Name, Authority = source.AuthorityValue, Purpose = source.PurposeValue, Status = SourceQueryStatus.Unavailable, Details = ex.Message }); return; }
+            observations.Add(new RemoteVersionObservation { Source = source, ProviderName = provider.Name, Authority = source.AuthorityValue, Purpose = source.PurposeValue, Status = result == null ? SourceQueryStatus.InvalidResponse : result.Status, Release = result == null ? null : result.Release, Details = result == null ? "пустой ответ" : result.Details });
+            if (result == null || result.Status != SourceQueryStatus.Success || result.Release == null || !result.Release.Version.IsKnown)
+                details.Add(provider.Name + ": " + (result == null ? "пустой ответ" : result.Details));
         }
 
         private static void ApplyProvenance(UpdateCandidate candidate, IList<RemoteVersionObservation> observations, AuthorityResolution resolution)

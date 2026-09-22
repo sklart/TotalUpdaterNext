@@ -60,7 +60,16 @@ namespace TotalUpdater.Next.Sources
             try
             {
                 var html = cache == null ? await Http.GetStringAsync(source.Url, cancellationToken).ConfigureAwait(false) : await cache.GetOrAdd("generic-html:" + source.Url, () => Http.GetStringAsync(source.Url, cancellationToken)).ConfigureAwait(false);
-                var match = Regex.Match(html, source.VersionPattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+                return Parse(source, html);
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex) { return Result(SourceQueryStatus.Unavailable, null, ex.Message); }
+        }
+        public static SourceQueryResult Parse(CatalogSource source, string html)
+        {
+            try
+            {
+                var match = Regex.Match(html ?? "", source.VersionPattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(200));
                 if (!match.Success || match.Groups.Count < 2) return Result(SourceQueryStatus.NotFound, null, "Версия не найдена на странице.");
                 var version = VersionValue.Parse(match.Groups[1].Value);
                 var packages = new List<RemotePackage>(); Uri download;
@@ -68,7 +77,8 @@ namespace TotalUpdater.Next.Sources
                 return version.IsKnown ? Result(SourceQueryStatus.Success, new RemoteRelease { VersionText = match.Groups[1].Value, Version = version, SourceUrl = new Uri(source.Url), Packages = packages }, "") : Result(SourceQueryStatus.InvalidResponse, null, "Некорректная версия.");
             }
             catch (OperationCanceledException) { throw; }
-            catch (Exception ex) { return Result(SourceQueryStatus.Unavailable, null, ex.Message); }
+            catch (RegexMatchTimeoutException) { return Result(SourceQueryStatus.InvalidResponse, null, "Превышено время обработки versionPattern."); }
+            catch (Exception ex) { return Result(SourceQueryStatus.InvalidResponse, null, ex.Message); }
         }
 
         protected static SourceQueryResult Result(SourceQueryStatus status, RemoteRelease release, string details) { return new SourceQueryResult { Status = status, Release = release, Details = details }; }
@@ -98,7 +108,7 @@ namespace TotalUpdater.Next.Sources
             {
                 var label = Regex.Replace(match.Groups["label"].Value, "<.*?>", " "); var text = label + " " + match.Groups["url"].Value;
                 if (!Regex.IsMatch(text, @"download|x32|x64|x86|win32|win64|32[ -]?bit|64[ -]?bit", RegexOptions.IgnoreCase) || Regex.IsMatch(text, @"mirror|source|homepage|author|forum|discuss|screen", RegexOptions.IgnoreCase)) continue;
-                Uri url; if (!Uri.TryCreate(baseUri, match.Groups["url"].Value, out url)) continue;
+                Uri url; if (!Uri.TryCreate(baseUri, match.Groups["url"].Value, out url) || (url.Scheme != Uri.UriSchemeHttp && url.Scheme != Uri.UriSchemeHttps)) continue;
                 result.Add(new RemotePackage { Architecture = DetectPackageArchitecture(text), Url = url, FileName = url.AbsolutePath.EndsWith("download.php", StringComparison.OrdinalIgnoreCase) ? "" : Path.GetFileName(url.LocalPath) });
             }
             return result;
@@ -143,14 +153,17 @@ namespace TotalUpdater.Next.Sources
         public override async Task<SourceQueryResult> QueryAsync(CatalogSource source, CancellationToken cancellationToken) { return await QueryAsync(source, null, cancellationToken).ConfigureAwait(false); }
         public override async Task<SourceQueryResult> QueryAsync(CatalogSource source, SourceResponseCache cache, CancellationToken cancellationToken)
         {
-            try { var text = cache == null ? await Http.GetStringAsync(Url, cancellationToken).ConfigureAwait(false) : await cache.GetOrAdd("totalcmd.net:index", () => Http.GetStringAsync(Url, cancellationToken)); return Parse(source.Id, text); }
+            try { var text = cache == null ? await Http.GetTotalCmdIndexAsync(cancellationToken).ConfigureAwait(false) : await cache.GetOrAdd("totalcmd.net:index", () => Http.GetTotalCmdIndexAsync(cancellationToken)).ConfigureAwait(false); return Parse(source.Id, text); }
             catch (OperationCanceledException) { throw; }
             catch (Exception ex) { return Result(SourceQueryStatus.Unavailable, null, ex.Message); }
         }
         public static SourceQueryResult Parse(string id, string text)
         {
-            var fields = (text ?? "").Replace("\r", "").Split('\n').Select(x => x.Split('|')).FirstOrDefault(x => x.Length >= 3 && x[0].Equals(id ?? "", StringComparison.OrdinalIgnoreCase));
-            if (fields == null) return Result(SourceQueryStatus.NotFound, null, "Запись не найдена в индексе.");
+            var matches = (text ?? "").TrimStart('\uFEFF').Split('\n').Select(x => x.TrimEnd('\r').Split('|').Select(y => y.Trim()).ToArray())
+                .Where(x => x.Length >= 7 && !String.IsNullOrWhiteSpace(x[0]) && !String.IsNullOrWhiteSpace(x[2]) && x[0].Equals(id ?? "", StringComparison.OrdinalIgnoreCase)).ToList();
+            if (matches.Count == 0) return Result(SourceQueryStatus.NotFound, null, "Запись не найдена в индексе.");
+            if (matches.Count > 1) return Result(SourceQueryStatus.InvalidResponse, null, "Повторяющийся ID в индексе: " + id);
+            var fields = matches[0];
             var version = VersionValue.Parse(fields[2]);
             return version.IsKnown ? Result(SourceQueryStatus.Success, new RemoteRelease { VersionText = fields[2], Version = version, SourceUrl = new Uri(Url), Packages = new List<RemotePackage>() }, "") : Result(SourceQueryStatus.InvalidResponse, null, "Некорректная версия в индексе.");
         }
@@ -238,18 +251,22 @@ namespace TotalUpdater.Next.Sources
                 var releases = Deserialize(json); var release = releases.FirstOrDefault(x => !x.Draft && (source.IncludePrerelease || !x.Prerelease));
                 if (release == null) return Result(SourceQueryStatus.NotFound, null, "Подходящий GitHub release не найден.");
                 var version = VersionValue.Parse((release.TagName ?? "").TrimStart('v', 'V'));
-                if (!version.IsKnown || !Uri.IsWellFormedUriString(release.HtmlUrl, UriKind.Absolute)) return Result(SourceQueryStatus.InvalidResponse, null, "Некорректный GitHub release.");
+                if (!version.IsKnown || !IsHttpUrl(release.HtmlUrl)) return Result(SourceQueryStatus.InvalidResponse, null, "Некорректный GitHub release.");
                 var assets = release.Assets ?? new List<GitHubAsset>();
-                if (!String.IsNullOrWhiteSpace(source.AssetPattern)) assets = assets.Where(x => Regex.IsMatch(x.Name ?? "", source.AssetPattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)).ToList();
+                if (!String.IsNullOrWhiteSpace(source.AssetPattern)) assets = assets.Where(x => Regex.IsMatch(x.Name ?? "", source.AssetPattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(200))).ToList();
                 if (!String.IsNullOrWhiteSpace(source.AssetPattern) && assets.Count == 0) return Result(SourceQueryStatus.NotFound, null, "В release нет подходящего asset.");
                 RemotePackageArchitecture hint; var hasHint = Enum.TryParse(source.PackageArchitecture, true, out hint);
-                return Result(SourceQueryStatus.Success, new RemoteRelease { VersionText = release.TagName, Version = version, SourceUrl = new Uri(release.HtmlUrl), Packages = assets.Where(x => Uri.IsWellFormedUriString(x.DownloadUrl, UriKind.Absolute)).Select(x => new RemotePackage { FileName = x.Name ?? "", Url = new Uri(x.DownloadUrl), Architecture = hasHint ? hint : DetectArchitecture(x.Name) }).ToList() }, "");
+                return Result(SourceQueryStatus.Success, new RemoteRelease { VersionText = release.TagName, Version = version, SourceUrl = new Uri(release.HtmlUrl), Packages = assets.Where(x => IsHttpUrl(x.DownloadUrl)).Select(x => new RemotePackage { FileName = x.Name ?? "", Url = new Uri(x.DownloadUrl), Architecture = hasHint ? hint : DetectArchitecture(x.Name) }).ToList() }, "");
             }
             catch { return Result(SourceQueryStatus.InvalidResponse, null, "Некорректный GitHub JSON."); }
         }
         private static IList<GitHubRelease> Deserialize(string json)
         {
             using (var stream = new MemoryStream(Encoding.UTF8.GetBytes(json ?? "[]"))) return (IList<GitHubRelease>)new DataContractJsonSerializer(typeof(List<GitHubRelease>)).ReadObject(stream);
+        }
+        private static bool IsHttpUrl(string value)
+        {
+            Uri uri; return Uri.TryCreate(value, UriKind.Absolute, out uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
         }
         public static RemotePackageArchitecture DetectArchitecture(string name)
         {

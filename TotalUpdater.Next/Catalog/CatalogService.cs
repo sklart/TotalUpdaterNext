@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Globalization;
 using System.Runtime.Serialization.Json;
 using System.Text.RegularExpressions;
 using TotalUpdater.Next.Core;
@@ -84,7 +85,8 @@ namespace TotalUpdater.Next.Catalog
                 if (!IsValid(entry, out error)) { AddDiagnostic(diagnostics, id, error); continue; }
                 foreach (var source in entry.Sources.Where(x => x.AuthorityValue == SourceAuthority.ManualOverride))
                 {
-                    DateTime verified; if (DateTime.TryParse(source.ManualOverride.VerifiedAt, out verified) && verified < DateTime.UtcNow.AddDays(-180)) diagnostics.Add(new CatalogDiagnostic { Severity = CatalogDiagnosticSeverity.Warning, EntryId = id, Message = "ManualOverride старше 180 дней." });
+                    DateTime verified; if (DateTime.TryParseExact(source.ManualOverride.VerifiedAt, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out verified) && verified < DateTime.UtcNow.AddDays(-180)) diagnostics.Add(new CatalogDiagnostic { Severity = CatalogDiagnosticSeverity.Warning, EntryId = id, Message = "ManualOverride старше 180 дней." });
+                    if (!source.Provider.Equals("manual", StringComparison.OrdinalIgnoreCase)) diagnostics.Add(new CatalogDiagnostic { Severity = CatalogDiagnosticSeverity.Warning, EntryId = id, Message = "Устаревший provider для ManualOverride; используйте manual." });
                 }
                 var others = entries.Where(x => !x.Key.Equals(entry.Id, StringComparison.OrdinalIgnoreCase)).Select(x => x.Value).ToList();
                 var conflict = FindAliasConflict(entry, others);
@@ -110,39 +112,47 @@ namespace TotalUpdater.Next.Catalog
             if (entry.Aliases == null || entry.Aliases.Count == 0 || entry.Aliases.Any(String.IsNullOrWhiteSpace)) { error = "Пустой aliases."; return false; }
             if (!LocalVersionStrategyRegistry.Default.Contains(entry.LocalVersionStrategy)) { error = "Неизвестная localVersionStrategy."; return false; }
             if (entry.Sources == null || entry.Sources.Count == 0) { error = "Пустой sources."; return false; }
+            if (entry.Sources.Any(x => x != null && x.AuthorityValue == SourceAuthority.Mirror && x.PurposeValue != SourcePurpose.Download) &&
+                !entry.Sources.Any(x => x != null && x.AuthorityValue > SourceAuthority.Mirror && x.PurposeValue != SourcePurpose.Download))
+            { error = "Mirror metadata требует более доверенный metadata источник."; return false; }
             foreach (var source in entry.Sources)
             {
                 if (source == null || !IsKnownProvider(source.Provider)) { error = "Неизвестный provider."; return false; }
                 SourceAuthority authority; if (!String.IsNullOrWhiteSpace(source.Authority) && !Enum.TryParse(source.Authority, true, out authority)) { error = "Неизвестный authority."; return false; }
                 SourcePurpose purpose; if (!String.IsNullOrWhiteSpace(source.Purpose) && !Enum.TryParse(source.Purpose, true, out purpose)) { error = "Неизвестный purpose."; return false; }
                 if (source.Provider.Equals("ghisler-plugins", StringComparison.OrdinalIgnoreCase) && String.IsNullOrWhiteSpace(source.Id)) { error = "Пустой id источника ghisler-plugins."; return false; }
-                if (source.AuthorityValue == SourceAuthority.Mirror && source.PurposeValue == SourcePurpose.Metadata) { error = "Mirror не может быть единственным metadata источником."; return false; }
                 if (source.AuthorityValue == SourceAuthority.ManualOverride)
                 {
                     var manual = source.ManualOverride; DateTime verified;
-                    if (manual == null || String.IsNullOrWhiteSpace(manual.Version) || !Uri.IsWellFormedUriString(manual.EvidenceUrl, UriKind.Absolute) || String.IsNullOrWhiteSpace(manual.Reason) || !DateTime.TryParse(manual.VerifiedAt, out verified)) { error = "Некорректный ManualOverride."; return false; }
+                    if (manual == null || !Core.Versions.VersionValue.Parse(manual.Version).IsKnown || !IsHttpUrl(manual.EvidenceUrl) || String.IsNullOrWhiteSpace(manual.Reason) || !DateTime.TryParseExact(manual.VerifiedAt, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out verified)) { error = "Некорректный ManualOverride."; return false; }
                     if (source.PurposeValue != SourcePurpose.Metadata) { error = "ManualOverride не может предоставлять download."; return false; }
                 }
+                else if (source.Provider.Equals("manual", StringComparison.OrdinalIgnoreCase)) { error = "Provider manual требует authority ManualOverride."; return false; }
                 if (source.Priority <= 0) { error = "Некорректный priority."; return false; }
                 if (!String.IsNullOrWhiteSpace(source.PackageArchitecture) && !Enum.GetNames(typeof(RemotePackageArchitecture)).Any(x => x.Equals(source.PackageArchitecture, StringComparison.OrdinalIgnoreCase))) { error = "Некорректный packageArchitecture."; return false; }
-                if (source.Provider.Equals("totalcmd.net", StringComparison.OrdinalIgnoreCase) && String.IsNullOrWhiteSpace(source.Id)) { error = "Пустой id источника totalcmd.net."; return false; }
+                if ((source.Provider.Equals("totalcmd.net", StringComparison.OrdinalIgnoreCase) || source.Provider.Equals("totalcmd.net-index", StringComparison.OrdinalIgnoreCase)) && String.IsNullOrWhiteSpace(source.Id)) { error = "Пустой id источника totalcmd.net."; return false; }
                 if (source.Provider.Equals("github", StringComparison.OrdinalIgnoreCase) && !Regex.IsMatch(source.Repository ?? "", @"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")) { error = "Некорректный GitHub repository."; return false; }
                 if (source.Provider.Equals("generic-html", StringComparison.OrdinalIgnoreCase))
                 {
-                    Uri uri; if (!Uri.TryCreate(source.Url, UriKind.Absolute, out uri) || String.IsNullOrWhiteSpace(source.VersionPattern)) { error = "Некорректный URL GenericHtml."; return false; }
-                    try { new Regex(source.VersionPattern ?? "", RegexOptions.CultureInvariant); } catch { error = "Некорректный GenericHtml regex."; return false; }
+                    if (!IsHttpUrl(source.Url) || String.IsNullOrWhiteSpace(source.VersionPattern)) { error = "Некорректный URL GenericHtml."; return false; }
+                    try { new Regex(source.VersionPattern ?? "", RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(200)); } catch { error = "Некорректный GenericHtml regex."; return false; }
                 }
                 else if (!String.IsNullOrWhiteSpace(source.VersionPattern) || !String.IsNullOrWhiteSpace(source.DownloadUrl)) { error = "versionPattern/downloadUrl разрешены только для generic-html."; return false; }
-                else if (!String.IsNullOrWhiteSpace(source.Url) && !Uri.IsWellFormedUriString(source.Url, UriKind.Absolute)) { error = "Некорректный URL."; return false; }
-                if (!String.IsNullOrWhiteSpace(source.DownloadUrl) && (!Uri.IsWellFormedUriString(source.DownloadUrl, UriKind.Absolute) || !(source.DownloadUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || source.DownloadUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase)))) { error = "Некорректный downloadUrl."; return false; }
-                if (!String.IsNullOrWhiteSpace(source.AssetPattern)) try { new Regex(source.AssetPattern, RegexOptions.CultureInvariant); } catch { error = "Некорректный assetPattern."; return false; }
+                else if (!String.IsNullOrWhiteSpace(source.Url) && !IsHttpUrl(source.Url)) { error = "Некорректный URL."; return false; }
+                if (!String.IsNullOrWhiteSpace(source.DownloadUrl) && !IsHttpUrl(source.DownloadUrl)) { error = "Некорректный downloadUrl."; return false; }
+                if (!String.IsNullOrWhiteSpace(source.AssetPattern)) try { new Regex(source.AssetPattern, RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(200)); } catch { error = "Некорректный assetPattern."; return false; }
             }
             return true;
         }
 
         private static bool IsKnownProvider(string provider)
         {
-            return "totalcmd.net".Equals(provider, StringComparison.OrdinalIgnoreCase) || "totalcmd.net-index".Equals(provider, StringComparison.OrdinalIgnoreCase) || "ghisler".Equals(provider, StringComparison.OrdinalIgnoreCase) || "ghisler-plugins".Equals(provider, StringComparison.OrdinalIgnoreCase) || "github".Equals(provider, StringComparison.OrdinalIgnoreCase) || "generic-html".Equals(provider, StringComparison.OrdinalIgnoreCase);
+            return "manual".Equals(provider, StringComparison.OrdinalIgnoreCase) || "totalcmd.net".Equals(provider, StringComparison.OrdinalIgnoreCase) || "totalcmd.net-index".Equals(provider, StringComparison.OrdinalIgnoreCase) || "ghisler".Equals(provider, StringComparison.OrdinalIgnoreCase) || "ghisler-plugins".Equals(provider, StringComparison.OrdinalIgnoreCase) || "github".Equals(provider, StringComparison.OrdinalIgnoreCase) || "generic-html".Equals(provider, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsHttpUrl(string value)
+        {
+            Uri uri; return Uri.TryCreate(value, UriKind.Absolute, out uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
         }
 
         private static void AddDiagnostic(ICollection<CatalogDiagnostic> diagnostics, string id, string message)
