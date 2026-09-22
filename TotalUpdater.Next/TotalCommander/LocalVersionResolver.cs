@@ -12,13 +12,21 @@ namespace TotalUpdater.Next.TotalCommander
 {
     public interface IVersionProbe { LocalVersion Probe(string filePath); }
 
+    public interface ILocalVersionStrategyRegistry { bool Contains(string name); IEnumerable<IPluginSpecificVersionStrategy> CreateStrategies(); }
+    public sealed class LocalVersionStrategyRegistry : ILocalVersionStrategyRegistry
+    {
+        public static readonly LocalVersionStrategyRegistry Default = new LocalVersionStrategyRegistry();
+        public bool Contains(string name) { return String.IsNullOrWhiteSpace(name) || String.Equals(name, "fileinfo", StringComparison.OrdinalIgnoreCase); }
+        public IEnumerable<IPluginSpecificVersionStrategy> CreateStrategies() { return new IPluginSpecificVersionStrategy[] { new FileInfoVersionStrategy() }; }
+    }
+
     public sealed class LocalVersionResolver
     {
         private readonly IList<IPluginSpecificVersionStrategy> _strategies;
         private readonly IList<IVersionProbe> _genericProbes;
 
         public LocalVersionResolver()
-            : this(new IPluginSpecificVersionStrategy[] { new FileInfoVersionStrategy() }, new IVersionProbe[] { new FileVersionProbe(), new ProductVersionProbe(), new TextVersionProbe() }) { }
+            : this(LocalVersionStrategyRegistry.Default.CreateStrategies(), new IVersionProbe[] { new FileVersionProbe(), new ProductVersionProbe(), new TextVersionProbe() }) { }
 
         public LocalVersionResolver(IEnumerable<IPluginSpecificVersionStrategy> strategies, IEnumerable<IVersionProbe> genericProbes)
         {

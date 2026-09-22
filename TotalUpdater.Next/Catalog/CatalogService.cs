@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Runtime.Serialization.Json;
 using System.Text.RegularExpressions;
 using TotalUpdater.Next.Core;
+using TotalUpdater.Next.TotalCommander;
 
 namespace TotalUpdater.Next.Catalog
 {
@@ -31,7 +32,8 @@ namespace TotalUpdater.Next.Catalog
             var diagnostics = new List<CatalogDiagnostic>();
             var entries = new Dictionary<string, PluginCatalogEntry>(StringComparer.OrdinalIgnoreCase);
             AddEntries(ReadEmbedded(), entries, diagnostics, false);
-            AddEntries(ReadFile(_userCatalogPath), entries, diagnostics, true);
+            string userError; AddEntries(ReadFileSafe(_userCatalogPath, out userError), entries, diagnostics, true);
+            if (!String.IsNullOrWhiteSpace(userError)) AddDiagnostic(diagnostics, "", "Пользовательский каталог проигнорирован: " + userError);
             Diagnostics = diagnostics;
             return new CatalogLoadResult { Entries = entries.Values.OrderBy(x => x.Name, StringComparer.CurrentCultureIgnoreCase).ToList(), Diagnostics = diagnostics };
         }
@@ -67,7 +69,7 @@ namespace TotalUpdater.Next.Catalog
 
         public IList<PluginCatalogEntry> LoadUserCatalog()
         {
-            return ReadFile(_userCatalogPath);
+            string ignored; return ReadFileSafe(_userCatalogPath, out ignored);
         }
 
         private static void AddEntries(IEnumerable<PluginCatalogEntry> candidates, IDictionary<string, PluginCatalogEntry> entries, ICollection<CatalogDiagnostic> diagnostics, bool userCatalog)
@@ -101,6 +103,7 @@ namespace TotalUpdater.Next.Catalog
             PluginType type;
             if (!Enum.TryParse(entry.Type, true, out type) || type == PluginType.Other) { error = "Неизвестный PluginType."; return false; }
             if (entry.Aliases == null || entry.Aliases.Count == 0 || entry.Aliases.Any(String.IsNullOrWhiteSpace)) { error = "Пустой aliases."; return false; }
+            if (!LocalVersionStrategyRegistry.Default.Contains(entry.LocalVersionStrategy)) { error = "Неизвестная localVersionStrategy."; return false; }
             if (entry.Sources == null || entry.Sources.Count == 0) { error = "Пустой sources."; return false; }
             foreach (var source in entry.Sources)
             {
@@ -113,8 +116,9 @@ namespace TotalUpdater.Next.Catalog
                     Uri uri; if (!Uri.TryCreate(source.Url, UriKind.Absolute, out uri) || String.IsNullOrWhiteSpace(source.VersionPattern)) { error = "Некорректный URL GenericHtml."; return false; }
                     try { new Regex(source.VersionPattern ?? "", RegexOptions.CultureInvariant); } catch { error = "Некорректный GenericHtml regex."; return false; }
                 }
-                else if (!String.IsNullOrWhiteSpace(source.VersionPattern)) { error = "versionPattern разрешён только для generic-html."; return false; }
+                else if (!String.IsNullOrWhiteSpace(source.VersionPattern) || !String.IsNullOrWhiteSpace(source.DownloadUrl)) { error = "versionPattern/downloadUrl разрешены только для generic-html."; return false; }
                 else if (!String.IsNullOrWhiteSpace(source.Url) && !Uri.IsWellFormedUriString(source.Url, UriKind.Absolute)) { error = "Некорректный URL."; return false; }
+                if (!String.IsNullOrWhiteSpace(source.DownloadUrl) && (!Uri.IsWellFormedUriString(source.DownloadUrl, UriKind.Absolute) || !(source.DownloadUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || source.DownloadUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase)))) { error = "Некорректный downloadUrl."; return false; }
                 if (!String.IsNullOrWhiteSpace(source.AssetPattern)) try { new Regex(source.AssetPattern, RegexOptions.CultureInvariant); } catch { error = "Некорректный assetPattern."; return false; }
             }
             return true;
@@ -144,6 +148,13 @@ namespace TotalUpdater.Next.Catalog
         {
             if (!File.Exists(path)) return new List<PluginCatalogEntry>();
             using (var stream = File.OpenRead(path)) return Read(stream);
+        }
+
+        private static IList<PluginCatalogEntry> ReadFileSafe(string path, out string error)
+        {
+            error = ""; if (!File.Exists(path)) return new List<PluginCatalogEntry>();
+            try { if (new FileInfo(path).Length == 0) { error = "пустой файл"; return new List<PluginCatalogEntry>(); } return ReadFile(path); }
+            catch (Exception ex) { error = ex.GetType().Name; return new List<PluginCatalogEntry>(); }
         }
 
         private static IList<PluginCatalogEntry> Read(Stream stream)

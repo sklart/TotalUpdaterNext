@@ -10,5 +10,6 @@
   { "id":"sftp", "name":"SFTP", "type":"Wfx", "aliases":["sftpplug.wfx"], "sources":[{"provider":"totalcmd.net","id":"sftpplug","priority":100}] },
   { "id":"exif", "name":"Exif", "type":"Wdx", "aliases":["exif.wdx"], "sources":[{"provider":"totalcmd.net","id":"exif","priority":100}] },
   { "id":"anytag", "name":"AnyTag", "type":"Wdx", "aliases":["anytag.wdx"], "sources":[{"provider":"totalcmd.net","id":"anytag","priority":100}] },
-  { "id":"doublecmd", "name":"Double Commander", "type":"Wlx", "aliases":["doublecmd.wlx"], "sources":[{"provider":"github","repository":"doublecmd/doublecmd","assetPattern":".*windows.*","priority":100}] }
+  { "id":"glimpse-wlx", "name":"Glimpse Lister", "type":"Wlx", "aliases":["Glimpse.wlx","Glimpse.wlx64"], "sources":[{"provider":"github","repository":"pozitronik/glimpse","assetPattern":".*_wlx\\.zip$","priority":100}] },
+  { "id":"glimpse-wcx", "name":"Glimpse Packer", "type":"Wcx", "aliases":["Glimpse.wcx","Glimpse.wcx64"], "sources":[{"provider":"github","repository":"pozitronik/glimpse","assetPattern":".*_wcx\\.zip$","priority":100}] }
 ]

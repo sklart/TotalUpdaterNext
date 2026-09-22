@@ -48,6 +48,7 @@ namespace TotalUpdater.Next.Core
             if (packages.Count == 0) { details = "В источнике нет пакета загрузки."; return null; }
             var hasX86 = (plugin.Architecture & PluginArchitecture.X86) != 0; var hasX64 = (plugin.Architecture & PluginArchitecture.X64) != 0;
             var suitable = packages.Where(x => x.Url != null && (x.Architecture == RemotePackageArchitecture.Combined || x.Architecture == RemotePackageArchitecture.Unknown || (x.Architecture == RemotePackageArchitecture.X86 && hasX86) || (x.Architecture == RemotePackageArchitecture.X64 && hasX64))).ToList();
+            if (hasX86 && hasX64 && suitable.Count(x => x.Architecture == RemotePackageArchitecture.Combined) == 1) return suitable.Single(x => x.Architecture == RemotePackageArchitecture.Combined).Url;
             if (hasX86 && hasX64 && suitable.Any(x => x.Architecture == RemotePackageArchitecture.X86) && suitable.Any(x => x.Architecture == RemotePackageArchitecture.X64) && !suitable.Any(x => x.Architecture == RemotePackageArchitecture.Combined)) { details = "Есть отдельные x86 и x64 пакеты; автоматический выбор неоднозначен."; return null; }
             if (suitable.Count == 1) return suitable[0].Url;
             details = suitable.Count == 0 ? "Нет подходящего пакета." : "Выбор пакета неоднозначен."; return null;

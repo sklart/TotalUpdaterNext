@@ -32,6 +32,7 @@ namespace TotalUpdater.Next.Catalog
         [DataMember(Name = "priority")] public int Priority { get; set; }
         [DataMember(Name = "url")] public string Url { get; set; } = "";
         [DataMember(Name = "versionPattern")] public string VersionPattern { get; set; } = "";
+        [DataMember(Name = "downloadUrl")] public string DownloadUrl { get; set; } = "";
         [DataMember(Name = "repository")] public string Repository { get; set; } = "";
         [DataMember(Name = "assetPattern")] public string AssetPattern { get; set; } = "";
         [DataMember(Name = "includePrerelease")] public bool IncludePrerelease { get; set; }
