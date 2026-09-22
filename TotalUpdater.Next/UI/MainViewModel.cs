@@ -45,7 +45,7 @@ namespace TotalUpdater.Next.UI
         public string IniPath { get { return _iniPath; } set { _iniPath = value; Changed("IniPath"); } }
         public string InstallDirectory { get { return _configuration == null ? "—" : _configuration.InstallDirectory; } }
         public string DownloadDirectory { get { return _paths.DownloadDirectory; } }
-        public string StorageMode { get { return _paths.IsPortable ? "Portable: рядом с EXE" : "Установленная: %APPDATA%\\TotalUpdaterNext"; } }
+        public string StorageMode { get { return Text.Get(_paths.IsPortable ? "StoragePortable" : "StorageInstalled"); } }
         public string UserCatalogPath { get { return _paths.UserCatalogPath; } }
         public string StatusText { get { return _statusText; } private set { _statusText = value; Changed("StatusText"); } }
         public string FilterName { get { return _filter; } set { _filter = value; _itemsView.View.Refresh(); Changed("FilterName"); } }
@@ -56,7 +56,7 @@ namespace TotalUpdater.Next.UI
             _configuration = _resolver.Resolve(IniPath); IniPath = _configuration == null ? "" : _configuration.IniPath; Items.Clear();
             if (_configuration == null) { StatusText = Text.Get("NoIni"); Changed("InstallDirectory"); return; }
             foreach (var plugin in _discovery.Discover(_configuration)) Items.Add(new PluginRowViewModel(plugin));
-            Changed("InstallDirectory"); StatusText = "Найдено: " + Items.Count;
+            Changed("InstallDirectory"); StatusText = String.Format(Text.Get("FoundCount"), Items.Count);
         }
 
         private async Task CheckAsync()
@@ -68,7 +68,7 @@ namespace TotalUpdater.Next.UI
                 try { row.Apply(await _updates.CheckAsync(row.Plugin, CancellationToken.None)); }
                 catch (Exception ex) { row.Apply(new UpdateCandidate { Plugin = row.Plugin, State = UpdateState.Error, Details = ex.Message }); }
             }
-            ItemsView.Refresh(); StatusText = "Проверено: " + target.Count;
+            ItemsView.Refresh(); StatusText = String.Format(Text.Get("CheckedCount"), target.Count);
         }
 
         private async Task DownloadAsync()
@@ -82,7 +82,7 @@ namespace TotalUpdater.Next.UI
                 try { var path = await _downloads.DownloadAsync(row.Candidate.DownloadUrl, _paths.DownloadDirectory, CancellationToken.None); row.Apply(new UpdateCandidate { Plugin = row.Plugin, State = UpdateState.UpdateAvailable, AvailableVersion = row.Candidate.AvailableVersion, SourceUrl = row.Candidate.SourceUrl, DownloadUrl = row.Candidate.DownloadUrl, Details = String.Format(Text.Get("Downloaded"), Path.GetFileName(path)) }); done++; }
                 catch (Exception ex) { row.Apply(new UpdateCandidate { Plugin = row.Plugin, State = UpdateState.Error, Details = ex.Message }); }
             }
-            StatusText = "Скачано: " + done;
+            StatusText = String.Format(Text.Get("DownloadedCount"), done);
         }
 
         private System.Collections.Generic.List<PluginRowViewModel> CheckedOrAll() { var checkedRows = Items.Where(x => x.IsChecked).ToList(); return checkedRows.Count > 0 ? checkedRows : Items.ToList(); }
@@ -93,11 +93,11 @@ namespace TotalUpdater.Next.UI
             if (FilterName == "Unknown") { e.Accepted = row.Candidate == null || row.Candidate.State == UpdateState.PluginNotRecognized || row.Candidate.State == UpdateState.VersionComparisonUnknown; return; }
             e.Accepted = FilterName != "Errors" || row.HasError;
         }
-        private void BrowseIni() { var dialog = new OpenFileDialog { Filter = "wincmd.ini|wincmd.ini;*.ini|Все файлы|*.*", FileName = "wincmd.ini" }; if (dialog.ShowDialog() == true) { IniPath = dialog.FileName; Discover(); } }
+        private void BrowseIni() { var dialog = new OpenFileDialog { Filter = "wincmd.ini|wincmd.ini;*.ini|Все файлы|*.*", FileName = "wincmd.ini" }; if (dialog.ShowDialog(System.Windows.Application.Current.MainWindow) == true) { IniPath = dialog.FileName; Discover(); } }
         private void OpenUserCatalog() { _catalog.EnsureUserCatalog(); UserCatalogEntries.Clear(); foreach (var entry in _catalog.LoadUserCatalog()) UserCatalogEntries.Add(entry); Process.Start(new ProcessStartInfo("notepad.exe", "\"" + _paths.UserCatalogPath + "\"") { UseShellExecute = true }); }
         private static void OpenSite(PluginRowViewModel row) { Process.Start(new ProcessStartInfo(row.Candidate.SourceUrl.AbsoluteUri) { UseShellExecute = true }); }
         private static void OpenPath(PluginRowViewModel row) { Process.Start(new ProcessStartInfo("explorer.exe", "/select,\"" + row.Path + "\"") { UseShellExecute = true }); }
-        private static void ShowInfo(PluginRowViewModel row) { System.Windows.MessageBox.Show(row.Path + Environment.NewLine + row.InstalledVersion + Environment.NewLine + row.Status, row.Name, System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information); }
+        private static void ShowInfo(PluginRowViewModel row) { System.Windows.MessageBox.Show(System.Windows.Application.Current.MainWindow, row.Path + Environment.NewLine + row.InstalledVersion + Environment.NewLine + row.Status, row.Name, System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information); }
         public void Dispose() { }
         public event PropertyChangedEventHandler PropertyChanged;
         private void Changed(string propertyName) { var handler = PropertyChanged; if (handler != null) handler(this, new PropertyChangedEventArgs(propertyName)); }
