@@ -36,20 +36,35 @@ namespace TotalUpdater.Next.TotalCommander
                 PluginType type;
                 if (!Sections.TryGetValue(section, out type)) continue;
                 var equals = line.IndexOf('=');
-                int index;
-                if (equals <= 0 || !Int32.TryParse(line.Substring(0, equals), out index)) continue;
-                var path = _configurationResolver.ExpandPath(line.Substring(equals + 1).Trim(), configuration);
+                if (equals <= 0) continue;
+                var key = line.Substring(0, equals).Trim();
+                var pathValue = GetPluginPath(type, key, line.Substring(equals + 1).Trim());
+                if (String.IsNullOrWhiteSpace(pathValue)) continue;
+                var path = _configurationResolver.ExpandPath(pathValue, configuration);
                 var entry = _catalog.FindByAlias(Path.GetFileName(path));
-                var identity = entry == null ? new PluginIdentity { Id = "file:" + Path.GetFileName(path).ToLowerInvariant(), Name = Path.GetFileNameWithoutExtension(path), Type = type } :
+                var fallbackName = type == PluginType.Wfx ? key : Path.GetFileNameWithoutExtension(path);
+                var identity = entry == null ? new PluginIdentity { Id = "file:" + Path.GetFileName(path).ToLowerInvariant(), Name = fallbackName, Type = type } :
                     new PluginIdentity { Id = entry.Id, Name = entry.Name, Type = entry.PluginType };
                 var exists = File.Exists(path);
                 result.Add(new InstalledPlugin
                 {
                     Identity = identity, Type = type, DisplayName = identity.Name, PrimaryPath = path, FileExists = exists,
-                    Architecture = DetectArchitecture(path), LocalVersion = exists ? _versions.Resolve(path) : LocalVersion.Unknown
+                    Architecture = DetectArchitecture(path), LocalVersion = exists ? _versions.Resolve(path, identity) : LocalVersion.Unknown
                 });
             }
             return MergeDuplicates(result);
+        }
+
+        private static string GetPluginPath(PluginType type, string key, string value)
+        {
+            if (type == PluginType.Wcx)
+            {
+                var separator = value.IndexOf(',');
+                return separator < 0 ? value : value.Substring(separator + 1).Trim();
+            }
+            if (type == PluginType.Wfx) return value;
+            int ignored;
+            return Int32.TryParse(key, out ignored) ? value : null;
         }
 
         private void AddTotalCommander(TotalCommanderConfiguration configuration, ICollection<InstalledPlugin> result)
@@ -63,7 +78,7 @@ namespace TotalUpdater.Next.TotalCommander
                 {
                     Identity = new PluginIdentity { Id = entry == null ? "totalcmd" : entry.Id, Name = entry == null ? "Total Commander" : entry.Name, Type = PluginType.TotalCommander },
                     Type = PluginType.TotalCommander, DisplayName = name.Equals("TOTALCMD64.EXE", StringComparison.OrdinalIgnoreCase) ? "Total Commander (x64)" : "Total Commander",
-                    PrimaryPath = path, FileExists = true, Architecture = name.Contains("64") ? PluginArchitecture.X64 : PluginArchitecture.X86, LocalVersion = _versions.Resolve(path)
+                    PrimaryPath = path, FileExists = true, Architecture = name.Contains("64") ? PluginArchitecture.X64 : PluginArchitecture.X86, LocalVersion = _versions.Resolve(path, new PluginIdentity { Id = entry == null ? "totalcmd" : entry.Id, Name = "Total Commander", Type = PluginType.TotalCommander })
                 });
             }
         }

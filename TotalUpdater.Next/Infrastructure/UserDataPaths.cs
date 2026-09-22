@@ -33,4 +33,17 @@ namespace TotalUpdater.Next.Infrastructure
             catch { return false; }
         }
     }
+
+    public static class ApplicationMetadata
+    {
+        public static string Version
+        {
+            get
+            {
+                var assembly = typeof(ApplicationMetadata).Assembly;
+                var version = assembly.GetName().Version;
+                return version == null ? "0.0.0" : version.ToString(3);
+            }
+        }
+    }
 }

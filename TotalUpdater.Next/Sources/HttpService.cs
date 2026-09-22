@@ -8,10 +8,12 @@ namespace TotalUpdater.Next.Sources
     public sealed class HttpService : IDisposable
     {
         private readonly HttpClient _client;
-        public HttpService()
+        public string UserAgent { get; private set; }
+        public HttpService(string applicationVersion)
         {
             _client = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
-            _client.DefaultRequestHeaders.UserAgent.ParseAdd("TotalUpdaterNext/0.1");
+            UserAgent = "TotalUpdaterNext/" + applicationVersion;
+            _client.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
         }
         public async Task<string> GetStringAsync(string url, CancellationToken token)
         {

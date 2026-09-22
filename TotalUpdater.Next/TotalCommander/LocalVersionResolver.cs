@@ -15,15 +15,39 @@ namespace TotalUpdater.Next.TotalCommander
     public sealed class LocalVersionResolver
     {
         private readonly IList<IVersionProbe> _probes;
-        public LocalVersionResolver() { _probes = new List<IVersionProbe> { new FileVersionProbe(), new ProductVersionProbe(), new TextVersionProbe() }; }
-        public LocalVersion Resolve(string path)
+        public LocalVersionResolver() { _probes = new List<IVersionProbe> { new FileVersionProbe(), new ProductVersionProbe(), new FileInfoVersionStrategy(), new TextVersionProbe() }; }
+        public LocalVersion Resolve(string path) { return Resolve(path, new PluginIdentity()); }
+        public LocalVersion Resolve(string path, PluginIdentity identity)
         {
             foreach (var probe in _probes)
             {
+                var pluginSpecific = probe as IPluginSpecificVersionStrategy;
+                if (pluginSpecific != null && !pluginSpecific.CanHandle(identity)) continue;
                 var version = probe.Probe(path);
                 if (version.ParsedValue.IsKnown) return version;
             }
             return LocalVersion.Unknown;
+        }
+    }
+
+    public interface IPluginSpecificVersionStrategy : IVersionProbe { bool CanHandle(PluginIdentity identity); }
+
+    public sealed class FileInfoVersionStrategy : IPluginSpecificVersionStrategy
+    {
+        private static readonly Regex Pattern = new Regex(@"(?:version|ver\.)\s*[:=#-]?\s*([0-9]+(?:[.,][0-9]+){1,3})", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        public bool CanHandle(PluginIdentity identity) { return identity != null && identity.Id.Equals("fileinfo", StringComparison.OrdinalIgnoreCase); }
+        public LocalVersion Probe(string path)
+        {
+            try
+            {
+                var customFile = Path.Combine(Path.GetDirectoryName(path), "fileinfo.version");
+                if (!File.Exists(customFile)) return LocalVersion.Unknown;
+                var match = Pattern.Match(File.ReadAllText(customFile, Encoding.Default));
+                if (!match.Success) return LocalVersion.Unknown;
+                var parsed = VersionValue.Parse(match.Groups[1].Value);
+                return parsed.IsKnown ? new LocalVersion { RawValue = match.Groups[1].Value, ParsedValue = parsed, Source = VersionSource.CustomRule, Confidence = VersionConfidence.Probable } : LocalVersion.Unknown;
+            }
+            catch { return LocalVersion.Unknown; }
         }
     }
 

@@ -11,7 +11,7 @@ namespace TotalUpdater.Next.Core.Versions
 
     public sealed class VersionValue
     {
-        private static readonly Regex Pattern = new Regex(@"(?<numbers>\d+(?:\.\d+){0,3})(?:\s*(?<stage>alpha|a|beta|b|rc)\s*(?<stageNumber>\d*)?)?", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        private static readonly Regex Pattern = new Regex(@"^\s*(?<numbers>\d+(?:\s*[.,]\s*\d+){0,3})(?:\s*(?<stage>alpha|a|beta|b|rc)\s*(?<stageNumber>\d*)?)?\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         public static readonly VersionValue Unknown = new VersionValue("", new int[0], VersionStage.Final, "", 0, false);
 
         private VersionValue(string raw, IReadOnlyList<int> numbers, VersionStage stage, string stageLabel, int stageNumber, bool isKnown)
@@ -31,7 +31,7 @@ namespace TotalUpdater.Next.Core.Versions
             if (String.IsNullOrWhiteSpace(raw)) return Unknown;
             var match = Pattern.Match(raw.Trim());
             if (!match.Success) return Unknown;
-            var numbers = match.Groups["numbers"].Value.Split('.').Select(x => Int32.Parse(x, CultureInfo.InvariantCulture)).ToList();
+            var numbers = match.Groups["numbers"].Value.Replace(',', '.').Split('.').Select(x => Int32.Parse(x.Trim(), CultureInfo.InvariantCulture)).ToList();
             var stageText = match.Groups["stage"].Value;
             var stage = stageText.Equals("rc", StringComparison.OrdinalIgnoreCase) ? VersionStage.Rc :
                 String.IsNullOrWhiteSpace(stageText) ? VersionStage.Final : VersionStage.Beta;

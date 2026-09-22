@@ -47,6 +47,7 @@ namespace TotalUpdater.Next.UI
         public string DownloadDirectory { get { return _paths.DownloadDirectory; } }
         public string StorageMode { get { return Text.Get(_paths.IsPortable ? "StoragePortable" : "StorageInstalled"); } }
         public string UserCatalogPath { get { return _paths.UserCatalogPath; } }
+        public string ApplicationVersion { get { return ApplicationMetadata.Version; } }
         public string StatusText { get { return _statusText; } private set { _statusText = value; Changed("StatusText"); } }
         public string FilterName { get { return _filter; } set { _filter = value; _itemsView.View.Refresh(); Changed("FilterName"); } }
 
