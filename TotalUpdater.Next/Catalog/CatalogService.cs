@@ -82,6 +82,10 @@ namespace TotalUpdater.Next.Catalog
                 if (!seenIds.Add(id ?? "")) { AddDiagnostic(diagnostics, id, "Повторяющийся id в каталоге."); continue; }
                 string error;
                 if (!IsValid(entry, out error)) { AddDiagnostic(diagnostics, id, error); continue; }
+                foreach (var source in entry.Sources.Where(x => x.AuthorityValue == SourceAuthority.ManualOverride))
+                {
+                    DateTime verified; if (DateTime.TryParse(source.ManualOverride.VerifiedAt, out verified) && verified < DateTime.UtcNow.AddDays(-180)) diagnostics.Add(new CatalogDiagnostic { Severity = CatalogDiagnosticSeverity.Warning, EntryId = id, Message = "ManualOverride старше 180 дней." });
+                }
                 var others = entries.Where(x => !x.Key.Equals(entry.Id, StringComparison.OrdinalIgnoreCase)).Select(x => x.Value).ToList();
                 var conflict = FindAliasConflict(entry, others);
                 if (conflict != null) { AddDiagnostic(diagnostics, entry.Id, "Alias конфликтует с записью '" + conflict.Id + "'."); continue; }
