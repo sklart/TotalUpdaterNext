@@ -15,8 +15,8 @@ namespace TotalUpdater.Next.TotalCommander
             var section = configuration.Document == null ? null : configuration.Document.GetSection(sectionName);
             if (section == null) return new List<IniEntry>();
             var redirect = section.GetValue("RedirectSection");
-            if (String.IsNullOrWhiteSpace(redirect)) return WithoutRedirectControl(section.Entries);
-            var path = redirect.Trim() == "1" ? configuration.AlternateUserIni : _paths.ExpandPath(redirect, configuration, Path.GetDirectoryName(configuration.IniPath));
+            if (String.IsNullOrWhiteSpace(redirect) || redirect.Trim() == "0") return WithoutRedirectControl(section.Entries);
+            var path = redirect.Trim() == "1" ? configuration.AlternateUserIni : _paths.ExpandRedirectPath(redirect, configuration);
             if (String.IsNullOrWhiteSpace(path) || !File.Exists(path))
             {
                 configuration.Warnings.Add("Не найден файл RedirectSection для [" + sectionName + "]: " + (String.IsNullOrWhiteSpace(path) ? redirect : path));

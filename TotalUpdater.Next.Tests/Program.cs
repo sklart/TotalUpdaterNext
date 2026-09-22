@@ -99,32 +99,47 @@ namespace TotalUpdater.Next.Tests
             var root = NewRoot();
             try
             {
-                var explicitIni = WriteIni(root, "explicit.ini", "[Configuration]\r\nInstallDir=" + root);
-                var environmentIni = WriteIni(root, "environment.ini", "[Configuration]\r\nInstallDir=" + root);
-                var install = Path.Combine(root, "install"); Directory.CreateDirectory(install); var portableIni = WriteIni(install, "wincmd.ini", "[Configuration]\r\nInstallDir=" + install);
+                var install = Path.Combine(root, "TotalCmd"); Directory.CreateDirectory(install);
+                var explicitIni = WriteIni(root, "explicit.ini", "[Configuration]"); var environmentIni = WriteIni(root, "environment.ini", "[Configuration]"); var registryIni = WriteIni(root, "registry.ini", "[Configuration]");
+                var localIni = WriteIni(install, "wincmd.ini", "[Configuration]\r\nUseIniInProgramDir=1");
                 var fakeEnvironment = new FakeEnvironment { Values = { ["COMMANDER_INI"] = environmentIni, ["COMMANDER_PATH"] = install } };
-                var registry = new FakeRegistry(new RegistryConfigurationEntry { IniFileName = "missing.ini", InstallDirectory = root });
+                var registry = new FakeRegistry(new RegistryConfigurationEntry { IniFileName = registryIni, InstallDirectory = install });
                 var resolver = new TotalCommanderConfigurationResolver(new IniDocumentReader(), registry, fakeEnvironment);
                 Assert(resolver.Resolve(explicitIni).IniPath == Path.GetFullPath(explicitIni), "explicit INI priority");
                 Assert(resolver.Resolve("").IniPath == Path.GetFullPath(environmentIni), "COMMANDER_INI detection");
-
                 fakeEnvironment.Values.Remove("COMMANDER_INI");
-                Assert(resolver.Resolve("").IniPath == Path.GetFullPath(portableIni), "COMMANDER_PATH portable detection");
-                fakeEnvironment.Values.Remove("COMMANDER_PATH");
+                Assert(resolver.DetectInstallDirectory() == Path.GetFullPath(install) && resolver.Resolve("").IniPath == Path.GetFullPath(registryIni), "COMMANDER_PATH determines install, registry determines INI");
+                foreach (var value in new[] { 1 })
+                {
+                    File.WriteAllText(localIni, "[Configuration]\r\nUseIniInProgramDir=" + value);
+                    Assert(resolver.Resolve("").IniPath == Path.GetFullPath(registryIni), "UseIniInProgramDir=1 registry wins");
+                }
+                foreach (var value in new[] { 4, 5, 7 })
+                {
+                    File.WriteAllText(localIni, "[Configuration]\r\nUseIniInProgramDir=" + value);
+                    Assert(resolver.Resolve("").IniPath == Path.GetFullPath(localIni), "UseIniInProgramDir=" + value + " local wins");
+                }
+                File.WriteAllText(localIni, "[Configuration]");
                 var relativeIni = WriteIni(install, "relative.ini", "[Configuration]");
                 resolver = new TotalCommanderConfigurationResolver(new IniDocumentReader(), new FakeRegistry(new RegistryConfigurationEntry { IniFileName = "relative.ini", InstallDirectory = install }), fakeEnvironment);
                 var relative = resolver.Resolve(""); Assert(relative.IniPath == Path.GetFullPath(relativeIni) && relative.InstallDirectory == install, "relative registry IniFileName");
-                foreach (var value in new[] { 1, 4, 5, 7 })
-                {
-                    resolver = new TotalCommanderConfigurationResolver(new IniDocumentReader(), new FakeRegistry(new RegistryConfigurationEntry { IniFileName = "missing.ini", InstallDirectory = install, UseIniInProgramDir = value }), fakeEnvironment);
-                    Assert(resolver.Resolve("").IniPath == Path.GetFullPath(portableIni), "UseIniInProgramDir=" + value);
-                }
                 var hkcuIni = WriteIni(root, "hkcu.ini", "[Configuration]"); var hklmIni = WriteIni(root, "hklm.ini", "[Configuration]");
                 Assert(new TotalCommanderConfigurationResolver(new IniDocumentReader(), new FakeRegistry(new RegistryConfigurationEntry { IniFileName = hkcuIni }), fakeEnvironment).Resolve("").IniPath == Path.GetFullPath(hkcuIni), "HKCU registry detection");
                 Assert(new TotalCommanderConfigurationResolver(new IniDocumentReader(), new FakeRegistry(new RegistryConfigurationEntry { IniFileName = hklmIni }), fakeEnvironment).Resolve("").IniPath == Path.GetFullPath(hklmIni), "HKLM registry detection");
                 var appDataRoot = Path.Combine(root, "appdata"); var windowsRoot = Path.Combine(root, "windows"); Directory.CreateDirectory(Path.Combine(appDataRoot, "Ghisler")); var appDataIni = WriteIni(Path.Combine(appDataRoot, "Ghisler"), "wincmd.ini", "[Configuration]");
                 fakeEnvironment.Values["APPDATA"] = appDataRoot; fakeEnvironment.Values["WINDIR"] = windowsRoot;
                 Assert(new TotalCommanderConfigurationResolver(new IniDocumentReader(), new FakeRegistry(), fakeEnvironment).Resolve("").IniPath == Path.GetFullPath(appDataIni), "AppData fallback detection");
+                var expandedIni = WriteIni(Path.Combine(appDataRoot, "Ghisler"), "expanded.ini", "[Configuration]");
+                Assert(new TotalCommanderConfigurationResolver(new IniDocumentReader(), new FakeRegistry(new RegistryConfigurationEntry { IniFileName = "%APPDATA%\\Ghisler\\expanded.ini", InstallDirectory = install }), fakeEnvironment).Resolve("").IniPath == Path.GetFullPath(expandedIni), "registry environment expansion");
+                Assert(new TotalCommanderConfigurationResolver(new IniDocumentReader(), new FakeRegistry(), fakeEnvironment).Resolve(appDataIni).InstallDirectory == Path.GetFullPath(install), "explicit AppData INI keeps COMMANDER_PATH install directory");
+                var pluginDirectory = Path.Combine(install, "plugins", "wlx"); Directory.CreateDirectory(pluginDirectory); File.WriteAllBytes(Path.Combine(pluginDirectory, "x.wlx"), new byte[0]);
+                var pluginIni = WriteIni(Path.Combine(appDataRoot, "Ghisler"), "plugins.ini", "[ListerPlugins]\r\n0=plugins\\wlx\\x.wlx");
+                var pluginConfig = new TotalCommanderConfigurationResolver(new IniDocumentReader(), new FakeRegistry(), fakeEnvironment).Resolve(pluginIni);
+                var plugin = new PluginDiscoveryService(new TotalCommanderConfigurationResolver(new IniDocumentReader(), new FakeRegistry(), fakeEnvironment), new LocalVersionResolver(), new CatalogService(Path.Combine(root, "user.json"))).Discover(pluginConfig).Single(x => x.Type == PluginType.Wlx);
+                Assert(plugin.PrimaryPath == Path.Combine(install, "plugins", "wlx", "x.wlx"), "relative plugin path uses TC install directory");
+                fakeEnvironment.Values.Remove("COMMANDER_PATH");
+                var fallbackIni = WriteIni(root, "install-fallback.ini", "[Configuration]\r\nInstallDir=" + install);
+                Assert(new TotalCommanderConfigurationResolver(new IniDocumentReader(), new FakeRegistry(), fakeEnvironment).Resolve(fallbackIni).InstallDirectory == Path.GetFullPath(install), "Configuration InstallDir fallback");
                 File.Delete(appDataIni); Directory.CreateDirectory(windowsRoot); var windowsIni = WriteIni(windowsRoot, "wincmd.ini", "[Configuration]");
                 Assert(new TotalCommanderConfigurationResolver(new IniDocumentReader(), new FakeRegistry(), fakeEnvironment).Resolve("").IniPath == Path.GetFullPath(windowsIni), "Windows directory fallback detection");
             }
@@ -146,11 +161,15 @@ namespace TotalUpdater.Next.Tests
                 var alternate = WriteIni(root, "alternate.ini", "[PackerPlugins]\r\nzip=1,plugins\\a.wcx");
                 var alternateMain = WriteIni(root, "alternate-main.ini", "[Configuration]\r\nInstallDir=" + root + "\r\nAlternateUserIni=" + alternate + "\r\n[PackerPlugins]\r\nRedirectSection=1");
                 Assert(discovery.Discover(resolver.Resolve(alternateMain)).Count(x => x.Type == PluginType.Wcx) == 1, "RedirectSection=1 AlternateUserIni");
+                var zeroMain = WriteIni(root, "zero-main.ini", "[Configuration]\r\nInstallDir=" + root + "\r\n[PackerPlugins]\r\nRedirectSection=0\r\nzip=1,plugins\\a.wcx");
+                Assert(discovery.Discover(resolver.Resolve(zeroMain)).Count(x => x.Type == PluginType.Wcx) == 1, "RedirectSection=0 uses local section");
                 var first = WriteIni(root, "first.ini", "[PackerPlugins]\r\nRedirectSection=second.ini\r\nzip=1,plugins\\first.wcx"); WriteIni(root, "second.ini", "[PackerPlugins]\r\nzip=1,plugins\\second.wcx");
                 var recursiveMain = WriteIni(root, "recursive-main.ini", "[Configuration]\r\nInstallDir=" + root + "\r\n[PackerPlugins]\r\nRedirectSection=" + first);
                 var recursive = discovery.Discover(resolver.Resolve(recursiveMain)); Assert(recursive.Any(x => x.PrimaryPath.EndsWith("first.wcx")) && !recursive.Any(x => x.PrimaryPath.EndsWith("second.wcx")), "non-recursive redirect");
                 var missingMain = WriteIni(root, "missing-main.ini", "[Configuration]\r\nInstallDir=" + root + "\r\n[PackerPlugins]\r\nRedirectSection=missing.ini");
                 var missing = resolver.Resolve(missingMain); Assert(discovery.Discover(missing).Count == 0 && missing.Warnings.Count == 1, "missing redirect file warning");
+                var unsupportedMain = WriteIni(root, "unsupported-main.ini", "[Configuration]\r\nInstallDir=" + root + "\r\n[PackerPlugins]\r\nRedirectSection=subdir\\plugins.ini");
+                var unsupported = resolver.Resolve(unsupportedMain); Assert(discovery.Discover(unsupported).Count == 0 && unsupported.Warnings.Count == 1, "non-bare relative redirect is not accepted");
             }
             finally { Directory.Delete(root, true); }
         }
