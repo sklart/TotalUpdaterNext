@@ -174,7 +174,8 @@ namespace TotalUpdater.Next.Sources
                 var assets = release.Assets ?? new List<GitHubAsset>();
                 if (!String.IsNullOrWhiteSpace(source.AssetPattern)) assets = assets.Where(x => Regex.IsMatch(x.Name ?? "", source.AssetPattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)).ToList();
                 if (!String.IsNullOrWhiteSpace(source.AssetPattern) && assets.Count == 0) return Result(SourceQueryStatus.NotFound, null, "В release нет подходящего asset.");
-                return Result(SourceQueryStatus.Success, new RemoteRelease { VersionText = release.TagName, Version = version, SourceUrl = new Uri(release.HtmlUrl), Packages = assets.Where(x => Uri.IsWellFormedUriString(x.DownloadUrl, UriKind.Absolute)).Select(x => new RemotePackage { FileName = x.Name ?? "", Url = new Uri(x.DownloadUrl), Architecture = DetectArchitecture(x.Name) }).ToList() }, "");
+                RemotePackageArchitecture hint; var hasHint = Enum.TryParse(source.PackageArchitecture, true, out hint);
+                return Result(SourceQueryStatus.Success, new RemoteRelease { VersionText = release.TagName, Version = version, SourceUrl = new Uri(release.HtmlUrl), Packages = assets.Where(x => Uri.IsWellFormedUriString(x.DownloadUrl, UriKind.Absolute)).Select(x => new RemotePackage { FileName = x.Name ?? "", Url = new Uri(x.DownloadUrl), Architecture = hasHint ? hint : DetectArchitecture(x.Name) }).ToList() }, "");
             }
             catch { return Result(SourceQueryStatus.InvalidResponse, null, "Некорректный GitHub JSON."); }
         }

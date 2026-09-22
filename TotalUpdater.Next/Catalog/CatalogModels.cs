@@ -36,6 +36,7 @@ namespace TotalUpdater.Next.Catalog
         [DataMember(Name = "repository")] public string Repository { get; set; } = "";
         [DataMember(Name = "assetPattern")] public string AssetPattern { get; set; } = "";
         [DataMember(Name = "includePrerelease")] public bool IncludePrerelease { get; set; }
+        [DataMember(Name = "packageArchitecture")] public string PackageArchitecture { get; set; } = "";
     }
 
     public enum CatalogDiagnosticSeverity { Warning, Error }

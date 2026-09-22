@@ -7,6 +7,7 @@ using System.Runtime.Serialization.Json;
 using System.Text.RegularExpressions;
 using TotalUpdater.Next.Core;
 using TotalUpdater.Next.TotalCommander;
+using TotalUpdater.Next.Sources;
 
 namespace TotalUpdater.Next.Catalog
 {
@@ -109,6 +110,7 @@ namespace TotalUpdater.Next.Catalog
             {
                 if (source == null || !IsKnownProvider(source.Provider)) { error = "Неизвестный provider."; return false; }
                 if (source.Priority <= 0) { error = "Некорректный priority."; return false; }
+                if (!String.IsNullOrWhiteSpace(source.PackageArchitecture) && !Enum.GetNames(typeof(RemotePackageArchitecture)).Any(x => x.Equals(source.PackageArchitecture, StringComparison.OrdinalIgnoreCase))) { error = "Некорректный packageArchitecture."; return false; }
                 if (source.Provider.Equals("totalcmd.net", StringComparison.OrdinalIgnoreCase) && String.IsNullOrWhiteSpace(source.Id)) { error = "Пустой id источника totalcmd.net."; return false; }
                 if (source.Provider.Equals("github", StringComparison.OrdinalIgnoreCase) && !Regex.IsMatch(source.Repository ?? "", @"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")) { error = "Некорректный GitHub repository."; return false; }
                 if (source.Provider.Equals("generic-html", StringComparison.OrdinalIgnoreCase))
