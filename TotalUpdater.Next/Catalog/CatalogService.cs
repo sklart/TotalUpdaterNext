@@ -138,7 +138,7 @@ namespace TotalUpdater.Next.Catalog
 
         private static bool IsKnownProvider(string provider)
         {
-            return "totalcmd.net".Equals(provider, StringComparison.OrdinalIgnoreCase) || "ghisler".Equals(provider, StringComparison.OrdinalIgnoreCase) || "ghisler-plugins".Equals(provider, StringComparison.OrdinalIgnoreCase) || "github".Equals(provider, StringComparison.OrdinalIgnoreCase) || "generic-html".Equals(provider, StringComparison.OrdinalIgnoreCase);
+            return "totalcmd.net".Equals(provider, StringComparison.OrdinalIgnoreCase) || "totalcmd.net-index".Equals(provider, StringComparison.OrdinalIgnoreCase) || "ghisler".Equals(provider, StringComparison.OrdinalIgnoreCase) || "ghisler-plugins".Equals(provider, StringComparison.OrdinalIgnoreCase) || "github".Equals(provider, StringComparison.OrdinalIgnoreCase) || "generic-html".Equals(provider, StringComparison.OrdinalIgnoreCase);
         }
 
         private static void AddDiagnostic(ICollection<CatalogDiagnostic> diagnostics, string id, string message)

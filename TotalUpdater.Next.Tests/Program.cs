@@ -510,6 +510,7 @@ namespace TotalUpdater.Next.Tests
             var disagreement = resolver.Resolve(new[] { observation(SourceAuthority.OfficialAuthor, "2.0"), observation(SourceAuthority.CommunityCatalog, "2.1") }); Assert(disagreement.Canonical.Release.Version.Raw == "2.0" && disagreement.HasDisagreement, "lower authority newer version disagrees");
             var sameTier = resolver.Resolve(new[] { observation(SourceAuthority.OfficialTotalCommander, "2.0"), observation(SourceAuthority.OfficialTotalCommander, "2.1") }); Assert(sameTier.Canonical.Release.Version.Raw == "2.1" && sameTier.HasDisagreement, "same authority chooses newest and marks disagreement");
             var ghisler = GhislerPluginsSourceProvider.Parse("Diskdir", "<a>Diskdir</a><td>1.3</td>"); Assert(ghisler.Status == SourceQueryStatus.Success && ghisler.Release.Version.Raw == "1.3", "Ghisler plugin fixture parses version");
+            var index = TotalCmdNetIndexProvider.Parse("dirsizecalc", "dirsizecalc|DirSizeCalc|2.22|19.08.2015|content|x32+x64||\r\n"); Assert(index.Status == SourceQueryStatus.Success && index.Release.Version.Raw == "2.22", "legacy totalcmd index fixture parses version");
         }
         private static void ScalableCheckRunner()
         {

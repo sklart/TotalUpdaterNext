@@ -134,6 +134,28 @@ namespace TotalUpdater.Next.Sources
         public static IList<RemotePackage> ParsePackages(string html) { return ParseDownloadLinks(html, new Uri("https://totalcmd.net/")); }
     }
 
+    public sealed class TotalCmdNetIndexProvider : GenericHtmlSourceProvider
+    {
+        private const string Url = "https://totalcmd.net/get_plugins_list.php";
+        public TotalCmdNetIndexProvider(HttpService http) : base(http) { }
+        public override string Name { get { return "totalcmd.net index"; } }
+        public override bool CanHandle(CatalogSource source) { return source != null && source.Provider.Equals("totalcmd.net-index", StringComparison.OrdinalIgnoreCase); }
+        public override async Task<SourceQueryResult> QueryAsync(CatalogSource source, CancellationToken cancellationToken) { return await QueryAsync(source, null, cancellationToken).ConfigureAwait(false); }
+        public override async Task<SourceQueryResult> QueryAsync(CatalogSource source, SourceResponseCache cache, CancellationToken cancellationToken)
+        {
+            try { var text = cache == null ? await Http.GetStringAsync(Url, cancellationToken).ConfigureAwait(false) : await cache.GetOrAdd("totalcmd.net:index", () => Http.GetStringAsync(Url, cancellationToken)); return Parse(source.Id, text); }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex) { return Result(SourceQueryStatus.Unavailable, null, ex.Message); }
+        }
+        public static SourceQueryResult Parse(string id, string text)
+        {
+            var fields = (text ?? "").Replace("\r", "").Split('\n').Select(x => x.Split('|')).FirstOrDefault(x => x.Length >= 3 && x[0].Equals(id ?? "", StringComparison.OrdinalIgnoreCase));
+            if (fields == null) return Result(SourceQueryStatus.NotFound, null, "Запись не найдена в индексе.");
+            var version = VersionValue.Parse(fields[2]);
+            return version.IsKnown ? Result(SourceQueryStatus.Success, new RemoteRelease { VersionText = fields[2], Version = version, SourceUrl = new Uri(Url), Packages = new List<RemotePackage>() }, "") : Result(SourceQueryStatus.InvalidResponse, null, "Некорректная версия в индексе.");
+        }
+    }
+
     public sealed class GhislerSourceProvider : GenericHtmlSourceProvider
     {
         public GhislerSourceProvider(HttpService http) : base(http) { }
