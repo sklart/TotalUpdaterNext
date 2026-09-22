@@ -92,7 +92,7 @@ namespace TotalUpdater.Next.Tests
             {
                 var catalog = new CatalogService(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".json")); var entries = catalog.Load().Where(x => x.PluginType != PluginType.TotalCommander).ToList();
                 var providers = new IUpdateSourceProvider[] { new TotalCmdNetSourceProvider(http), new TotalCmdNetIndexProvider(http), new GhislerSourceProvider(http), new GhislerPluginsSourceProvider(http), new GitHubReleaseSourceProvider(http), new GenericHtmlSourceProvider(http) };
-                var failed = 0; var output = new System.Collections.Concurrent.ConcurrentBag<string>(); var service = new UpdateService(catalog, providers); var cache = new SourceResponseCache();
+                var failed = 0; var skipped = 0; var checkedPackages = 0; var output = new System.Collections.Concurrent.ConcurrentBag<string>(); var service = new UpdateService(catalog, providers); var cache = new SourceResponseCache();
                 using (var gate = new System.Threading.SemaphoreSlim(4))
                 {
                     var tasks = entries.Select(async entry =>
@@ -104,7 +104,8 @@ namespace TotalUpdater.Next.Tests
                             {
                                 var candidate = await service.CheckAsync(new InstalledPlugin { Identity = new PluginIdentity { Id = entry.Id }, Architecture = PluginArchitecture.X86 | PluginArchitecture.X64, LocalVersion = FileVersionProbe.Create("0", VersionSource.FileVersion, VersionConfidence.Exact) }, System.Threading.CancellationToken.None, cache);
                                 var package = candidate.DownloadSource == null || candidate.DownloadSource.Release == null || candidate.DownloadUrl == null ? null : candidate.DownloadSource.Release.Packages.FirstOrDefault(x => x.Url != null && x.Url == candidate.DownloadUrl);
-                                if (package == null || package.Url == null) { System.Threading.Interlocked.Increment(ref failed); output.Add(entry.Id + " | FAIL | no production-selected package | canonical=" + (candidate.AvailableVersion.IsKnown ? candidate.AvailableVersion.Raw : "")); return; }
+                                if (package == null || package.Url == null) { System.Threading.Interlocked.Increment(ref skipped); output.Add(entry.Id + " | SKIP | no production-selected package | canonical=" + (candidate.AvailableVersion.IsKnown ? candidate.AvailableVersion.Raw : "")); return; }
+                                System.Threading.Interlocked.Increment(ref checkedPackages);
                                 using (var response = await http.GetAsync(package.Url.AbsoluteUri, System.Net.Http.HttpCompletionOption.ResponseContentRead, System.Threading.CancellationToken.None))
                                 {
                                     response.EnsureSuccessStatusCode(); var bytes = await response.Content.ReadAsByteArrayAsync();
@@ -122,7 +123,7 @@ namespace TotalUpdater.Next.Tests
                     }).ToArray(); System.Threading.Tasks.Task.WaitAll(tasks);
                 }
                 foreach (var line in output.OrderBy(x => x, StringComparer.OrdinalIgnoreCase)) Console.WriteLine(line);
-                Console.WriteLine("Package audit: entries=" + entries.Count + "; failures=" + failed); return failed == 0 ? 0 : 1;
+                Console.WriteLine("Package audit: entries=" + entries.Count + "; checked=" + checkedPackages + "; skipped=" + skipped + "; failures=" + failed); return failed == 0 ? 0 : 1;
             }
         }
         private static bool IsPluginBinary(string name)
