@@ -1,0 +1,12 @@
+# Build outputs
+**/bin/
+**/obj/
+
+# User-specific Total Updater Next database
+plugin-sources.user.json
+
+# Historical Total Updater 0.8.6.9 distribution retained locally for reference
+/TotalUpdater.exe
+/TotalUpdater.md5
+/readme.txt
+/whatsnew.txt

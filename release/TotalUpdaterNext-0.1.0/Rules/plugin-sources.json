@@ -1,0 +1,48 @@
+[
+  {
+    "fileName": "TOTALCMD.EXE",
+    "name": "Total Commander",
+    "sourceUrl": "https://www.ghisler.com/download.htm",
+    "versionPattern": "Download\\s+version\\s+([0-9.]+)\\s+of\\s+Total\\s+Commander"
+  },
+  {
+    "fileName": "TOTALCMD64.EXE",
+    "name": "Total Commander (x64)",
+    "sourceUrl": "https://www.ghisler.com/download.htm",
+    "versionPattern": "Download\\s+version\\s+([0-9.]+)\\s+of\\s+Total\\s+Commander"
+  },
+  {
+    "fileName": "TOTAL7ZIP.WCX",
+    "name": "Total7zip",
+    "sourceUrl": "https://totalcmd.net/plugring/Total7zip.html",
+    "versionPattern": "Total7zip\\s+([0-9.]+)",
+    "downloadUrl": "https://totalcmd.net/download.php?id=Total7zip"
+  },
+  {
+    "fileName": "7ZIP.WCX",
+    "name": "7Zip Plugin",
+    "sourceUrl": "https://totalcmd.net/plugring/7zip_plugin.html",
+    "versionPattern": "7Zip\\s+Plugin\\s+([0-9.]+)",
+    "downloadUrl": "https://totalcmd.net/download.php?id=7zip_plugin"
+  },
+  {
+    "fileName": "FILEINFO.WLX",
+    "name": "FileInfo",
+    "sourceUrl": "https://totalcmd.net/plugring/fileinfo.html",
+    "versionPattern": "FileInfo\\s+([0-9.]+)",
+    "downloadUrl": "https://totalcmd.net/download.php?id=fileinfo"
+  },
+  {
+    "fileName": "FILEINFO64.WLX",
+    "name": "FileInfo (x64)",
+    "sourceUrl": "https://totalcmd.net/plugring/fileinfo.html",
+    "versionPattern": "FileInfo\\s+([0-9.]+)",
+    "downloadUrl": "https://totalcmd.net/download.php?id=fileinfo"
+  },
+  {
+    "fileName": "WDXGUIDEINLISTER.WLX",
+    "name": "WDXGuideInLister",
+    "sourceUrl": "https://totalcmd.net/plugring/wdxguideinlister64.html",
+    "versionPattern": "WDXGuideInLister64\\s+([0-9.]+)"
+  }
+]
