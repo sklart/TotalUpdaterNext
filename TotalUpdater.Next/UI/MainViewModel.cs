@@ -58,6 +58,7 @@ namespace TotalUpdater.Next.UI
             if (_configuration == null) { StatusText = Text.Get("NoIni"); Changed("InstallDirectory"); return; }
             foreach (var plugin in _discovery.Discover(_configuration)) Items.Add(new PluginRowViewModel(plugin));
             Changed("InstallDirectory"); StatusText = String.Format(Text.Get("FoundCount"), Items.Count);
+            if (_configuration.Warnings.Count > 0) StatusText += " · " + String.Join(" · ", _configuration.Warnings);
         }
 
         private async Task CheckAsync()

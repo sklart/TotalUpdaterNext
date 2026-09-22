@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using TotalUpdater.Next.Catalog;
 using TotalUpdater.Next.Core;
 
@@ -17,40 +16,36 @@ namespace TotalUpdater.Next.TotalCommander
         private readonly TotalCommanderConfigurationResolver _configurationResolver;
         private readonly LocalVersionResolver _versions;
         private readonly CatalogService _catalog;
+        private readonly RedirectedSectionResolver _sections;
 
-        public PluginDiscoveryService(TotalCommanderConfigurationResolver configurationResolver, LocalVersionResolver versions, CatalogService catalog)
+        public PluginDiscoveryService(TotalCommanderConfigurationResolver configurationResolver, LocalVersionResolver versions, CatalogService catalog, RedirectedSectionResolver sections = null)
         {
-            _configurationResolver = configurationResolver; _versions = versions; _catalog = catalog;
+            _configurationResolver = configurationResolver; _versions = versions; _catalog = catalog; _sections = sections ?? new RedirectedSectionResolver(new IniDocumentReader(), configurationResolver);
         }
 
         public IList<InstalledPlugin> Discover(TotalCommanderConfiguration configuration)
         {
             var result = new List<InstalledPlugin>();
             AddTotalCommander(configuration, result);
-            var section = "";
-            foreach (var raw in File.ReadLines(configuration.IniPath, Encoding.Default))
+            foreach (var pair in Sections)
             {
-                var line = raw.Trim();
-                if (line.Length == 0 || line.StartsWith(";")) continue;
-                if (line.StartsWith("[") && line.EndsWith("]")) { section = line.Substring(1, line.Length - 2); continue; }
-                PluginType type;
-                if (!Sections.TryGetValue(section, out type)) continue;
-                var equals = line.IndexOf('=');
-                if (equals <= 0) continue;
-                var key = line.Substring(0, equals).Trim();
-                var pathValue = GetPluginPath(type, key, line.Substring(equals + 1).Trim());
+                foreach (var item in _sections.GetEntries(configuration, pair.Key))
+                {
+                var key = item.Key;
+                var pathValue = GetPluginPath(pair.Value, key, item.Value);
                 if (String.IsNullOrWhiteSpace(pathValue)) continue;
                 var path = _configurationResolver.ExpandPath(pathValue, configuration);
                 var entry = _catalog.FindByAlias(Path.GetFileName(path));
-                var fallbackName = type == PluginType.Wfx ? key : Path.GetFileNameWithoutExtension(path);
-                var identity = entry == null ? new PluginIdentity { Id = "file:" + Path.GetFileName(path).ToLowerInvariant(), Name = fallbackName, Type = type } :
+                var fallbackName = pair.Value == PluginType.Wfx ? key : Path.GetFileNameWithoutExtension(path);
+                var identity = entry == null ? new PluginIdentity { Id = "file:" + Path.GetFileName(path).ToLowerInvariant(), Name = fallbackName, Type = pair.Value } :
                     new PluginIdentity { Id = entry.Id, Name = entry.Name, Type = entry.PluginType };
                 var exists = File.Exists(path);
                 result.Add(new InstalledPlugin
                 {
-                    Identity = identity, Type = type, DisplayName = identity.Name, PrimaryPath = path, FileExists = exists,
+                    Identity = identity, Type = pair.Value, DisplayName = identity.Name, PrimaryPath = path, FileExists = exists,
                     Architecture = DetectArchitecture(path), LocalVersion = exists ? _versions.Resolve(path, identity) : LocalVersion.Unknown
                 });
+                }
             }
             return MergeDuplicates(result);
         }

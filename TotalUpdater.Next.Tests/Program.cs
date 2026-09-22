@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Text;
 using TotalUpdater.Next.Catalog;
 using TotalUpdater.Next.Core;
 using TotalUpdater.Next.Core.Versions;
@@ -17,7 +18,7 @@ namespace TotalUpdater.Next.Tests
         {
             try
             {
-                Versions(); Paths(); DiscoveryRealIniFormats(); FileInfoPeVersionStrategy(); StrategyPriorityAndFallback(); CatalogAliases(); ApplicationMetadataAndUserAgent();
+                Versions(); Paths(); DiscoveryRealIniFormats(); FileInfoPeVersionStrategy(); StrategyPriorityAndFallback(); ConfigurationDetection(); RedirectSections(); IniEncodingsAndPathExpansion(); CatalogAliases(); ApplicationMetadataAndUserAgent();
                 Console.WriteLine("PASS " + _count + " tests"); return 0;
             }
             catch (Exception ex) { Console.Error.WriteLine("FAIL: " + ex.Message); return 1; }
@@ -93,6 +94,84 @@ namespace TotalUpdater.Next.Tests
             Assert(fallbackResolver.Resolve("not-used", new PluginIdentity { Id = "fileinfo", Type = PluginType.Wlx }).Source == VersionSource.FileVersion, "Unknown strategy falls back to FileVersion");
             Assert(resolver.Resolve("not-used", new PluginIdentity { Id = "ordinary", Type = PluginType.Wlx }).Source == VersionSource.FileVersion, "ordinary plugin uses FileVersion fallback");
         }
+        private static void ConfigurationDetection()
+        {
+            var root = NewRoot();
+            try
+            {
+                var explicitIni = WriteIni(root, "explicit.ini", "[Configuration]\r\nInstallDir=" + root);
+                var environmentIni = WriteIni(root, "environment.ini", "[Configuration]\r\nInstallDir=" + root);
+                var install = Path.Combine(root, "install"); Directory.CreateDirectory(install); var portableIni = WriteIni(install, "wincmd.ini", "[Configuration]\r\nInstallDir=" + install);
+                var fakeEnvironment = new FakeEnvironment { Values = { ["COMMANDER_INI"] = environmentIni, ["COMMANDER_PATH"] = install } };
+                var registry = new FakeRegistry(new RegistryConfigurationEntry { IniFileName = "missing.ini", InstallDirectory = root });
+                var resolver = new TotalCommanderConfigurationResolver(new IniDocumentReader(), registry, fakeEnvironment);
+                Assert(resolver.Resolve(explicitIni).IniPath == Path.GetFullPath(explicitIni), "explicit INI priority");
+                Assert(resolver.Resolve("").IniPath == Path.GetFullPath(environmentIni), "COMMANDER_INI detection");
+
+                fakeEnvironment.Values.Remove("COMMANDER_INI");
+                Assert(resolver.Resolve("").IniPath == Path.GetFullPath(portableIni), "COMMANDER_PATH portable detection");
+                fakeEnvironment.Values.Remove("COMMANDER_PATH");
+                var relativeIni = WriteIni(install, "relative.ini", "[Configuration]");
+                resolver = new TotalCommanderConfigurationResolver(new IniDocumentReader(), new FakeRegistry(new RegistryConfigurationEntry { IniFileName = "relative.ini", InstallDirectory = install }), fakeEnvironment);
+                var relative = resolver.Resolve(""); Assert(relative.IniPath == Path.GetFullPath(relativeIni) && relative.InstallDirectory == install, "relative registry IniFileName");
+                foreach (var value in new[] { 1, 4, 5, 7 })
+                {
+                    resolver = new TotalCommanderConfigurationResolver(new IniDocumentReader(), new FakeRegistry(new RegistryConfigurationEntry { IniFileName = "missing.ini", InstallDirectory = install, UseIniInProgramDir = value }), fakeEnvironment);
+                    Assert(resolver.Resolve("").IniPath == Path.GetFullPath(portableIni), "UseIniInProgramDir=" + value);
+                }
+                var hkcuIni = WriteIni(root, "hkcu.ini", "[Configuration]"); var hklmIni = WriteIni(root, "hklm.ini", "[Configuration]");
+                Assert(new TotalCommanderConfigurationResolver(new IniDocumentReader(), new FakeRegistry(new RegistryConfigurationEntry { IniFileName = hkcuIni }), fakeEnvironment).Resolve("").IniPath == Path.GetFullPath(hkcuIni), "HKCU registry detection");
+                Assert(new TotalCommanderConfigurationResolver(new IniDocumentReader(), new FakeRegistry(new RegistryConfigurationEntry { IniFileName = hklmIni }), fakeEnvironment).Resolve("").IniPath == Path.GetFullPath(hklmIni), "HKLM registry detection");
+                var appDataRoot = Path.Combine(root, "appdata"); var windowsRoot = Path.Combine(root, "windows"); Directory.CreateDirectory(Path.Combine(appDataRoot, "Ghisler")); var appDataIni = WriteIni(Path.Combine(appDataRoot, "Ghisler"), "wincmd.ini", "[Configuration]");
+                fakeEnvironment.Values["APPDATA"] = appDataRoot; fakeEnvironment.Values["WINDIR"] = windowsRoot;
+                Assert(new TotalCommanderConfigurationResolver(new IniDocumentReader(), new FakeRegistry(), fakeEnvironment).Resolve("").IniPath == Path.GetFullPath(appDataIni), "AppData fallback detection");
+                File.Delete(appDataIni); Directory.CreateDirectory(windowsRoot); var windowsIni = WriteIni(windowsRoot, "wincmd.ini", "[Configuration]");
+                Assert(new TotalCommanderConfigurationResolver(new IniDocumentReader(), new FakeRegistry(), fakeEnvironment).Resolve("").IniPath == Path.GetFullPath(windowsIni), "Windows directory fallback detection");
+            }
+            finally { Directory.Delete(root, true); }
+        }
+        private static void RedirectSections()
+        {
+            var root = NewRoot();
+            try
+            {
+                var plugins = Path.Combine(root, "plugins"); Directory.CreateDirectory(plugins);
+                foreach (var file in new[] { "a.wcx", "b.wlx", "c.wfx", "d.wdx", "old.wcx", "first.wcx", "second.wcx" }) File.WriteAllBytes(Path.Combine(plugins, file), new byte[0]);
+                var redirected = WriteIni(root, "plugins.ini", "[PackerPlugins]\r\nzip=735,%COMMANDER_PATH%\\plugins\\a.wcx\r\n[ListerPlugins]\r\n0=plugins\\b.wlx\r\n[FileSystemPlugins]\r\nCloud=plugins\\c.wfx\r\n[ContentPlugins]\r\n0=plugins\\d.wdx");
+                var main = WriteIni(root, "wincmd.ini", "[Configuration]\r\nInstallDir=" + root + "\r\n[PackerPlugins]\r\nRedirectSection=plugins.ini\r\nold=0,plugins\\old.wcx\r\n[ListerPlugins]\r\nRedirectSection=plugins.ini\r\n[FileSystemPlugins]\r\nRedirectSection=plugins.ini\r\n[ContentPlugins]\r\nRedirectSection=plugins.ini");
+                var resolver = new TotalCommanderConfigurationResolver(); var configuration = resolver.Resolve(main); var discovery = new PluginDiscoveryService(resolver, new LocalVersionResolver(), new CatalogService(Path.Combine(root, "user.json")));
+                var found = discovery.Discover(configuration);
+                Assert(found.Count(x => x.Type == PluginType.Wcx) == 1 && found.Count(x => x.Type == PluginType.Wlx) == 1 && found.Count(x => x.Type == PluginType.Wfx) == 1 && found.Count(x => x.Type == PluginType.Wdx) == 1, "redirected WCX/WLX/WFX/WDX");
+                Assert(!found.Any(x => x.PrimaryPath.EndsWith("old.wcx", StringComparison.OrdinalIgnoreCase)), "original section ignored after redirect");
+                var alternate = WriteIni(root, "alternate.ini", "[PackerPlugins]\r\nzip=1,plugins\\a.wcx");
+                var alternateMain = WriteIni(root, "alternate-main.ini", "[Configuration]\r\nInstallDir=" + root + "\r\nAlternateUserIni=" + alternate + "\r\n[PackerPlugins]\r\nRedirectSection=1");
+                Assert(discovery.Discover(resolver.Resolve(alternateMain)).Count(x => x.Type == PluginType.Wcx) == 1, "RedirectSection=1 AlternateUserIni");
+                var first = WriteIni(root, "first.ini", "[PackerPlugins]\r\nRedirectSection=second.ini\r\nzip=1,plugins\\first.wcx"); WriteIni(root, "second.ini", "[PackerPlugins]\r\nzip=1,plugins\\second.wcx");
+                var recursiveMain = WriteIni(root, "recursive-main.ini", "[Configuration]\r\nInstallDir=" + root + "\r\n[PackerPlugins]\r\nRedirectSection=" + first);
+                var recursive = discovery.Discover(resolver.Resolve(recursiveMain)); Assert(recursive.Any(x => x.PrimaryPath.EndsWith("first.wcx")) && !recursive.Any(x => x.PrimaryPath.EndsWith("second.wcx")), "non-recursive redirect");
+                var missingMain = WriteIni(root, "missing-main.ini", "[Configuration]\r\nInstallDir=" + root + "\r\n[PackerPlugins]\r\nRedirectSection=missing.ini");
+                var missing = resolver.Resolve(missingMain); Assert(discovery.Discover(missing).Count == 0 && missing.Warnings.Count == 1, "missing redirect file warning");
+            }
+            finally { Directory.Delete(root, true); }
+        }
+        private static void IniEncodingsAndPathExpansion()
+        {
+            var root = NewRoot();
+            try
+            {
+                var utf16 = Path.Combine(root, "utf16.ini"); File.WriteAllText(utf16, ";comment\r\n[PaCkErPlUgInS]\r\nzip=1,path=with=equals.wcx", Encoding.Unicode);
+                var document = new IniDocumentReader().Read(utf16); Assert(document.GetSection("packerplugins").GetValue("ZIP") == "1,path=with=equals.wcx", "UTF-16 INI and first equals");
+                var ini = WriteIni(root, "paths.ini", "[Configuration]\r\nInstallDir=" + root); var environment = new FakeEnvironment { Values = { ["APPDATA"] = Path.Combine(root, "appdata"), ["TEMP"] = Path.Combine(root, "temp") } };
+                var resolver = new TotalCommanderConfigurationResolver(new IniDocumentReader(), new FakeRegistry(), environment); var config = resolver.Resolve(ini);
+                Assert(resolver.ExpandPath("%COMMANDER_PATH%\\p", config).EndsWith("\\p"), "COMMANDER_PATH expansion");
+                Assert(resolver.ExpandPath("%COMMANDER_INI%", config) == Path.GetFullPath(ini), "COMMANDER_INI expansion");
+                Assert(resolver.ExpandPath("%COMMANDER_DRIVE%\\p", config).StartsWith(Path.GetPathRoot(root)), "COMMANDER_DRIVE expansion");
+                Assert(resolver.ExpandPath("%APPDATA%\\p", config).StartsWith(environment.Values["APPDATA"]), "APPDATA expansion"); Assert(resolver.ExpandPath("%TEMP%\\p", config).StartsWith(environment.Values["TEMP"]), "TEMP expansion");
+            }
+            finally { Directory.Delete(root, true); }
+        }
+        private static string NewRoot() { var root = Path.Combine(Path.GetTempPath(), "tunext-tests-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(root); return root; }
+        private static string WriteIni(string directory, string name, string content) { var path = Path.Combine(directory, name); File.WriteAllText(path, content); return path; }
         private static void CatalogAliases()
         {
             var catalog = new CatalogService(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".json"));
@@ -116,6 +195,20 @@ namespace TotalUpdater.Next.Tests
             private readonly LocalVersion _version;
             public FixedProbe(LocalVersion version) { _version = version; }
             public LocalVersion Probe(string filePath) { return _version; }
+        }
+        private sealed class FakeRegistry : IRegistryConfigurationReader
+        {
+            private readonly RegistryConfigurationEntry[] _entries;
+            public FakeRegistry(params RegistryConfigurationEntry[] entries) { _entries = entries; }
+            public System.Collections.Generic.IEnumerable<RegistryConfigurationEntry> Read() { return _entries; }
+        }
+        private sealed class FakeEnvironment : IEnvironmentProvider
+        {
+            public System.Collections.Generic.Dictionary<string, string> Values { get; } = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            public string Get(string name) { string value; return Values.TryGetValue(name, out value) ? value : null; }
+            public string Expand(string value) { return System.Text.RegularExpressions.Regex.Replace(value, "%([^%]+)%", m => { string item; return Values.TryGetValue(m.Groups[1].Value, out item) ? item : m.Value; }); }
+            public string AppData { get { return Get("APPDATA") ?? Path.GetTempPath(); } }
+            public string WindowsDirectory { get { return Get("WINDIR") ?? Path.GetTempPath(); } }
         }
         private static void Assert(bool condition, string name) { if (!condition) throw new InvalidOperationException(name); _count++; }
     }
