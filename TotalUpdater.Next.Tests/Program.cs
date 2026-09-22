@@ -20,10 +20,18 @@ namespace TotalUpdater.Next.Tests
             try
             {
                 if (args != null && args.Any(x => x.Equals("--live-sources", StringComparison.OrdinalIgnoreCase))) { LiveSources(); return 0; }
+                if (args != null && args.Any(x => x.Equals("--validate-catalog", StringComparison.OrdinalIgnoreCase))) { ValidateCatalog(); return 0; }
                 Versions(); Paths(); DiscoveryRealIniFormats(); ArchitectureAwareDiscovery(); FamilyIdentityAndConflict(); CatalogV2AndProviders(); FileInfoPeVersionStrategy(); StrategyPriorityAndFallback(); ConfigurationDetection(); ConfigurationPrecedenceFinalization(); RedirectSections(); IniEncodingsAndPathExpansion(); CatalogAliases(); ApplicationMetadataAndUserAgent();
                 Console.WriteLine("PASS " + _count + " tests"); return 0;
             }
             catch (Exception ex) { Console.Error.WriteLine("FAIL: " + ex.Message); return 1; }
+        }
+        private static void ValidateCatalog()
+        {
+            var catalog = new CatalogService(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".json")); var result = catalog.LoadWithDiagnostics();
+            foreach (var entry in result.Entries) Console.WriteLine(entry.Id + " | " + entry.PluginType + " | " + String.Join(",", entry.Sources.Select(x => x.Provider)));
+            foreach (var diagnostic in result.Diagnostics) Console.WriteLine(diagnostic.Severity + " | " + diagnostic.EntryId + " | " + diagnostic.Message);
+            Console.WriteLine("Entries=" + result.Entries.Count + "; errors=" + result.Diagnostics.Count(x => x.Severity == CatalogDiagnosticSeverity.Error));
         }
         private static void LiveSources()
         {

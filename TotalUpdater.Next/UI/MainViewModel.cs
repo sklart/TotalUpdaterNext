@@ -26,6 +26,8 @@ namespace TotalUpdater.Next.UI
         private readonly UserDataPaths _paths;
         private readonly CollectionViewSource _itemsView;
         private TotalCommanderConfiguration _configuration;
+        private CancellationTokenSource _checkCancellation;
+        private int _checkGeneration;
         private string _iniPath = ""; private string _statusText = ""; private string _filter = "All";
 
         public MainViewModel(TotalCommanderConfigurationResolver resolver, PluginDiscoveryService discovery, UpdateService updates, CatalogService catalog, DownloadService downloads, UserDataPaths paths)
@@ -66,13 +68,35 @@ namespace TotalUpdater.Next.UI
         private async Task CheckAsync()
         {
             var target = CheckedOrAll(); if (target.Count == 0) return;
+            var previous = _checkCancellation; if (previous != null) previous.Cancel();
+            var cancellation = new CancellationTokenSource(); _checkCancellation = cancellation; var generation = ++_checkGeneration;
             foreach (var row in target) row.SetChecking();
-            foreach (var row in target)
+            var completed = 0;
+            using (var gate = new SemaphoreSlim(4))
             {
-                try { row.Apply(await _updates.CheckAsync(row.Plugin, CancellationToken.None)); }
-                catch (Exception ex) { row.Apply(new UpdateCandidate { Plugin = row.Plugin, State = UpdateState.Error, Details = ex.Message }); }
+                var tasks = target.Select(async row =>
+                {
+                    try
+                    {
+                        await gate.WaitAsync(cancellation.Token);
+                        try
+                        {
+                            var candidate = await _updates.CheckAsync(row.Plugin, cancellation.Token);
+                            if (generation == _checkGeneration && !cancellation.IsCancellationRequested) row.Apply(candidate);
+                        }
+                        finally { gate.Release(); }
+                    }
+                    catch (OperationCanceledException) { }
+                    catch (Exception ex) { if (generation == _checkGeneration && !cancellation.IsCancellationRequested) row.Apply(new UpdateCandidate { Plugin = row.Plugin, State = UpdateState.Error, Details = ex.Message }); }
+                    finally
+                    {
+                        var current = Interlocked.Increment(ref completed);
+                        if (generation == _checkGeneration && !cancellation.IsCancellationRequested) StatusText = "Проверено " + current + " из " + target.Count;
+                    }
+                }).ToArray();
+                await Task.WhenAll(tasks);
             }
-            ItemsView.Refresh(); StatusText = String.Format(Text.Get("CheckedCount"), target.Count);
+            if (generation == _checkGeneration && !cancellation.IsCancellationRequested) { ItemsView.Refresh(); StatusText = String.Format(Text.Get("CheckedCount"), target.Count) + " · Обновлений: " + target.Count(x => x.HasUpdate) + " · Ошибок источников: " + target.Count(x => x.HasError); }
         }
 
         private async Task DownloadAsync()
@@ -107,7 +131,7 @@ namespace TotalUpdater.Next.UI
         private static void OpenSite(PluginRowViewModel row) { Process.Start(new ProcessStartInfo(row.Candidate.SourceUrl.AbsoluteUri) { UseShellExecute = true }); }
         private static void OpenPath(PluginRowViewModel row) { Process.Start(new ProcessStartInfo("explorer.exe", "/select,\"" + row.Path + "\"") { UseShellExecute = true }); }
         private static void ShowInfo(PluginRowViewModel row) { System.Windows.MessageBox.Show(System.Windows.Application.Current.MainWindow, row.Information + Environment.NewLine + row.Status, row.Name, System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information); }
-        public void Dispose() { }
+        public void Dispose() { if (_checkCancellation != null) _checkCancellation.Cancel(); }
         public event PropertyChangedEventHandler PropertyChanged;
         private void Changed(string propertyName) { var handler = PropertyChanged; if (handler != null) handler(this, new PropertyChangedEventArgs(propertyName)); }
     }
