@@ -21,7 +21,7 @@ namespace TotalUpdater.Next.Tests
             {
                 if (args != null && args.Any(x => x.Equals("--live-sources", StringComparison.OrdinalIgnoreCase))) { LiveSources(); return 0; }
                 if (args != null && args.Any(x => x.Equals("--validate-catalog", StringComparison.OrdinalIgnoreCase))) { ValidateCatalog(); return 0; }
-                Versions(); Paths(); DiscoveryRealIniFormats(); ArchitectureAwareDiscovery(); FamilyIdentityAndConflict(); CatalogV2AndProviders(); CatalogScaleAndCache(); FileInfoPeVersionStrategy(); StrategyPriorityAndFallback(); ConfigurationDetection(); ConfigurationPrecedenceFinalization(); RedirectSections(); IniEncodingsAndPathExpansion(); CatalogAliases(); ApplicationMetadataAndUserAgent();
+                Versions(); Paths(); DiscoveryRealIniFormats(); ArchitectureAwareDiscovery(); FamilyIdentityAndConflict(); CatalogV2AndProviders(); CatalogScaleAndCache(); ScalableCheckRunner(); FileInfoPeVersionStrategy(); StrategyPriorityAndFallback(); ConfigurationDetection(); ConfigurationPrecedenceFinalization(); RedirectSections(); IniEncodingsAndPathExpansion(); CatalogAliases(); ApplicationMetadataAndUserAgent();
                 Console.WriteLine("PASS " + _count + " tests"); return 0;
             }
             catch (Exception ex) { Console.Error.WriteLine("FAIL: " + ex.Message); return 1; }
@@ -42,8 +42,9 @@ namespace TotalUpdater.Next.Tests
                 var service = new UpdateService(catalog, providers);
                 foreach (var id in new[] { "totalcmd", "fileinfo", "total7zip", "7zip-plugin", "imagine", "webdav", "sftp", "anytag", "glimpse-wlx", "glimpse-wcx" })
                 {
-                    var entry = catalog.FindById(id); var source = entry.Sources.OrderByDescending(x => x.Priority).First(); var provider = providers.First(x => x.CanHandle(source)); var query = provider.QueryAsync(source, System.Threading.CancellationToken.None).GetAwaiter().GetResult(); var plugin = new InstalledPlugin { Identity = new PluginIdentity { Id = id }, Architecture = PluginArchitecture.X86 | PluginArchitecture.X64, LocalVersion = FileVersionProbe.Create("0.0", VersionSource.FileVersion, VersionConfidence.Exact) };
-                    var result = service.CheckAsync(plugin, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+                    var entry = catalog.FindById(id); var source = entry.Sources.OrderByDescending(x => x.Priority).First(); var provider = providers.First(x => x.CanHandle(source)); var cache = new SourceResponseCache(); var cachedProvider = provider as ICachedUpdateSourceProvider;
+                    var query = (cachedProvider == null ? provider.QueryAsync(source, System.Threading.CancellationToken.None) : cachedProvider.QueryAsync(source, cache, System.Threading.CancellationToken.None)).GetAwaiter().GetResult(); var plugin = new InstalledPlugin { Identity = new PluginIdentity { Id = id }, Architecture = PluginArchitecture.X86 | PluginArchitecture.X64, LocalVersion = FileVersionProbe.Create("0.0", VersionSource.FileVersion, VersionConfidence.Exact) };
+                    var result = service.CheckAsync(plugin, System.Threading.CancellationToken.None, cache).GetAwaiter().GetResult();
                     Console.WriteLine(id + "\n  provider.QueryAsync: " + query.Status + ", version=" + (query.Release == null ? "" : query.Release.Version.Raw) + ", packages=" + (query.Release == null ? 0 : query.Release.Packages.Count));
                     if (query.Release != null) foreach (var package in query.Release.Packages) Console.WriteLine("    " + package.FileName + " | " + package.Architecture + " | " + package.Url);
                     Console.WriteLine("  UpdateService.CheckAsync: " + result.State + ", selected=" + (result.DownloadUrl == null ? "none/ambiguous" : result.DownloadUrl.AbsoluteUri) + ", details=" + result.Details);
@@ -425,6 +426,25 @@ namespace TotalUpdater.Next.Tests
             }
             finally { Directory.Delete(root, true); }
         }
+        private static void ScalableCheckRunner()
+        {
+            var root = NewRoot();
+            try
+            {
+                var catalog = new CatalogService(Path.Combine(root, "user.json")); var provider = new MeasuredProvider(40, 4); var runner = new UpdateCheckRunner(new UpdateService(catalog, new IUpdateSourceProvider[] { provider }));
+                var plugins = Enumerable.Range(0, 20).Select(x => new InstalledPlugin { Identity = new PluginIdentity { Id = "total7zip" }, LocalVersion = FileVersionProbe.Create("0.1", VersionSource.FileVersion, VersionConfidence.Exact) }).ToList();
+                var applied = 0; var result = runner.RunAsync(plugins, (p, c) => System.Threading.Interlocked.Increment(ref applied), (n, total) => { }, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+                Assert(provider.Peak > 1 && provider.Peak <= 4, "bounded runner has parallelism up to four");
+                Assert(applied == 20 && result.Completed == 20, "one failing provider does not stop remaining checks");
+                var slow = new MeasuredProvider(500, -1); runner = new UpdateCheckRunner(new UpdateService(catalog, new IUpdateSourceProvider[] { slow })); var cancelledApplied = 0; var cts = new System.Threading.CancellationTokenSource();
+                var task = runner.RunAsync(plugins, (p, c) => System.Threading.Interlocked.Increment(ref cancelledApplied), (n, total) => { }, cts.Token); System.Threading.Thread.Sleep(70); cts.Cancel(); var cancelled = task.GetAwaiter().GetResult();
+                Assert(cancelled.WasCancelled && cancelledApplied < 20, "cancellation stops unfinished checks without error candidates");
+                var first = new System.Threading.CancellationTokenSource(); var firstRun = runner.RunAsync(plugins, (p, c) => { }, (n, total) => { }, first.Token); System.Threading.Thread.Sleep(50); first.Cancel(); firstRun.GetAwaiter().GetResult();
+                var secondApplied = 0; var second = runner.RunAsync(plugins.Take(2), (p, c) => System.Threading.Interlocked.Increment(ref secondApplied), (n, total) => { }, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+                Assert(secondApplied == 2 && !second.WasCancelled, "second check run completes after first cancellation");
+            }
+            finally { Directory.Delete(root, true); }
+        }
         private static void ApplicationMetadataAndUserAgent()
         {
             Assert(ApplicationMetadata.Version == typeof(ApplicationMetadata).Assembly.GetName().Version.ToString(3), "application metadata version");
@@ -483,6 +503,19 @@ namespace TotalUpdater.Next.Tests
             {
                 var raw = cache == null ? "raw" : await cache.GetOrAdd("github:" + source.Repository, () => { Fetches++; return System.Threading.Tasks.Task.FromResult("raw"); });
                 Filters++; return new SourceQueryResult { Status = SourceQueryStatus.Success, Release = new RemoteRelease { VersionText = "1.0", Version = VersionValue.Parse("1.0"), SourceUrl = new Uri("https://example.test/" + raw) } };
+            }
+        }
+        private sealed class MeasuredProvider : IUpdateSourceProvider
+        {
+            private readonly int _delay; private readonly int _throwAt; private int _calls; private int _active; public int Peak;
+            public MeasuredProvider(int delay, int throwAt) { _delay = delay; _throwAt = throwAt; }
+            public string Name { get { return "measured"; } } public bool CanHandle(CatalogSource source) { return true; }
+            public async System.Threading.Tasks.Task<SourceQueryResult> QueryAsync(CatalogSource source, System.Threading.CancellationToken token)
+            {
+                var active = System.Threading.Interlocked.Increment(ref _active); int peak; while ((peak = Peak) < active && System.Threading.Interlocked.CompareExchange(ref Peak, active, peak) != peak) { }
+                var call = System.Threading.Interlocked.Increment(ref _calls);
+                try { await System.Threading.Tasks.Task.Delay(_delay, token); if (call == _throwAt) throw new InvalidOperationException("expected"); return new SourceQueryResult { Status = SourceQueryStatus.Success, Release = new RemoteRelease { VersionText = "1.0", Version = VersionValue.Parse("1.0"), SourceUrl = new Uri("https://example.test/"), Packages = new System.Collections.Generic.List<RemotePackage>() } }; }
+                finally { System.Threading.Interlocked.Decrement(ref _active); }
             }
         }
         private sealed class FakeRegistry : IRegistryConfigurationReader

@@ -70,33 +70,15 @@ namespace TotalUpdater.Next.UI
             var target = CheckedOrAll(); if (target.Count == 0) return;
             var previous = _checkCancellation; if (previous != null) previous.Cancel();
             var cancellation = new CancellationTokenSource(); _checkCancellation = cancellation; var generation = ++_checkGeneration;
-            var sourceCache = new Sources.SourceResponseCache();
             foreach (var row in target) row.SetChecking();
-            var completed = 0;
-            using (var gate = new SemaphoreSlim(4))
+            var rows = target.ToDictionary(x => x.Plugin); var runner = new UpdateCheckRunner(_updates);
+            await runner.RunAsync(target.Select(x => x.Plugin), (plugin, candidate) => System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
             {
-                var tasks = target.Select(async row =>
-                {
-                    try
-                    {
-                        await gate.WaitAsync(cancellation.Token);
-                        try
-                        {
-                            var candidate = await _updates.CheckAsync(row.Plugin, cancellation.Token, sourceCache);
-                            if (generation == _checkGeneration && !cancellation.IsCancellationRequested) row.Apply(candidate);
-                        }
-                        finally { gate.Release(); }
-                    }
-                    catch (OperationCanceledException) { }
-                    catch (Exception ex) { if (generation == _checkGeneration && !cancellation.IsCancellationRequested) row.Apply(new UpdateCandidate { Plugin = row.Plugin, State = UpdateState.Error, Details = ex.Message }); }
-                    finally
-                    {
-                        var current = Interlocked.Increment(ref completed);
-                        if (generation == _checkGeneration && !cancellation.IsCancellationRequested) StatusText = "Проверено " + current + " из " + target.Count;
-                    }
-                }).ToArray();
-                await Task.WhenAll(tasks);
-            }
+                PluginRowViewModel row; if (generation == _checkGeneration && !cancellation.IsCancellationRequested && rows.TryGetValue(plugin, out row)) row.Apply(candidate);
+            })), (completed, total) => System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (generation == _checkGeneration && !cancellation.IsCancellationRequested) StatusText = "Проверено " + completed + " из " + total;
+            })), cancellation.Token);
             if (generation == _checkGeneration && !cancellation.IsCancellationRequested) { ItemsView.Refresh(); StatusText = String.Format(Text.Get("CheckedCount"), target.Count) + " · Обновлений: " + target.Count(x => x.HasUpdate) + " · Ошибок источников: " + target.Count(x => x.HasError); }
         }
 
