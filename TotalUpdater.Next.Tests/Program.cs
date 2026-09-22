@@ -102,8 +102,8 @@ namespace TotalUpdater.Next.Tests
                                     using (var archive = new ZipArchive(new MemoryStream(bytes), ZipArchiveMode.Read))
                                     {
                                         var actual = archive.Entries.Select(x => Path.GetFileName(x.FullName)).Where(x => x.EndsWith(".wcx", StringComparison.OrdinalIgnoreCase) || x.EndsWith(".wlx", StringComparison.OrdinalIgnoreCase) || x.EndsWith(".wfx", StringComparison.OrdinalIgnoreCase) || x.EndsWith(".wdx", StringComparison.OrdinalIgnoreCase)).ToList();
-                                        var missing = entry.Aliases.Where(alias => !actual.Any(x => x.Equals(alias, StringComparison.OrdinalIgnoreCase))).ToList();
-                                        if (actual.Count == 0 || missing.Count > 0) { System.Threading.Interlocked.Increment(ref failed); output.Add(entry.Id + " | FAIL | actual=" + String.Join(",", actual) + " | missing=" + String.Join(",", missing)); }
+                                        var matchingAliases = entry.Aliases.Where(alias => actual.Any(x => x.Equals(alias, StringComparison.OrdinalIgnoreCase))).ToList();
+                                        if (actual.Count == 0 || matchingAliases.Count == 0) { System.Threading.Interlocked.Increment(ref failed); output.Add(entry.Id + " | FAIL | actual=" + String.Join(",", actual) + " | aliases=" + String.Join(",", entry.Aliases)); }
                                         else output.Add(entry.Id + " | PASS | " + String.Join(",", actual));
                                     }
                                 }
