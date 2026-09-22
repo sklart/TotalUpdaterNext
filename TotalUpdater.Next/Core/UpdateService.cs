@@ -28,6 +28,17 @@ namespace TotalUpdater.Next.Core
             var details = new List<string>(); var observations = new List<RemoteVersionObservation>();
             foreach (var source in entry.Sources.OrderByDescending(x => x.Priority))
             {
+                if (source.AuthorityValue == SourceAuthority.ManualOverride)
+                {
+                    var manual = source.ManualOverride;
+                    var manualVersion = manual == null ? VersionValue.Unknown : VersionValue.Parse(manual.Version);
+                    Uri evidence;
+                    if (manualVersion.IsKnown && manual != null && Uri.TryCreate(manual.EvidenceUrl, UriKind.Absolute, out evidence))
+                        observations.Add(new RemoteVersionObservation { Source = source, ProviderName = "Manual override", Authority = SourceAuthority.ManualOverride, Purpose = SourcePurpose.Metadata, Status = SourceQueryStatus.Success, Release = new RemoteRelease { VersionText = manual.Version, Version = manualVersion, SourceUrl = evidence, Packages = new List<RemotePackage>() } });
+                    else
+                        observations.Add(new RemoteVersionObservation { Source = source, ProviderName = "Manual override", Authority = SourceAuthority.ManualOverride, Purpose = SourcePurpose.Metadata, Status = SourceQueryStatus.InvalidResponse, Details = "Некорректный ManualOverride." });
+                    continue;
+                }
                 var provider = _providers.FirstOrDefault(p => p.CanHandle(source));
                 if (provider == null) { details.Add(source.Provider + ": provider не найден"); observations.Add(new RemoteVersionObservation { Source = source, Authority = source.AuthorityValue, Purpose = source.PurposeValue, Status = SourceQueryStatus.Unavailable, Details = "provider не найден" }); continue; }
                 SourceQueryResult result;
@@ -54,14 +65,39 @@ namespace TotalUpdater.Next.Core
             var candidate = Candidate(plugin, state, canonical.Release, canonical.ProviderName, canonical.Details); ApplyProvenance(candidate, observations, resolution);
             if (state == UpdateState.UpdateAvailable && !resolution.HasConflict)
             {
-                var download = observations.FirstOrDefault(x => x.Release != null && x.Purpose != SourcePurpose.Metadata && x.Release.Version.CompareTo(canonical.Release.Version) == VersionComparison.Equal && x.Release.Packages != null && x.Release.Packages.Count > 0);
-                if (download != null) { string packageDetails; candidate.DownloadUrl = SelectPackage(plugin, download.Release, out packageDetails); candidate.DownloadSource = download; candidate.Details = packageDetails; }
+                var download = SelectDownloadObservation(plugin, observations, canonical, out var packageUrl, out var packageDetails);
+                if (download != null) { candidate.DownloadUrl = packageUrl; candidate.DownloadSource = download; candidate.Details = packageDetails; }
+                else if (!String.IsNullOrWhiteSpace(packageDetails)) candidate.Details = packageDetails;
             }
             return candidate;
         }
 
         private static void ApplyProvenance(UpdateCandidate candidate, IList<RemoteVersionObservation> observations, AuthorityResolution resolution)
         { candidate.Observations = observations; candidate.CanonicalVersionSource = resolution.Canonical; candidate.HasSourceDisagreement = resolution.HasDisagreement; candidate.AuthorityConflict = resolution.HasConflict; }
+
+        private static RemoteVersionObservation SelectDownloadObservation(InstalledPlugin plugin, IList<RemoteVersionObservation> observations, RemoteVersionObservation canonical, out Uri packageUrl, out string details)
+        {
+            packageUrl = null; details = "";
+            var eligible = observations.Where(x => x.Release != null && x.Purpose != SourcePurpose.Metadata && x.Release.Version.CompareTo(canonical.Release.Version) == VersionComparison.Equal && x.Release.Packages != null && x.Release.Packages.Count > 0)
+                .OrderByDescending(x => x.Authority).ThenByDescending(x => x.Source == null ? 0 : x.Source.Priority).ToList();
+            // Canonical observation has precedence when it can provide a safe package.
+            if (canonical.Release.Packages != null && canonical.Release.Packages.Count > 0 && canonical.Purpose != SourcePurpose.Metadata)
+                eligible.Remove(canonical);
+            else
+                canonical = null;
+            if (canonical != null)
+            {
+                packageUrl = SelectPackage(plugin, canonical.Release, out details);
+                if (packageUrl != null) return canonical;
+            }
+            foreach (var item in eligible)
+            {
+                packageUrl = SelectPackage(plugin, item.Release, out details);
+                if (packageUrl != null) return item;
+            }
+            if (eligible.Count > 0 && String.IsNullOrWhiteSpace(details)) details = "Нет безопасно выбираемого пакета загрузки.";
+            return null;
+        }
 
         private static Uri SelectPackage(InstalledPlugin plugin, RemoteRelease release, out string details)
         {

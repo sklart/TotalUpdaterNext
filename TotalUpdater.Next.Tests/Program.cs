@@ -25,7 +25,7 @@ namespace TotalUpdater.Next.Tests
                 if (args != null && args.Any(x => x.Equals("--validate-catalog", StringComparison.OrdinalIgnoreCase))) { ValidateCatalog(); return 0; }
                 if (args != null && args.Any(x => x.Equals("--audit-catalog-sources", StringComparison.OrdinalIgnoreCase))) return AuditCatalogSources();
                 if (args != null && args.Any(x => x.Equals("--audit-catalog-packages", StringComparison.OrdinalIgnoreCase))) return AuditCatalogPackages();
-                Versions(); Paths(); DiscoveryRealIniFormats(); ArchitectureAwareDiscovery(); FamilyIdentityAndConflict(); CatalogV2AndProviders(); CatalogScaleAndCache(); AuthorityResolution(); DownloadProvenance(); ScalableCheckRunner(); FileInfoPeVersionStrategy(); StrategyPriorityAndFallback(); ConfigurationDetection(); ConfigurationPrecedenceFinalization(); RedirectSections(); IniEncodingsAndPathExpansion(); CatalogAliases(); ApplicationMetadataAndUserAgent();
+                Versions(); Paths(); DiscoveryRealIniFormats(); ArchitectureAwareDiscovery(); FamilyIdentityAndConflict(); CatalogV2AndProviders(); CatalogScaleAndCache(); AuthorityResolution(); DownloadProvenance(); AuthorityRuntimeFinalization(); ScalableCheckRunner(); FileInfoPeVersionStrategy(); StrategyPriorityAndFallback(); ConfigurationDetection(); ConfigurationPrecedenceFinalization(); RedirectSections(); IniEncodingsAndPathExpansion(); CatalogAliases(); ApplicationMetadataAndUserAgent();
                 Console.WriteLine("PASS " + _count + " tests"); return 0;
             }
             catch (Exception ex) { Console.Error.WriteLine("FAIL: " + ex.Message); return 1; }
@@ -44,14 +44,21 @@ namespace TotalUpdater.Next.Tests
                 var catalog = new CatalogService(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".json"));
                 var providers = new IUpdateSourceProvider[] { new TotalCmdNetSourceProvider(http), new TotalCmdNetIndexProvider(http), new GhislerSourceProvider(http), new GhislerPluginsSourceProvider(http), new GitHubReleaseSourceProvider(http), new GenericHtmlSourceProvider(http) };
                 var service = new UpdateService(catalog, providers);
+                var cache = new SourceResponseCache();
                 foreach (var id in new[] { "totalcmd", "fileinfo", "total7zip", "7zip-plugin", "imagine", "webdav", "sftp", "anytag", "glimpse-wlx", "glimpse-wcx" })
                 {
-                    var entry = catalog.FindById(id); var source = entry.Sources.OrderByDescending(x => x.Priority).First(); var provider = providers.First(x => x.CanHandle(source)); var cache = new SourceResponseCache(); var cachedProvider = provider as ICachedUpdateSourceProvider;
-                    var query = (cachedProvider == null ? provider.QueryAsync(source, System.Threading.CancellationToken.None) : cachedProvider.QueryAsync(source, cache, System.Threading.CancellationToken.None)).GetAwaiter().GetResult(); var plugin = new InstalledPlugin { Identity = new PluginIdentity { Id = id }, Architecture = PluginArchitecture.X86 | PluginArchitecture.X64, LocalVersion = FileVersionProbe.Create("0.0", VersionSource.FileVersion, VersionConfidence.Exact) };
+                    var entry = catalog.FindById(id); Console.WriteLine(id);
+                    foreach (var source in entry.Sources.OrderByDescending(x => x.Priority))
+                    {
+                        if (source.AuthorityValue == SourceAuthority.ManualOverride) { Console.WriteLine("  provider.QueryAsync: Manual override | Success | " + source.ManualOverride.Version + " | packages=0 | " + source.ManualOverride.EvidenceUrl); continue; }
+                        var provider = providers.FirstOrDefault(x => x.CanHandle(source)); if (provider == null) { Console.WriteLine("  provider.QueryAsync: provider missing | " + source.Provider); continue; }
+                        var cachedProvider = provider as ICachedUpdateSourceProvider; var query = (cachedProvider == null ? provider.QueryAsync(source, System.Threading.CancellationToken.None) : cachedProvider.QueryAsync(source, cache, System.Threading.CancellationToken.None)).GetAwaiter().GetResult();
+                        Console.WriteLine("  provider.QueryAsync: " + provider.Name + " | authority=" + source.AuthorityValue + " | purpose=" + source.PurposeValue + " | " + query.Status + " | version=" + (query.Release == null ? "" : query.Release.Version.Raw) + " | packages=" + (query.Release == null ? 0 : query.Release.Packages.Count));
+                        if (query.Release != null) foreach (var package in query.Release.Packages) Console.WriteLine("    " + package.FileName + " | " + package.Architecture + " | " + package.Url);
+                    }
+                    var plugin = new InstalledPlugin { Identity = new PluginIdentity { Id = id }, Architecture = PluginArchitecture.X86 | PluginArchitecture.X64, LocalVersion = FileVersionProbe.Create("0.0", VersionSource.FileVersion, VersionConfidence.Exact) };
                     var result = service.CheckAsync(plugin, System.Threading.CancellationToken.None, cache).GetAwaiter().GetResult();
-                    Console.WriteLine(id + "\n  provider.QueryAsync: " + query.Status + ", version=" + (query.Release == null ? "" : query.Release.Version.Raw) + ", packages=" + (query.Release == null ? 0 : query.Release.Packages.Count));
-                    if (query.Release != null) foreach (var package in query.Release.Packages) Console.WriteLine("    " + package.FileName + " | " + package.Architecture + " | " + package.Url);
-                    Console.WriteLine("  UpdateService.CheckAsync: " + result.State + ", selected=" + (result.DownloadUrl == null ? "none/ambiguous" : result.DownloadUrl.AbsoluteUri) + ", details=" + result.Details);
+                    Console.WriteLine("  UpdateService.CheckAsync: " + result.State + " | selected=" + (result.DownloadUrl == null ? "none/ambiguous" : result.DownloadUrl.AbsoluteUri) + " | details=" + result.Details);
                 }
             }
         }
@@ -513,7 +520,7 @@ namespace TotalUpdater.Next.Tests
             var sameTier = resolver.Resolve(new[] { observation(SourceAuthority.OfficialTotalCommander, "2.0"), observation(SourceAuthority.OfficialTotalCommander, "2.1") }); Assert(sameTier.Canonical.Release.Version.Raw == "2.1" && sameTier.HasDisagreement, "same authority chooses newest and marks disagreement");
             var fallback = resolver.Resolve(new[] { new RemoteVersionObservation { Authority = SourceAuthority.OfficialAuthor, Purpose = SourcePurpose.Metadata, Status = SourceQueryStatus.Unavailable }, observation(SourceAuthority.OfficialTotalCommander, "2.0"), observation(SourceAuthority.CommunityCatalog, "2.0") }); Assert(fallback.Canonical.Authority == SourceAuthority.OfficialTotalCommander, "unavailable official author falls back to Ghisler");
             var community = resolver.Resolve(new[] { new RemoteVersionObservation { Authority = SourceAuthority.OfficialTotalCommander, Purpose = SourcePurpose.Metadata, Status = SourceQueryStatus.Unavailable }, observation(SourceAuthority.CommunityCatalog, "2.0") }); Assert(community.Canonical.Authority == SourceAuthority.CommunityCatalog, "unavailable official falls back to community");
-            var ghisler = GhislerPluginsSourceProvider.Parse("Diskdir", "<a>Diskdir</a><td>1.3</td>"); Assert(ghisler.Status == SourceQueryStatus.Success && ghisler.Release.Version.Raw == "1.3", "Ghisler plugin fixture parses version");
+                var ghisler = GhislerPluginsSourceProvider.Parse("Diskdir", "<tr><td><a>Diskdir</a></td><td>directory listing</td><td><a href='details'>details</a></td><td>1.3</td></tr>"); Assert(ghisler.Status == SourceQueryStatus.Success && ghisler.Release.Version.Raw == "1.3", "Ghisler realistic plugin fixture parses version");
             var index = TotalCmdNetIndexProvider.Parse("dirsizecalc", "dirsizecalc|DirSizeCalc|2.22|19.08.2015|content|x32+x64||\r\n"); Assert(index.Status == SourceQueryStatus.Success && index.Release.Version.Raw == "2.22", "legacy totalcmd index fixture parses version");
         }
         private static void DownloadProvenance()
@@ -526,6 +533,40 @@ namespace TotalUpdater.Next.Tests
                 Assert(allowed.AvailableVersion.Raw == "2.0" && allowed.DownloadUrl != null, "same canonical release package is allowed");
                 var blocked = new UpdateService(new CatalogService(Path.Combine(root, "user2.json")), new IUpdateSourceProvider[] { new AuthorityProvider("1.9", SourcePurpose.MetadataAndDownload) }).CheckAsync(plugin, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
                 Assert(blocked.AvailableVersion.Raw == "2.0" && blocked.DownloadUrl == null, "lower source release package is blocked");
+            }
+            finally { Directory.Delete(root, true); }
+        }
+        private static void AuthorityRuntimeFinalization()
+        {
+            var root = NewRoot();
+            try
+            {
+                var user = Path.Combine(root, "user.json");
+                File.WriteAllText(user, "[{\"id\":\"fileinfo\",\"name\":\"FileInfo\",\"type\":\"Wlx\",\"aliases\":[\"fileinfo.wlx\"],\"sources\":[{\"provider\":\"totalcmd.net\",\"id\":\"manual\",\"authority\":\"ManualOverride\",\"purpose\":\"Metadata\",\"priority\":300,\"manualOverride\":{\"version\":\"2.1\",\"evidenceUrl\":\"https://evidence.test/manual\",\"reason\":\"verified\",\"verifiedAt\":\"2026-09-22\"}},{\"provider\":\"totalcmd.net\",\"id\":\"official\",\"authority\":\"OfficialAuthor\",\"purpose\":\"MetadataAndDownload\",\"priority\":100}]}]");
+                var catalog = new CatalogService(user); var provider = new SourceRouteProvider("2.0", true); var plugin = new InstalledPlugin { Identity = new PluginIdentity { Id = "fileinfo" }, Architecture = PluginArchitecture.X86, LocalVersion = FileVersionProbe.Create("1.0", VersionSource.FileVersion, VersionConfidence.Exact) };
+                var manual = new UpdateService(catalog, new IUpdateSourceProvider[] { provider }).CheckAsync(plugin, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+                Assert(manual.AvailableVersion.Raw == "2.1" && manual.CanonicalVersionSource.Authority == SourceAuthority.ManualOverride && provider.Calls == 1, "ManualOverride creates runtime observation without HTTP provider");
+                Assert(manual.DownloadUrl == null && manual.DownloadSource == null, "ManualOverride never supplies a download package");
+
+                File.WriteAllText(user, "[{\"id\":\"fileinfo\",\"name\":\"FileInfo\",\"type\":\"Wlx\",\"aliases\":[\"fileinfo.wlx\"],\"sources\":[{\"provider\":\"totalcmd.net\",\"id\":\"community\",\"authority\":\"CommunityCatalog\",\"purpose\":\"MetadataAndDownload\",\"priority\":300},{\"provider\":\"totalcmd.net\",\"id\":\"official\",\"authority\":\"OfficialAuthor\",\"purpose\":\"MetadataAndDownload\",\"priority\":100}]}]");
+                var officialPackage = new UpdateService(new CatalogService(user), new IUpdateSourceProvider[] { new SourceRouteProvider("2.0", true) }).CheckAsync(plugin, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+                Assert(officialPackage.DownloadSource.Authority == SourceAuthority.OfficialAuthor, "official package beats higher-priority community package");
+                var fallbackPackage = new UpdateService(new CatalogService(user), new IUpdateSourceProvider[] { new SourceRouteProvider("2.0", false) }).CheckAsync(plugin, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+                Assert(fallbackPackage.DownloadSource.Authority == SourceAuthority.CommunityCatalog, "same-version community package is fallback when official has none");
+                var mismatch = new UpdateService(new CatalogService(user), new IUpdateSourceProvider[] { new SourceRouteProvider("1.9", false) }).CheckAsync(plugin, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+                Assert(mismatch.DownloadUrl == null, "different-version lower authority package is blocked");
+
+                File.WriteAllText(user, "[{\"id\":\"bad\",\"name\":\"Bad\",\"type\":\"Wlx\",\"aliases\":[\"bad.wlx\"],\"sources\":[{\"provider\":\"totalcmd.net\",\"authority\":\"ManualOverride\",\"purpose\":\"Metadata\",\"priority\":1,\"manualOverride\":{\"version\":\"bad\"}}]}]");
+                Assert(new CatalogService(user).LoadWithDiagnostics().Diagnostics.Any(x => x.Severity == CatalogDiagnosticSeverity.Error && x.Message.IndexOf("ManualOverride", StringComparison.OrdinalIgnoreCase) >= 0), "malformed ManualOverride is catalog error");
+                File.WriteAllText(user, "[{\"id\":\"old\",\"name\":\"Old\",\"type\":\"Wlx\",\"aliases\":[\"old.wlx\"],\"sources\":[{\"provider\":\"totalcmd.net\",\"id\":\"old\",\"authority\":\"ManualOverride\",\"purpose\":\"Metadata\",\"priority\":1,\"manualOverride\":{\"version\":\"1.0\",\"evidenceUrl\":\"https://evidence.test/old\",\"reason\":\"old\",\"verifiedAt\":\"2000-01-01\"}}]}]");
+                Assert(new CatalogService(user).LoadWithDiagnostics().Diagnostics.Any(x => x.Severity == CatalogDiagnosticSeverity.Warning && x.Message.IndexOf("180", StringComparison.OrdinalIgnoreCase) >= 0), "stale ManualOverride is catalog warning");
+
+                var embedded = new CatalogService(Path.Combine(root, "none.json")).Load(); Assert(embedded.All(x => x.Sources.All(s => !String.IsNullOrWhiteSpace(s.Authority) && !String.IsNullOrWhiteSpace(s.Purpose))), "every embedded source has explicit authority and purpose");
+                var conflictRow = new PluginRowViewModel(plugin); conflictRow.Apply(new UpdateCandidate { Plugin = plugin, State = UpdateState.UpdateAvailable, DownloadUrl = new Uri("https://example.test/blocked"), AuthorityConflict = true });
+                Assert(!conflictRow.CanDownload && conflictRow.Information.Contains("Конфликт источников одного уровня доверия.") && conflictRow.Information.Contains("Автоматическая загрузка отключена."), "AuthorityConflict blocks download and has UI diagnostic");
+                var indexCache = new SourceResponseCache(); var indexProvider = new IndexCacheProvider(); var indexService = new UpdateService(new CatalogService(Path.Combine(root, "index.json")), new IUpdateSourceProvider[] { indexProvider });
+                var indexed = new[] { "total7zip", "fileinfo", "diskdir" }.Select(id => indexService.CheckAsync(new InstalledPlugin { Identity = new PluginIdentity { Id = id }, LocalVersion = FileVersionProbe.Create("0", VersionSource.FileVersion, VersionConfidence.Exact) }, System.Threading.CancellationToken.None, indexCache)).ToArray(); System.Threading.Tasks.Task.WaitAll(indexed);
+                Assert(indexProvider.Fetches == 1 && indexed.All(x => x.Result.Observations.Any(o => o.Source != null && o.Source.Provider == "totalcmd.net-index")), "three index entries share one raw index fetch and retain observations");
             }
             finally { Directory.Delete(root, true); }
         }
@@ -632,6 +673,36 @@ namespace TotalUpdater.Next.Tests
                 var version = official ? "2.0" : _communityVersion;
                 var packages = !official && _purpose != SourcePurpose.Metadata ? new System.Collections.Generic.List<RemotePackage> { new RemotePackage { Architecture = RemotePackageArchitecture.Combined, Url = new Uri("https://example.test/package") } } : new System.Collections.Generic.List<RemotePackage>();
                 return System.Threading.Tasks.Task.FromResult(new SourceQueryResult { Status = SourceQueryStatus.Success, Release = new RemoteRelease { VersionText = version, Version = VersionValue.Parse(version), SourceUrl = new Uri("https://example.test/source"), Packages = packages } });
+            }
+        }
+        private sealed class SourceRouteProvider : IUpdateSourceProvider
+        {
+            private readonly string _communityVersion; private readonly bool _officialPackage;
+            public int Calls;
+            public SourceRouteProvider(string communityVersion, bool officialPackage) { _communityVersion = communityVersion; _officialPackage = officialPackage; }
+            public string Name { get { return "route"; } }
+            public bool CanHandle(CatalogSource source) { return true; }
+            public System.Threading.Tasks.Task<SourceQueryResult> QueryAsync(CatalogSource source, System.Threading.CancellationToken token)
+            {
+                Calls++; var official = source.AuthorityValue == SourceAuthority.OfficialAuthor; var version = official ? "2.0" : _communityVersion;
+                var packages = (official ? _officialPackage : true) ? new List<RemotePackage> { new RemotePackage { Architecture = RemotePackageArchitecture.Combined, Url = new Uri("https://example.test/" + (official ? "official" : "community")) } } : new List<RemotePackage>();
+                return System.Threading.Tasks.Task.FromResult(new SourceQueryResult { Status = SourceQueryStatus.Success, Release = new RemoteRelease { VersionText = version, Version = VersionValue.Parse(version), SourceUrl = new Uri("https://example.test/source"), Packages = packages } });
+            }
+        }
+        private sealed class IndexCacheProvider : ICachedUpdateSourceProvider
+        {
+            public int Fetches;
+            public string Name { get { return "index-cache"; } }
+            public bool CanHandle(CatalogSource source) { return source != null && (source.Provider == "totalcmd.net-index" || source.Provider == "ghisler-plugins" || source.Provider == "totalcmd.net"); }
+            public System.Threading.Tasks.Task<SourceQueryResult> QueryAsync(CatalogSource source, System.Threading.CancellationToken token) { return QueryAsync(source, null, token); }
+            public async System.Threading.Tasks.Task<SourceQueryResult> QueryAsync(CatalogSource source, SourceResponseCache cache, System.Threading.CancellationToken token)
+            {
+                if (source.Provider == "totalcmd.net-index")
+                {
+                    var raw = cache == null ? "raw" : await cache.GetOrAdd("totalcmd.net:index", () => { Fetches++; return System.Threading.Tasks.Task.FromResult("raw"); });
+                    return new SourceQueryResult { Status = SourceQueryStatus.Success, Release = new RemoteRelease { VersionText = "2.0", Version = VersionValue.Parse("2.0"), SourceUrl = new Uri("https://example.test/" + raw) } };
+                }
+                return new SourceQueryResult { Status = SourceQueryStatus.Unavailable, Details = "not needed" };
             }
         }
         private sealed class FakeRegistry : IRegistryConfigurationReader

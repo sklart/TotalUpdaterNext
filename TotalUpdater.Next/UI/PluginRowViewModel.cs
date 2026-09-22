@@ -35,6 +35,7 @@ namespace TotalUpdater.Next.UI
                     lines.Add(""); lines.Add("Последняя версия: " + (_candidate.AvailableVersion.IsKnown ? _candidate.AvailableVersion.Raw : "—"));
                     lines.Add("Источник версии: " + (_candidate.CanonicalVersionSource == null ? "—" : _candidate.CanonicalVersionSource.ProviderName));
                     lines.Add("Источник загрузки: " + (_candidate.DownloadSource == null ? "—" : _candidate.DownloadSource.ProviderName));
+                    if (_candidate.AuthorityConflict) { lines.Add("Конфликт источников одного уровня доверия."); lines.Add("Автоматическая загрузка отключена."); }
                     if (_candidate.HasSourceDisagreement) { lines.Add("Источники сообщают разные версии"); foreach (var observation in _candidate.Observations.Where(x => x.Release != null && x.Release.Version.IsKnown)) lines.Add(observation.ProviderName + ": " + observation.Release.Version.Raw); }
                 }
                 return String.Join(Environment.NewLine, lines);
@@ -43,7 +44,7 @@ namespace TotalUpdater.Next.UI
         public UpdateCandidate Candidate { get { return _candidate; } }
         public bool HasUpdate { get { return _candidate != null && _candidate.State == UpdateState.UpdateAvailable; } }
         public bool HasError { get { return _candidate != null && (_candidate.State == UpdateState.Error || _candidate.State == UpdateState.SourceUnavailable); } }
-        public bool CanDownload { get { return _candidate != null && _candidate.State == UpdateState.UpdateAvailable && _candidate.DownloadUrl != null && !Plugin.HasVersionConflict; } }
+        public bool CanDownload { get { return _candidate != null && _candidate.State == UpdateState.UpdateAvailable && _candidate.DownloadUrl != null && !_candidate.AuthorityConflict && !Plugin.HasVersionConflict; } }
 
         public void SetChecking() { Status = Plugin.HasVersionConflict ? Text.Get("VersionConflict") : Text.Get("Checking"); }
         public void Apply(UpdateCandidate candidate)

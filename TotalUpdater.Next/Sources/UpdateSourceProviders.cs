@@ -201,7 +201,9 @@ namespace TotalUpdater.Next.Sources
         public static SourceQueryResult Parse(string id, string html)
         {
             var name = Regex.Escape(id ?? "").Replace("\\ ", @"\s+");
-            var match = Regex.Match(html ?? "", @"(?is)>\s*" + name + @"\s*<.*?>\s*([0-9]+(?:\.[0-9A-Za-z]+){0,3})", RegexOptions.CultureInvariant);
+            // The official table has changed several times: name, description, links and
+            // cells can be interleaved.  Keep the search local to the next table row.
+            var match = Regex.Match(html ?? "", @"(?is)>\s*" + name + @"\s*<(?:(?!</tr>).){0,1600}?\b([0-9]+(?:\.[0-9A-Za-z]+){0,3})\b", RegexOptions.CultureInvariant);
             if (!match.Success) return Result(SourceQueryStatus.NotFound, null, "Плагин или версия не найдены на официальной странице.");
             var version = VersionValue.Parse(match.Groups[1].Value);
             return version.IsKnown ? Result(SourceQueryStatus.Success, new RemoteRelease { VersionText = match.Groups[1].Value, Version = version, SourceUrl = new Uri(Url), Packages = new List<RemotePackage>() }, "") : Result(SourceQueryStatus.InvalidResponse, null, "Некорректная версия плагина.");
