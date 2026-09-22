@@ -25,7 +25,7 @@ namespace TotalUpdater.Next.Tests
                 if (args != null && args.Any(x => x.Equals("--validate-catalog", StringComparison.OrdinalIgnoreCase))) { ValidateCatalog(); return 0; }
                 if (args != null && args.Any(x => x.Equals("--audit-catalog-sources", StringComparison.OrdinalIgnoreCase))) return AuditCatalogSources();
                 if (args != null && args.Any(x => x.Equals("--audit-catalog-packages", StringComparison.OrdinalIgnoreCase))) return AuditCatalogPackages();
-                Versions(); Paths(); DiscoveryRealIniFormats(); ArchitectureAwareDiscovery(); FamilyIdentityAndConflict(); CatalogV2AndProviders(); CatalogScaleAndCache(); AuthorityResolution(); ScalableCheckRunner(); FileInfoPeVersionStrategy(); StrategyPriorityAndFallback(); ConfigurationDetection(); ConfigurationPrecedenceFinalization(); RedirectSections(); IniEncodingsAndPathExpansion(); CatalogAliases(); ApplicationMetadataAndUserAgent();
+                Versions(); Paths(); DiscoveryRealIniFormats(); ArchitectureAwareDiscovery(); FamilyIdentityAndConflict(); CatalogV2AndProviders(); CatalogScaleAndCache(); AuthorityResolution(); DownloadProvenance(); ScalableCheckRunner(); FileInfoPeVersionStrategy(); StrategyPriorityAndFallback(); ConfigurationDetection(); ConfigurationPrecedenceFinalization(); RedirectSections(); IniEncodingsAndPathExpansion(); CatalogAliases(); ApplicationMetadataAndUserAgent();
                 Console.WriteLine("PASS " + _count + " tests"); return 0;
             }
             catch (Exception ex) { Console.Error.WriteLine("FAIL: " + ex.Message); return 1; }
@@ -516,6 +516,19 @@ namespace TotalUpdater.Next.Tests
             var ghisler = GhislerPluginsSourceProvider.Parse("Diskdir", "<a>Diskdir</a><td>1.3</td>"); Assert(ghisler.Status == SourceQueryStatus.Success && ghisler.Release.Version.Raw == "1.3", "Ghisler plugin fixture parses version");
             var index = TotalCmdNetIndexProvider.Parse("dirsizecalc", "dirsizecalc|DirSizeCalc|2.22|19.08.2015|content|x32+x64||\r\n"); Assert(index.Status == SourceQueryStatus.Success && index.Release.Version.Raw == "2.22", "legacy totalcmd index fixture parses version");
         }
+        private static void DownloadProvenance()
+        {
+            var root = NewRoot();
+            try
+            {
+                var plugin = new InstalledPlugin { Identity = new PluginIdentity { Id = "total7zip" }, Architecture = PluginArchitecture.X86, LocalVersion = FileVersionProbe.Create("1.0", VersionSource.FileVersion, VersionConfidence.Exact) };
+                var allowed = new UpdateService(new CatalogService(Path.Combine(root, "user.json")), new IUpdateSourceProvider[] { new AuthorityProvider("2.0", SourcePurpose.MetadataAndDownload) }).CheckAsync(plugin, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+                Assert(allowed.AvailableVersion.Raw == "2.0" && allowed.DownloadUrl != null, "same canonical release package is allowed");
+                var blocked = new UpdateService(new CatalogService(Path.Combine(root, "user2.json")), new IUpdateSourceProvider[] { new AuthorityProvider("1.9", SourcePurpose.MetadataAndDownload) }).CheckAsync(plugin, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+                Assert(blocked.AvailableVersion.Raw == "2.0" && blocked.DownloadUrl == null, "lower source release package is blocked");
+            }
+            finally { Directory.Delete(root, true); }
+        }
         private static void ScalableCheckRunner()
         {
             var root = NewRoot();
@@ -606,6 +619,19 @@ namespace TotalUpdater.Next.Tests
                 var call = System.Threading.Interlocked.Increment(ref _calls);
                 try { await System.Threading.Tasks.Task.Delay(_delay, token); if (call == _throwAt) throw new InvalidOperationException("expected"); return new SourceQueryResult { Status = SourceQueryStatus.Success, Release = new RemoteRelease { VersionText = "1.0", Version = VersionValue.Parse("1.0"), SourceUrl = new Uri("https://example.test/"), Packages = new System.Collections.Generic.List<RemotePackage>() } }; }
                 finally { System.Threading.Interlocked.Decrement(ref _active); }
+            }
+        }
+        private sealed class AuthorityProvider : IUpdateSourceProvider
+        {
+            private readonly string _communityVersion; private readonly SourcePurpose _purpose;
+            public AuthorityProvider(string communityVersion, SourcePurpose purpose) { _communityVersion = communityVersion; _purpose = purpose; }
+            public string Name { get { return "authority-test"; } } public bool CanHandle(CatalogSource source) { return true; }
+            public System.Threading.Tasks.Task<SourceQueryResult> QueryAsync(CatalogSource source, System.Threading.CancellationToken token)
+            {
+                var official = source.AuthorityValue == SourceAuthority.OfficialTotalCommander;
+                var version = official ? "2.0" : _communityVersion;
+                var packages = !official && _purpose != SourcePurpose.Metadata ? new System.Collections.Generic.List<RemotePackage> { new RemotePackage { Architecture = RemotePackageArchitecture.Combined, Url = new Uri("https://example.test/package") } } : new System.Collections.Generic.List<RemotePackage>();
+                return System.Threading.Tasks.Task.FromResult(new SourceQueryResult { Status = SourceQueryStatus.Success, Release = new RemoteRelease { VersionText = version, Version = VersionValue.Parse(version), SourceUrl = new Uri("https://example.test/source"), Packages = packages } });
             }
         }
         private sealed class FakeRegistry : IRegistryConfigurationReader
