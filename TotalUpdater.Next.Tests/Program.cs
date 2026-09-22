@@ -15,14 +15,30 @@ namespace TotalUpdater.Next.Tests
     internal static class Program
     {
         private static int _count;
-        private static int Main()
+        private static int Main(string[] args)
         {
             try
             {
+                if (args != null && args.Any(x => x.Equals("--live-sources", StringComparison.OrdinalIgnoreCase))) { LiveSources(); return 0; }
                 Versions(); Paths(); DiscoveryRealIniFormats(); ArchitectureAwareDiscovery(); FamilyIdentityAndConflict(); CatalogV2AndProviders(); FileInfoPeVersionStrategy(); StrategyPriorityAndFallback(); ConfigurationDetection(); ConfigurationPrecedenceFinalization(); RedirectSections(); IniEncodingsAndPathExpansion(); CatalogAliases(); ApplicationMetadataAndUserAgent();
                 Console.WriteLine("PASS " + _count + " tests"); return 0;
             }
             catch (Exception ex) { Console.Error.WriteLine("FAIL: " + ex.Message); return 1; }
+        }
+        private static void LiveSources()
+        {
+            using (var http = new HttpService(ApplicationMetadata.Version))
+            {
+                var catalog = new CatalogService(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".json"));
+                var providers = new IUpdateSourceProvider[] { new TotalCmdNetSourceProvider(http), new GhislerSourceProvider(http), new GitHubReleaseSourceProvider(http), new GenericHtmlSourceProvider(http) };
+                var service = new UpdateService(catalog, providers);
+                foreach (var id in new[] { "totalcmd", "fileinfo", "total7zip", "7zip-plugin", "imagine", "sftp", "anytag", "glimpse-wlx", "glimpse-wcx" })
+                {
+                    var entry = catalog.FindById(id); var plugin = new InstalledPlugin { Identity = new PluginIdentity { Id = id }, Architecture = PluginArchitecture.X86 | PluginArchitecture.X64, LocalVersion = FileVersionProbe.Create("0.0", VersionSource.FileVersion, VersionConfidence.Exact) };
+                    var result = service.CheckAsync(plugin, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+                    Console.WriteLine(id + " | " + (entry == null ? "?" : entry.Sources[0].Provider) + " | " + result.State + " | " + result.AvailableVersion.Raw + " | " + (result.DownloadUrl == null ? "none/ambiguous" : result.DownloadUrl.AbsoluteUri));
+                }
+            }
         }
         private static void Versions()
         {

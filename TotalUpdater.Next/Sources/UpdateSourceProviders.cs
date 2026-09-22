@@ -83,8 +83,21 @@ namespace TotalUpdater.Next.Sources
         protected static RemotePackageArchitecture DetectPackageArchitecture(string value)
         {
             var lower = " " + Regex.Replace(value ?? "", @"[^a-z0-9]+", " ").ToLowerInvariant() + " ";
-            var x86 = lower.Contains(" x32 ") || lower.Contains(" x86 ") || lower.Contains(" win32 "); var x64 = lower.Contains(" x64 ") || lower.Contains(" amd64 ") || lower.Contains(" win64 ");
+            if (lower.Contains(" arm64 ")) return RemotePackageArchitecture.Unknown;
+            var x86 = lower.Contains(" x32 ") || lower.Contains(" x86 ") || lower.Contains(" win32 ") || lower.Contains(" 32bit ") || lower.Contains(" 32 bit "); var x64 = lower.Contains(" x64 ") || lower.Contains(" amd64 ") || lower.Contains(" win64 ") || lower.Contains(" 64bit ") || lower.Contains(" 64 bit ");
             return x86 && x64 ? RemotePackageArchitecture.Combined : x64 ? RemotePackageArchitecture.X64 : x86 ? RemotePackageArchitecture.X86 : RemotePackageArchitecture.Unknown;
+        }
+        protected static IList<RemotePackage> ParseDownloadLinks(string html, Uri baseUri)
+        {
+            var result = new List<RemotePackage>();
+            foreach (Match match in Regex.Matches(html ?? "", @"<a[^>]*href\s*=\s*[""'](?<url>[^""']+)[""'][^>]*>(?<label>.*?)</a>", RegexOptions.IgnoreCase | RegexOptions.Singleline))
+            {
+                var label = Regex.Replace(match.Groups["label"].Value, "<.*?>", " "); var text = label + " " + match.Groups["url"].Value;
+                if (!Regex.IsMatch(text, @"download|x32|x64|x86|win32|win64|32[ -]?bit|64[ -]?bit", RegexOptions.IgnoreCase) || Regex.IsMatch(text, @"mirror|source|homepage|author|forum|discuss|screen", RegexOptions.IgnoreCase)) continue;
+                Uri url; if (!Uri.TryCreate(baseUri, match.Groups["url"].Value, out url)) continue;
+                result.Add(new RemotePackage { Architecture = DetectPackageArchitecture(text), Url = url, FileName = url.AbsolutePath.EndsWith("download.php", StringComparison.OrdinalIgnoreCase) ? "" : Path.GetFileName(url.LocalPath) });
+            }
+            return result;
         }
     }
 
@@ -102,14 +115,15 @@ namespace TotalUpdater.Next.Sources
         public static string CanonicalUrl(string id) { return "https://totalcmd.net/plugring/" + Uri.EscapeDataString(id ?? "") + ".html"; }
         public static SourceQueryResult Parse(string id, string html)
         {
-            var match = Regex.Match(html ?? "", "<h[1-6][^>]*>[^<]*" + Regex.Escape(id ?? "") + @"[^<]*?\b([0-9]+(?:\.[0-9A-Za-z]+){1,3})[^<]*</h[1-6]>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+            var match = Regex.Match(html ?? "", @"<h1[^>]*>.*?([0-9]+(?:\.[0-9A-Za-z]+){1,3}).*?</h1>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            if (!match.Success) match = Regex.Match(html ?? "", @"<title[^>]*>.*?([0-9]+(?:\.[0-9A-Za-z]+){1,3}).*?</title>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
             if (!match.Success) return Result(SourceQueryStatus.NotFound, null, "Версия плагина не найдена.");
             var version = VersionValue.Parse(match.Groups[1].Value);
             if (!version.IsKnown) return Result(SourceQueryStatus.InvalidResponse, null, "Некорректная версия плагина.");
             var packages = ParsePackages(html);
             return Result(SourceQueryStatus.Success, new RemoteRelease { VersionText = match.Groups[1].Value, Version = version, SourceUrl = new Uri(CanonicalUrl(id)), Packages = packages }, "");
         }
-        public static IList<RemotePackage> ParsePackages(string html) { return ParseLinks(html); }
+        public static IList<RemotePackage> ParsePackages(string html) { return ParseDownloadLinks(html, new Uri("https://totalcmd.net/")); }
     }
 
     public sealed class GhislerSourceProvider : GenericHtmlSourceProvider
@@ -129,7 +143,7 @@ namespace TotalUpdater.Next.Sources
             var match = Regex.Match(html ?? "", @"(?:Download\s+version|Total\s+Commander)\s+([0-9]+(?:\.[0-9]+){1,3})", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
             if (!match.Success) return Result(SourceQueryStatus.NotFound, null, "Версия Total Commander не найдена.");
             var version = VersionValue.Parse(match.Groups[1].Value);
-            return version.IsKnown ? Result(SourceQueryStatus.Success, new RemoteRelease { VersionText = match.Groups[1].Value, Version = version, SourceUrl = new Uri("https://www.ghisler.com/download.htm"), Packages = ParseLinks(html) }, "") : Result(SourceQueryStatus.InvalidResponse, null, "Некорректная версия Total Commander.");
+            return version.IsKnown ? Result(SourceQueryStatus.Success, new RemoteRelease { VersionText = match.Groups[1].Value, Version = version, SourceUrl = new Uri("https://www.ghisler.com/download.htm"), Packages = ParseDownloadLinks(html, new Uri("https://www.ghisler.com/")) }, "") : Result(SourceQueryStatus.InvalidResponse, null, "Некорректная версия Total Commander.");
         }
     }
 

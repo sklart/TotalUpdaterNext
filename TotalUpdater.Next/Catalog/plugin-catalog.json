@@ -7,9 +7,9 @@
   { "id":"imagine", "name":"Imagine", "type":"Wlx", "aliases":["imagine.wlx"], "sources":[{"provider":"totalcmd.net","id":"Imagine","priority":100}] },
   { "id":"unrar", "name":"UnRAR", "type":"Wcx", "aliases":["unrar.wcx"], "sources":[{"provider":"totalcmd.net","id":"unrar","priority":100}] },
   { "id":"webdav", "name":"WebDAV", "type":"Wfx", "aliases":["webdav.wfx"], "sources":[{"provider":"totalcmd.net","id":"WebDAV","priority":100}] },
-  { "id":"sftp", "name":"SFTP", "type":"Wfx", "aliases":["sftpplug.wfx"], "sources":[{"provider":"totalcmd.net","id":"sftpplug","priority":100}] },
+  { "id":"sftp", "name":"SFTP", "type":"Wfx", "aliases":["sftpplug.wfx"], "sources":[{"provider":"totalcmd.net","id":"sftp4tc","priority":100}] },
   { "id":"exif", "name":"Exif", "type":"Wdx", "aliases":["exif.wdx"], "sources":[{"provider":"totalcmd.net","id":"exif","priority":100}] },
-  { "id":"anytag", "name":"AnyTag", "type":"Wdx", "aliases":["anytag.wdx"], "sources":[{"provider":"totalcmd.net","id":"anytag","priority":100}] },
+  { "id":"anytag", "name":"AnyTag", "type":"Wdx", "aliases":["anytag.wdx"], "sources":[{"provider":"totalcmd.net","id":"wdx_anytag","priority":100}] },
   { "id":"glimpse-wlx", "name":"Glimpse Lister", "type":"Wlx", "aliases":["Glimpse.wlx","Glimpse.wlx64"], "sources":[{"provider":"github","repository":"pozitronik/glimpse","assetPattern":".*_wlx\\.zip$","priority":100}] },
   { "id":"glimpse-wcx", "name":"Glimpse Packer", "type":"Wcx", "aliases":["Glimpse.wcx","Glimpse.wcx64"], "sources":[{"provider":"github","repository":"pozitronik/glimpse","assetPattern":".*_wcx\\.zip$","priority":100}] }
 ]
