@@ -13,6 +13,7 @@ namespace TotalUpdater.Next.Core
     {
         private readonly CatalogService _catalog;
         private readonly IList<IUpdateSourceProvider> _providers;
+        private readonly SourceAuthorityResolver _authority = new SourceAuthorityResolver();
         public UpdateService(CatalogService catalog, IEnumerable<IUpdateSourceProvider> providers) { _catalog = catalog; _providers = providers.ToList(); }
 
         public Task<UpdateCandidate> CheckAsync(InstalledPlugin plugin, CancellationToken cancellationToken)
@@ -24,11 +25,11 @@ namespace TotalUpdater.Next.Core
         {
             var entry = _catalog.FindById(plugin.Identity == null ? null : plugin.Identity.Id);
             if (entry == null) return Candidate(plugin, plugin.HasVersionConflict ? UpdateState.LocalVersionConflict : UpdateState.PluginNotRecognized, null, null, "");
-            var details = new List<string>();
+            var details = new List<string>(); var observations = new List<RemoteVersionObservation>();
             foreach (var source in entry.Sources.OrderByDescending(x => x.Priority))
             {
                 var provider = _providers.FirstOrDefault(p => p.CanHandle(source));
-                if (provider == null) { details.Add(source.Provider + ": provider не найден"); continue; }
+                if (provider == null) { details.Add(source.Provider + ": provider не найден"); observations.Add(new RemoteVersionObservation { Source = source, Authority = source.AuthorityValue, Purpose = source.PurposeValue, Status = SourceQueryStatus.Unavailable, Details = "provider не найден" }); continue; }
                 SourceQueryResult result;
                 try
                 {
@@ -38,20 +39,29 @@ namespace TotalUpdater.Next.Core
                         : await cachedProvider.QueryAsync(source, sourceCache, cancellationToken).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) { throw; }
-                catch (Exception ex) { details.Add(provider.Name + ": " + ex.Message); continue; }
+                catch (Exception ex) { details.Add(provider.Name + ": " + ex.Message); observations.Add(new RemoteVersionObservation { Source = source, ProviderName = provider.Name, Authority = source.AuthorityValue, Purpose = source.PurposeValue, Status = SourceQueryStatus.Unavailable, Details = ex.Message }); continue; }
+                observations.Add(new RemoteVersionObservation { Source = source, ProviderName = provider.Name, Authority = source.AuthorityValue, Purpose = source.PurposeValue, Status = result == null ? SourceQueryStatus.InvalidResponse : result.Status, Release = result == null ? null : result.Release, Details = result == null ? "пустой ответ" : result.Details });
                 if (result == null || result.Status != SourceQueryStatus.Success || result.Release == null || !result.Release.Version.IsKnown)
                 {
                     details.Add(provider.Name + ": " + (result == null ? "пустой ответ" : result.Details)); continue;
                 }
-                if (plugin.HasVersionConflict) return Candidate(plugin, UpdateState.LocalVersionConflict, result.Release, provider.Name, result.Details);
-                var comparison = plugin.LocalVersion.ParsedValue.CompareTo(result.Release.Version);
-                var state = comparison == VersionComparison.Less ? UpdateState.UpdateAvailable : comparison == VersionComparison.Greater ? UpdateState.DevelopmentVersion : comparison == VersionComparison.Equal ? UpdateState.UpToDate : UpdateState.VersionComparisonUnknown;
-                var candidate = Candidate(plugin, state, result.Release, provider.Name, result.Details);
-                if (state == UpdateState.UpdateAvailable) { string packageDetails; candidate.DownloadUrl = SelectPackage(plugin, result.Release, out packageDetails); candidate.Details = packageDetails; }
-                return candidate;
             }
-            return Candidate(plugin, plugin.HasVersionConflict ? UpdateState.LocalVersionConflict : UpdateState.SourceUnavailable, null, null, String.Join(" · ", details));
+            var resolution = _authority.Resolve(observations); var canonical = resolution.Canonical;
+            if (canonical == null) { var unavailable = Candidate(plugin, plugin.HasVersionConflict ? UpdateState.LocalVersionConflict : UpdateState.SourceUnavailable, null, null, String.Join(" · ", details)); unavailable.Observations = observations; return unavailable; }
+            if (plugin.HasVersionConflict) { var conflict = Candidate(plugin, UpdateState.LocalVersionConflict, canonical.Release, canonical.ProviderName, canonical.Details); ApplyProvenance(conflict, observations, resolution); return conflict; }
+            var comparison = plugin.LocalVersion.ParsedValue.CompareTo(canonical.Release.Version);
+            var state = comparison == VersionComparison.Less ? UpdateState.UpdateAvailable : comparison == VersionComparison.Greater ? UpdateState.DevelopmentVersion : comparison == VersionComparison.Equal ? UpdateState.UpToDate : UpdateState.VersionComparisonUnknown;
+            var candidate = Candidate(plugin, state, canonical.Release, canonical.ProviderName, canonical.Details); ApplyProvenance(candidate, observations, resolution);
+            if (state == UpdateState.UpdateAvailable && !resolution.HasConflict)
+            {
+                var download = observations.FirstOrDefault(x => x.Release != null && x.Purpose != SourcePurpose.Metadata && x.Release.Version.CompareTo(canonical.Release.Version) == VersionComparison.Equal && x.Release.Packages != null && x.Release.Packages.Count > 0);
+                if (download != null) { string packageDetails; candidate.DownloadUrl = SelectPackage(plugin, download.Release, out packageDetails); candidate.DownloadSource = download; candidate.Details = packageDetails; }
+            }
+            return candidate;
         }
+
+        private static void ApplyProvenance(UpdateCandidate candidate, IList<RemoteVersionObservation> observations, AuthorityResolution resolution)
+        { candidate.Observations = observations; candidate.CanonicalVersionSource = resolution.Canonical; candidate.HasSourceDisagreement = resolution.HasDisagreement; candidate.AuthorityConflict = resolution.HasConflict; }
 
         private static Uri SelectPackage(InstalledPlugin plugin, RemoteRelease release, out string details)
         {

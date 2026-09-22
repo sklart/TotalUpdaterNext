@@ -109,6 +109,16 @@ namespace TotalUpdater.Next.Catalog
             foreach (var source in entry.Sources)
             {
                 if (source == null || !IsKnownProvider(source.Provider)) { error = "Неизвестный provider."; return false; }
+                SourceAuthority authority; if (!String.IsNullOrWhiteSpace(source.Authority) && !Enum.TryParse(source.Authority, true, out authority)) { error = "Неизвестный authority."; return false; }
+                SourcePurpose purpose; if (!String.IsNullOrWhiteSpace(source.Purpose) && !Enum.TryParse(source.Purpose, true, out purpose)) { error = "Неизвестный purpose."; return false; }
+                if (source.Provider.Equals("ghisler-plugins", StringComparison.OrdinalIgnoreCase) && String.IsNullOrWhiteSpace(source.Id)) { error = "Пустой id источника ghisler-plugins."; return false; }
+                if (source.AuthorityValue == SourceAuthority.Mirror && source.PurposeValue == SourcePurpose.Metadata) { error = "Mirror не может быть единственным metadata источником."; return false; }
+                if (source.AuthorityValue == SourceAuthority.ManualOverride)
+                {
+                    var manual = source.ManualOverride; DateTime verified;
+                    if (manual == null || String.IsNullOrWhiteSpace(manual.Version) || !Uri.IsWellFormedUriString(manual.EvidenceUrl, UriKind.Absolute) || String.IsNullOrWhiteSpace(manual.Reason) || !DateTime.TryParse(manual.VerifiedAt, out verified)) { error = "Некорректный ManualOverride."; return false; }
+                    if (source.PurposeValue != SourcePurpose.Metadata) { error = "ManualOverride не может предоставлять download."; return false; }
+                }
                 if (source.Priority <= 0) { error = "Некорректный priority."; return false; }
                 if (!String.IsNullOrWhiteSpace(source.PackageArchitecture) && !Enum.GetNames(typeof(RemotePackageArchitecture)).Any(x => x.Equals(source.PackageArchitecture, StringComparison.OrdinalIgnoreCase))) { error = "Некорректный packageArchitecture."; return false; }
                 if (source.Provider.Equals("totalcmd.net", StringComparison.OrdinalIgnoreCase) && String.IsNullOrWhiteSpace(source.Id)) { error = "Пустой id источника totalcmd.net."; return false; }
@@ -128,7 +138,7 @@ namespace TotalUpdater.Next.Catalog
 
         private static bool IsKnownProvider(string provider)
         {
-            return "totalcmd.net".Equals(provider, StringComparison.OrdinalIgnoreCase) || "ghisler".Equals(provider, StringComparison.OrdinalIgnoreCase) || "github".Equals(provider, StringComparison.OrdinalIgnoreCase) || "generic-html".Equals(provider, StringComparison.OrdinalIgnoreCase);
+            return "totalcmd.net".Equals(provider, StringComparison.OrdinalIgnoreCase) || "ghisler".Equals(provider, StringComparison.OrdinalIgnoreCase) || "ghisler-plugins".Equals(provider, StringComparison.OrdinalIgnoreCase) || "github".Equals(provider, StringComparison.OrdinalIgnoreCase) || "generic-html".Equals(provider, StringComparison.OrdinalIgnoreCase);
         }
 
         private static void AddDiagnostic(ICollection<CatalogDiagnostic> diagnostics, string id, string message)

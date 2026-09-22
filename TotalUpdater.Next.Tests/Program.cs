@@ -25,7 +25,7 @@ namespace TotalUpdater.Next.Tests
                 if (args != null && args.Any(x => x.Equals("--validate-catalog", StringComparison.OrdinalIgnoreCase))) { ValidateCatalog(); return 0; }
                 if (args != null && args.Any(x => x.Equals("--audit-catalog-sources", StringComparison.OrdinalIgnoreCase))) return AuditCatalogSources();
                 if (args != null && args.Any(x => x.Equals("--audit-catalog-packages", StringComparison.OrdinalIgnoreCase))) return AuditCatalogPackages();
-                Versions(); Paths(); DiscoveryRealIniFormats(); ArchitectureAwareDiscovery(); FamilyIdentityAndConflict(); CatalogV2AndProviders(); CatalogScaleAndCache(); ScalableCheckRunner(); FileInfoPeVersionStrategy(); StrategyPriorityAndFallback(); ConfigurationDetection(); ConfigurationPrecedenceFinalization(); RedirectSections(); IniEncodingsAndPathExpansion(); CatalogAliases(); ApplicationMetadataAndUserAgent();
+                Versions(); Paths(); DiscoveryRealIniFormats(); ArchitectureAwareDiscovery(); FamilyIdentityAndConflict(); CatalogV2AndProviders(); CatalogScaleAndCache(); AuthorityResolution(); ScalableCheckRunner(); FileInfoPeVersionStrategy(); StrategyPriorityAndFallback(); ConfigurationDetection(); ConfigurationPrecedenceFinalization(); RedirectSections(); IniEncodingsAndPathExpansion(); CatalogAliases(); ApplicationMetadataAndUserAgent();
                 Console.WriteLine("PASS " + _count + " tests"); return 0;
             }
             catch (Exception ex) { Console.Error.WriteLine("FAIL: " + ex.Message); return 1; }
@@ -501,6 +501,14 @@ namespace TotalUpdater.Next.Tests
                 Assert(provider.Fetches == 1 && provider.Filters == 2, "same GitHub source reuses raw response and filters each entry");
             }
             finally { Directory.Delete(root, true); }
+        }
+        private static void AuthorityResolution()
+        {
+            var resolver = new SourceAuthorityResolver();
+            Func<SourceAuthority, string, RemoteVersionObservation> observation = (authority, version) => new RemoteVersionObservation { Authority = authority, Purpose = SourcePurpose.MetadataAndDownload, Status = SourceQueryStatus.Success, Release = Release(version, RemotePackageArchitecture.Combined) };
+            var official = resolver.Resolve(new[] { observation(SourceAuthority.OfficialAuthor, "2.0"), observation(SourceAuthority.CommunityCatalog, "1.9") }); Assert(official.Canonical.Release.Version.Raw == "2.0" && official.HasDisagreement, "official author wins community");
+            var disagreement = resolver.Resolve(new[] { observation(SourceAuthority.OfficialAuthor, "2.0"), observation(SourceAuthority.CommunityCatalog, "2.1") }); Assert(disagreement.Canonical.Release.Version.Raw == "2.0" && disagreement.HasDisagreement, "lower authority newer version disagrees");
+            var sameTier = resolver.Resolve(new[] { observation(SourceAuthority.OfficialTotalCommander, "2.0"), observation(SourceAuthority.OfficialTotalCommander, "2.1") }); Assert(sameTier.Canonical.Release.Version.Raw == "2.1" && sameTier.HasDisagreement, "same authority chooses newest and marks disagreement");
         }
         private static void ScalableCheckRunner()
         {

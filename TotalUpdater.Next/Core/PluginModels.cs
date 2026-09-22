@@ -63,5 +63,10 @@ namespace TotalUpdater.Next.Core
         public Uri SourceUrl { get; set; }
         public Uri DownloadUrl { get; set; }
         public string Details { get; set; } = "";
+        public IList<RemoteVersionObservation> Observations { get; set; } = new List<RemoteVersionObservation>();
+        public RemoteVersionObservation CanonicalVersionSource { get; set; }
+        public RemoteVersionObservation DownloadSource { get; set; }
+        public bool HasSourceDisagreement { get; set; }
+        public bool AuthorityConflict { get; set; }
     }
 }
