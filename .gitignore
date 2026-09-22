@@ -10,3 +10,7 @@ plugin-sources.user.json
 /TotalUpdater.md5
 /readme.txt
 /whatsnew.txt
+
+# Local configuration created by the historical utility
+/TotalUpdater.ini
+/upluginfo.ini
