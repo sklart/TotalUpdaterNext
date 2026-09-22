@@ -21,6 +21,7 @@ namespace TotalUpdater.Next.Tests
             {
                 if (args != null && args.Any(x => x.Equals("--live-sources", StringComparison.OrdinalIgnoreCase))) { LiveSources(); return 0; }
                 if (args != null && args.Any(x => x.Equals("--validate-catalog", StringComparison.OrdinalIgnoreCase))) { ValidateCatalog(); return 0; }
+                if (args != null && args.Any(x => x.Equals("--audit-catalog-sources", StringComparison.OrdinalIgnoreCase))) return AuditCatalogSources();
                 Versions(); Paths(); DiscoveryRealIniFormats(); ArchitectureAwareDiscovery(); FamilyIdentityAndConflict(); CatalogV2AndProviders(); CatalogScaleAndCache(); ScalableCheckRunner(); FileInfoPeVersionStrategy(); StrategyPriorityAndFallback(); ConfigurationDetection(); ConfigurationPrecedenceFinalization(); RedirectSections(); IniEncodingsAndPathExpansion(); CatalogAliases(); ApplicationMetadataAndUserAgent();
                 Console.WriteLine("PASS " + _count + " tests"); return 0;
             }
@@ -49,6 +50,28 @@ namespace TotalUpdater.Next.Tests
                     if (query.Release != null) foreach (var package in query.Release.Packages) Console.WriteLine("    " + package.FileName + " | " + package.Architecture + " | " + package.Url);
                     Console.WriteLine("  UpdateService.CheckAsync: " + result.State + ", selected=" + (result.DownloadUrl == null ? "none/ambiguous" : result.DownloadUrl.AbsoluteUri) + ", details=" + result.Details);
                 }
+            }
+        }
+        private static int AuditCatalogSources()
+        {
+            using (var http = new HttpService(ApplicationMetadata.Version))
+            {
+                var catalog = new CatalogService(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".json")); var entries = catalog.Load();
+                var providers = new IUpdateSourceProvider[] { new TotalCmdNetSourceProvider(http), new GhislerSourceProvider(http), new GitHubReleaseSourceProvider(http), new GenericHtmlSourceProvider(http) };
+                var failures = 0; var output = new System.Collections.Concurrent.ConcurrentBag<string>();
+                using (var gate = new System.Threading.SemaphoreSlim(4))
+                {
+                    var tasks = entries.Select(async entry =>
+                    {
+                        var source = entry.Sources.OrderByDescending(x => x.Priority).First(); var provider = providers.FirstOrDefault(x => x.CanHandle(source)); SourceQueryResult result = null;
+                        try { await gate.WaitAsync(); try { result = await provider.QueryAsync(source, System.Threading.CancellationToken.None); } finally { gate.Release(); } }
+                        catch (Exception ex) { result = new SourceQueryResult { Status = SourceQueryStatus.Unavailable, Details = ex.Message }; }
+                        if (result.Status != SourceQueryStatus.Success) System.Threading.Interlocked.Increment(ref failures);
+                        output.Add(entry.Id + " | " + result.Status + " | " + (result.Release == null ? "" : result.Release.Version.Raw) + " | " + result.Details);
+                    }).ToArray(); System.Threading.Tasks.Task.WaitAll(tasks);
+                }
+                foreach (var line in output.OrderBy(x => x, StringComparer.OrdinalIgnoreCase)) Console.WriteLine(line);
+                Console.WriteLine("Source audit: entries=" + entries.Count + "; failures=" + failures); return failures == 0 ? 0 : 1;
             }
         }
         private static void Versions()
