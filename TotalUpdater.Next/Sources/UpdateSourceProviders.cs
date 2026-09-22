@@ -159,6 +159,33 @@ namespace TotalUpdater.Next.Sources
         }
     }
 
+    public sealed class GhislerPluginsSourceProvider : GenericHtmlSourceProvider
+    {
+        private const string Url = "https://www.ghisler.com/plugins.htm";
+        public GhislerPluginsSourceProvider(HttpService http) : base(http) { }
+        public override string Name { get { return "Ghisler Plugins"; } }
+        public override bool CanHandle(CatalogSource source) { return source != null && source.Provider.Equals("ghisler-plugins", StringComparison.OrdinalIgnoreCase); }
+        public override async Task<SourceQueryResult> QueryAsync(CatalogSource source, CancellationToken cancellationToken) { return await QueryAsync(source, null, cancellationToken).ConfigureAwait(false); }
+        public override async Task<SourceQueryResult> QueryAsync(CatalogSource source, SourceResponseCache cache, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var html = cache == null ? await Http.GetStringAsync(Url, cancellationToken).ConfigureAwait(false) : await cache.GetOrAdd("ghisler:plugins", () => Http.GetStringAsync(Url, cancellationToken)).ConfigureAwait(false);
+                return Parse(source.Id, html);
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex) { return Result(SourceQueryStatus.Unavailable, null, ex.Message); }
+        }
+        public static SourceQueryResult Parse(string id, string html)
+        {
+            var name = Regex.Escape(id ?? "").Replace("\\ ", @"\s+");
+            var match = Regex.Match(html ?? "", @"(?is)>\s*" + name + @"\s*<.*?>\s*([0-9]+(?:\.[0-9A-Za-z]+){0,3})", RegexOptions.CultureInvariant);
+            if (!match.Success) return Result(SourceQueryStatus.NotFound, null, "Плагин или версия не найдены на официальной странице.");
+            var version = VersionValue.Parse(match.Groups[1].Value);
+            return version.IsKnown ? Result(SourceQueryStatus.Success, new RemoteRelease { VersionText = match.Groups[1].Value, Version = version, SourceUrl = new Uri(Url), Packages = new List<RemotePackage>() }, "") : Result(SourceQueryStatus.InvalidResponse, null, "Некорректная версия плагина.");
+        }
+    }
+
     public sealed class GitHubReleaseSourceProvider : ICachedUpdateSourceProvider
     {
         private readonly HttpService _http;
