@@ -35,20 +35,21 @@ namespace TotalUpdater.Next.TotalCommander
         public TotalCommanderConfigurationResolver(IIniDocumentReader reader, IRegistryConfigurationReader registry, IEnvironmentProvider environment) { _reader = reader; _registry = registry; _environment = environment; }
         public TotalCommanderConfiguration Resolve(string explicitIniPath)
         {
-            var install = DetectInstallDirectory();
-            var path = DetectIniPath(explicitIniPath, install);
+            var install = DetectInstallDirectoryWithSource();
+            var path = DetectIniPath(explicitIniPath, install.Path);
             return String.IsNullOrWhiteSpace(path) || !File.Exists(path) ? null : CreateConfiguration(path, install);
         }
-        public string DetectInstallDirectory()
+        public string DetectInstallDirectory() { return DetectInstallDirectoryWithSource().Path; }
+        private InstallDirectoryDetection DetectInstallDirectoryWithSource()
         {
             var commanderPath = _environment.Expand(_environment.Get("COMMANDER_PATH") ?? "");
-            if (!String.IsNullOrWhiteSpace(commanderPath) && Directory.Exists(commanderPath)) return Path.GetFullPath(commanderPath);
+            if (!String.IsNullOrWhiteSpace(commanderPath) && Directory.Exists(commanderPath)) return new InstallDirectoryDetection(Path.GetFullPath(commanderPath), InstallDirectorySource.CommanderPath);
             foreach (var entry in _registry.Read())
             {
                 var candidate = ExpandRegistryPath(entry.InstallDirectory, null);
-                if (!String.IsNullOrWhiteSpace(candidate) && Directory.Exists(candidate)) return candidate;
+                if (!String.IsNullOrWhiteSpace(candidate) && Directory.Exists(candidate)) return new InstallDirectoryDetection(candidate, InstallDirectorySource.Registry);
             }
-            return AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\');
+            return new InstallDirectoryDetection(AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\'), InstallDirectorySource.Fallback);
         }
         public string DetectIniPath(string explicitIniPath) { return DetectIniPath(explicitIniPath, DetectInstallDirectory()); }
         public string DetectIniPath(string explicitIniPath, string installDirectory)
@@ -79,10 +80,10 @@ namespace TotalUpdater.Next.TotalCommander
             if (Path.IsPathRooted(expanded)) return Path.GetFullPath(expanded);
             return String.Equals(Path.GetFileName(expanded), expanded, StringComparison.Ordinal) ? Path.Combine(Path.GetDirectoryName(configuration.IniPath), expanded) : null;
         }
-        private TotalCommanderConfiguration CreateConfiguration(string path, string registryInstallDirectory)
+        private TotalCommanderConfiguration CreateConfiguration(string path, InstallDirectoryDetection detectedInstall)
         {
-            var fullPath = Path.GetFullPath(path); var document = _reader.Read(fullPath); var iniDirectory = Path.GetDirectoryName(fullPath); var result = new TotalCommanderConfiguration { IniPath = fullPath, InstallDirectory = registryInstallDirectory, Document = document };
-            var section = document.GetSection("Configuration"); var install = section == null ? null : section.GetValue("InstallDir"); if (!String.IsNullOrWhiteSpace(install)) result.InstallDirectory = ExpandPath(install, result, result.InstallDirectory); if (String.IsNullOrWhiteSpace(result.InstallDirectory)) result.InstallDirectory = AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\');
+            var fullPath = Path.GetFullPath(path); var document = _reader.Read(fullPath); var iniDirectory = Path.GetDirectoryName(fullPath); var result = new TotalCommanderConfiguration { IniPath = fullPath, InstallDirectory = detectedInstall.Path, InstallDirectorySource = detectedInstall.Source, Document = document };
+            var section = document.GetSection("Configuration"); var install = section == null ? null : section.GetValue("InstallDir"); if (result.InstallDirectorySource == InstallDirectorySource.Fallback && !String.IsNullOrWhiteSpace(install)) { result.InstallDirectory = ExpandPath(install, result, result.InstallDirectory); result.InstallDirectorySource = InstallDirectorySource.Configuration; } if (String.IsNullOrWhiteSpace(result.InstallDirectory)) result.InstallDirectory = AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\');
             var alternate = section == null ? null : section.GetValue("AlternateUserIni"); result.AlternateUserIni = String.IsNullOrWhiteSpace(alternate) ? "" : ExpandPath(alternate, result, iniDirectory); return result;
         }
         private string ExpandMacros(string value, TotalCommanderConfiguration configuration)
@@ -92,7 +93,12 @@ namespace TotalUpdater.Next.TotalCommander
         }
         private string FindRegistryIni(string installDirectory)
         {
-            foreach (var entry in _registry.Read()) { var candidate = ExpandRegistryPath(entry.IniFileName, installDirectory); if (!String.IsNullOrWhiteSpace(candidate) && File.Exists(candidate)) return candidate; }
+            foreach (var entry in _registry.Read())
+            {
+                var entryInstall = ExpandRegistryPath(entry.InstallDirectory, null);
+                var candidate = ExpandRegistryPath(entry.IniFileName, entryInstall ?? installDirectory);
+                if (!String.IsNullOrWhiteSpace(candidate) && File.Exists(candidate)) return candidate;
+            }
             return null;
         }
         private string ExpandRegistryPath(string value, string installDirectory)
@@ -106,6 +112,12 @@ namespace TotalUpdater.Next.TotalCommander
         {
             if (String.IsNullOrWhiteSpace(localIni) || !File.Exists(localIni)) return 0;
             try { var value = _reader.Read(localIni).GetSection("Configuration").GetValue("UseIniInProgramDir"); int result; return Int32.TryParse(value, out result) ? result : 0; } catch { return 0; }
+        }
+        private sealed class InstallDirectoryDetection
+        {
+            public InstallDirectoryDetection(string path, InstallDirectorySource source) { Path = path; Source = source; }
+            public string Path { get; private set; }
+            public InstallDirectorySource Source { get; private set; }
         }
     }
 }

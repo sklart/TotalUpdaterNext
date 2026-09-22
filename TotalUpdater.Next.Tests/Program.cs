@@ -18,7 +18,7 @@ namespace TotalUpdater.Next.Tests
         {
             try
             {
-                Versions(); Paths(); DiscoveryRealIniFormats(); FileInfoPeVersionStrategy(); StrategyPriorityAndFallback(); ConfigurationDetection(); RedirectSections(); IniEncodingsAndPathExpansion(); CatalogAliases(); ApplicationMetadataAndUserAgent();
+                Versions(); Paths(); DiscoveryRealIniFormats(); FileInfoPeVersionStrategy(); StrategyPriorityAndFallback(); ConfigurationDetection(); ConfigurationPrecedenceFinalization(); RedirectSections(); IniEncodingsAndPathExpansion(); CatalogAliases(); ApplicationMetadataAndUserAgent();
                 Console.WriteLine("PASS " + _count + " tests"); return 0;
             }
             catch (Exception ex) { Console.Error.WriteLine("FAIL: " + ex.Message); return 1; }
@@ -170,6 +170,29 @@ namespace TotalUpdater.Next.Tests
                 var missing = resolver.Resolve(missingMain); Assert(discovery.Discover(missing).Count == 0 && missing.Warnings.Count == 1, "missing redirect file warning");
                 var unsupportedMain = WriteIni(root, "unsupported-main.ini", "[Configuration]\r\nInstallDir=" + root + "\r\n[PackerPlugins]\r\nRedirectSection=subdir\\plugins.ini");
                 var unsupported = resolver.Resolve(unsupportedMain); Assert(discovery.Discover(unsupported).Count == 0 && unsupported.Warnings.Count == 1, "non-bare relative redirect is not accepted");
+            }
+            finally { Directory.Delete(root, true); }
+        }
+        private static void ConfigurationPrecedenceFinalization()
+        {
+            var root = NewRoot();
+            try
+            {
+                var userInstall = Path.Combine(root, "TotalCmdUser"); var machineInstall = Path.Combine(root, "TotalCmdMachine"); var oldInstall = Path.Combine(root, "OldTotalCmd");
+                Directory.CreateDirectory(userInstall); Directory.CreateDirectory(machineInstall); Directory.CreateDirectory(oldInstall);
+                var userIni = WriteIni(userInstall, "user.ini", "[Configuration]\r\nInstallDir=" + oldInstall); var machineIni = WriteIni(machineInstall, "machine.ini", "[Configuration]\r\nInstallDir=" + oldInstall);
+                var environment = new FakeEnvironment { Values = { ["COMMANDER_PATH"] = userInstall } };
+                var entries = new FakeRegistry(new RegistryConfigurationEntry { InstallDirectory = userInstall, IniFileName = "user.ini" }, new RegistryConfigurationEntry { InstallDirectory = machineInstall, IniFileName = "machine.ini" });
+                var resolver = new TotalCommanderConfigurationResolver(new IniDocumentReader(), entries, environment);
+                var commanderPathConfiguration = resolver.Resolve(userIni);
+                Assert(commanderPathConfiguration.InstallDirectory == userInstall && commanderPathConfiguration.InstallDirectorySource == InstallDirectorySource.CommanderPath, "COMMANDER_PATH > Configuration.InstallDir");
+                environment.Values.Remove("COMMANDER_PATH");
+                var registryConfiguration = resolver.Resolve(userIni);
+                Assert(registryConfiguration.InstallDirectory == userInstall && registryConfiguration.InstallDirectorySource == InstallDirectorySource.Registry, "registry InstallDir > Configuration.InstallDir");
+                Assert(resolver.Resolve("").IniPath == Path.GetFullPath(userIni), "relative IniFileName uses same registry entry InstallDir");
+                Assert(resolver.Resolve("").IniPath == Path.GetFullPath(userIni), "HKCU remains higher priority than HKLM");
+                File.Delete(userIni);
+                Assert(resolver.Resolve("").IniPath == Path.GetFullPath(machineIni), "HKCU relative INI does not borrow HKLM InstallDir");
             }
             finally { Directory.Delete(root, true); }
         }
