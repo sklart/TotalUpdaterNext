@@ -49,7 +49,7 @@
 
 ## Источники и пакеты
 
-Источники пробуются по убыванию `priority`. При `NotFound`, `Unavailable` или `InvalidResponse` проверяется следующий источник. Первый успешный ответ используется для сравнения версий.
+`priority` определяет только технический порядок запросов. После получения ответов программа выбирает canonical-версию по уровню доверия: `ManualOverride` → `OfficialAuthor` → `OfficialTotalCommander` → `MaintainerForum` → `CommunityCatalog` → `Mirror`. Более новая версия менее доверенного источника не подменяет официальную; расхождения показываются в информации о плагине. Пакет может быть выбран только у источника, сообщающего ту же версию, что canonical source.
 
 GitHub-провайдер использует Releases API, игнорирует draft, а prerelease учитывает только при `includePrerelease: true`. Для release можно указать `assetPattern`.
 

@@ -30,6 +30,13 @@ namespace TotalUpdater.Next.UI
                 {
                     lines.Add(""); lines.Add(BinaryName(binary) + ": " + (binary.LocalVersion.ParsedValue.IsKnown ? binary.LocalVersion.RawValue : Text.Get("NotDefined"))); lines.Add(binary.Path);
                 }
+                if (_candidate != null)
+                {
+                    lines.Add(""); lines.Add("Последняя версия: " + (_candidate.AvailableVersion.IsKnown ? _candidate.AvailableVersion.Raw : "—"));
+                    lines.Add("Источник версии: " + (_candidate.CanonicalVersionSource == null ? "—" : _candidate.CanonicalVersionSource.ProviderName));
+                    lines.Add("Источник загрузки: " + (_candidate.DownloadSource == null ? "—" : _candidate.DownloadSource.ProviderName));
+                    if (_candidate.HasSourceDisagreement) { lines.Add("Источники сообщают разные версии"); foreach (var observation in _candidate.Observations.Where(x => x.Release != null && x.Release.Version.IsKnown)) lines.Add(observation.ProviderName + ": " + observation.Release.Version.Raw); }
+                }
                 return String.Join(Environment.NewLine, lines);
             }
         }
