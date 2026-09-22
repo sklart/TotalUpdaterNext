@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using TotalUpdater.Next.Catalog;
@@ -22,6 +23,7 @@ namespace TotalUpdater.Next.Tests
                 if (args != null && args.Any(x => x.Equals("--live-sources", StringComparison.OrdinalIgnoreCase))) { LiveSources(); return 0; }
                 if (args != null && args.Any(x => x.Equals("--validate-catalog", StringComparison.OrdinalIgnoreCase))) { ValidateCatalog(); return 0; }
                 if (args != null && args.Any(x => x.Equals("--audit-catalog-sources", StringComparison.OrdinalIgnoreCase))) return AuditCatalogSources();
+                if (args != null && args.Any(x => x.Equals("--audit-catalog-packages", StringComparison.OrdinalIgnoreCase))) return AuditCatalogPackages();
                 Versions(); Paths(); DiscoveryRealIniFormats(); ArchitectureAwareDiscovery(); FamilyIdentityAndConflict(); CatalogV2AndProviders(); CatalogScaleAndCache(); ScalableCheckRunner(); FileInfoPeVersionStrategy(); StrategyPriorityAndFallback(); ConfigurationDetection(); ConfigurationPrecedenceFinalization(); RedirectSections(); IniEncodingsAndPathExpansion(); CatalogAliases(); ApplicationMetadataAndUserAgent();
                 Console.WriteLine("PASS " + _count + " tests"); return 0;
             }
@@ -72,6 +74,47 @@ namespace TotalUpdater.Next.Tests
                 }
                 foreach (var line in output.OrderBy(x => x, StringComparer.OrdinalIgnoreCase)) Console.WriteLine(line);
                 Console.WriteLine("Source audit: entries=" + entries.Count + "; failures=" + failures); return failures == 0 ? 0 : 1;
+            }
+        }
+        // Deliberately separate from --live-sources: this maintenance audit reads archive contents.
+        private static int AuditCatalogPackages()
+        {
+            using (var http = new HttpService(ApplicationMetadata.Version))
+            {
+                var catalog = new CatalogService(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".json")); var entries = catalog.Load().Where(x => x.PluginType != PluginType.TotalCommander).ToList();
+                var providers = new IUpdateSourceProvider[] { new TotalCmdNetSourceProvider(http), new GhislerSourceProvider(http), new GitHubReleaseSourceProvider(http), new GenericHtmlSourceProvider(http) };
+                var failed = 0; var output = new System.Collections.Concurrent.ConcurrentBag<string>();
+                using (var gate = new System.Threading.SemaphoreSlim(4))
+                {
+                    var tasks = entries.Select(async entry =>
+                    {
+                        var source = entry.Sources.OrderByDescending(x => x.Priority).First(); var provider = providers.First(x => x.CanHandle(source));
+                        try
+                        {
+                            await gate.WaitAsync();
+                            try
+                            {
+                                var release = await provider.QueryAsync(source, System.Threading.CancellationToken.None); var package = release.Release == null ? null : release.Release.Packages.FirstOrDefault(x => x.Architecture == RemotePackageArchitecture.Combined) ?? release.Release.Packages.FirstOrDefault();
+                                if (package == null || package.Url == null) { System.Threading.Interlocked.Increment(ref failed); output.Add(entry.Id + " | FAIL | no package"); return; }
+                                using (var response = await http.GetAsync(package.Url.AbsoluteUri, System.Net.Http.HttpCompletionOption.ResponseContentRead, System.Threading.CancellationToken.None))
+                                {
+                                    response.EnsureSuccessStatusCode(); var bytes = await response.Content.ReadAsByteArrayAsync();
+                                    using (var archive = new ZipArchive(new MemoryStream(bytes), ZipArchiveMode.Read))
+                                    {
+                                        var actual = archive.Entries.Select(x => Path.GetFileName(x.FullName)).Where(x => x.EndsWith(".wcx", StringComparison.OrdinalIgnoreCase) || x.EndsWith(".wlx", StringComparison.OrdinalIgnoreCase) || x.EndsWith(".wfx", StringComparison.OrdinalIgnoreCase) || x.EndsWith(".wdx", StringComparison.OrdinalIgnoreCase)).ToList();
+                                        var missing = entry.Aliases.Where(alias => !actual.Any(x => x.Equals(alias, StringComparison.OrdinalIgnoreCase))).ToList();
+                                        if (actual.Count == 0 || missing.Count > 0) { System.Threading.Interlocked.Increment(ref failed); output.Add(entry.Id + " | FAIL | actual=" + String.Join(",", actual) + " | missing=" + String.Join(",", missing)); }
+                                        else output.Add(entry.Id + " | PASS | " + String.Join(",", actual));
+                                    }
+                                }
+                            }
+                            finally { gate.Release(); }
+                        }
+                        catch (Exception ex) { System.Threading.Interlocked.Increment(ref failed); output.Add(entry.Id + " | FAIL | " + ex.GetType().Name); }
+                    }).ToArray(); System.Threading.Tasks.Task.WaitAll(tasks);
+                }
+                foreach (var line in output.OrderBy(x => x, StringComparer.OrdinalIgnoreCase)) Console.WriteLine(line);
+                Console.WriteLine("Package audit: entries=" + entries.Count + "; failures=" + failed); return failed == 0 ? 0 : 1;
             }
         }
         private static void Versions()
