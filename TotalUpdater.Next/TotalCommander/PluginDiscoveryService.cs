@@ -47,7 +47,7 @@ namespace TotalUpdater.Next.TotalCommander
                     var fallbackName = pair.Value == PluginType.Wfx ? key : Path.GetFileNameWithoutExtension(familyPath);
                     var identity = entry == null
                         ? new PluginIdentity { Id = "family:" + pair.Value + "|" + familyPath.ToLowerInvariant(), Name = fallbackName, Type = pair.Value }
-                        : new PluginIdentity { Id = entry.Id, Name = entry.Name, Type = entry.PluginType };
+                        : new PluginIdentity { Id = entry.Id, Name = entry.Name, Type = entry.PluginType, LocalVersionStrategy = entry.LocalVersionStrategy };
                     var familyKey = identity.Id + "|" + pair.Value + "|" + familyPath;
                     PluginFamily family;
                     if (!families.TryGetValue(familyKey, out family))
@@ -168,7 +168,7 @@ namespace TotalUpdater.Next.TotalCommander
         private void AddTotalCommander(TotalCommanderConfiguration configuration, ICollection<InstalledPlugin> result)
         {
             var entry = _catalog.FindByAlias("TOTALCMD.EXE");
-            var identity = new PluginIdentity { Id = entry == null ? "totalcmd" : entry.Id, Name = entry == null ? "Total Commander" : entry.Name, Type = PluginType.TotalCommander };
+            var identity = new PluginIdentity { Id = entry == null ? "totalcmd" : entry.Id, Name = entry == null ? "Total Commander" : entry.Name, Type = PluginType.TotalCommander, LocalVersionStrategy = entry == null ? "" : entry.LocalVersionStrategy };
             var binaries = new[]
             {
                 new PluginBinary { Path = Path.Combine(configuration.InstallDirectory, "TOTALCMD.EXE"), Architecture = PluginArchitecture.X86, Variant = PluginBinaryVariant.Ansi },

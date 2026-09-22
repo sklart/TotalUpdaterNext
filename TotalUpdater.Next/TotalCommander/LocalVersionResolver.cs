@@ -31,7 +31,7 @@ namespace TotalUpdater.Next.TotalCommander
         {
             foreach (var strategy in _strategies)
             {
-                if (!strategy.CanHandle(identity)) continue;
+                if (identity == null || !strategy.Name.Equals(identity.LocalVersionStrategy, StringComparison.OrdinalIgnoreCase)) continue;
                 var version = strategy.Probe(path);
                 if (version.ParsedValue.IsKnown) return version;
             }
@@ -44,11 +44,11 @@ namespace TotalUpdater.Next.TotalCommander
         }
     }
 
-    public interface IPluginSpecificVersionStrategy : IVersionProbe { bool CanHandle(PluginIdentity identity); }
+    public interface IPluginSpecificVersionStrategy : IVersionProbe { string Name { get; } }
 
     public sealed class FileInfoVersionStrategy : IPluginSpecificVersionStrategy
     {
-        public bool CanHandle(PluginIdentity identity) { return identity != null && identity.Id.Equals("fileinfo", StringComparison.OrdinalIgnoreCase); }
+        public string Name { get { return "fileinfo"; } }
         public LocalVersion Probe(string path)
         {
             try

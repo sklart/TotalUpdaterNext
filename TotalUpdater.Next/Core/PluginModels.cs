@@ -17,6 +17,7 @@ namespace TotalUpdater.Next.Core
         public string Id { get; set; } = "";
         public string Name { get; set; } = "";
         public PluginType Type { get; set; }
+        public string LocalVersionStrategy { get; set; } = "";
     }
 
     public sealed class LocalVersion

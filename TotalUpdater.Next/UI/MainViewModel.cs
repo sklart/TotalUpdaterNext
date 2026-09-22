@@ -58,6 +58,8 @@ namespace TotalUpdater.Next.UI
             if (_configuration == null) { StatusText = Text.Get("NoIni"); Changed("InstallDirectory"); return; }
             foreach (var plugin in _discovery.Discover(_configuration)) Items.Add(new PluginRowViewModel(plugin));
             Changed("InstallDirectory"); StatusText = String.Format(Text.Get("FoundCount"), Items.Count);
+            var catalogDiagnostics = _catalog.Diagnostics;
+            if (catalogDiagnostics.Count > 0) StatusText += " · Каталог: " + String.Join("; ", catalogDiagnostics.Select(x => x.Message));
             if (_configuration.Warnings.Count > 0) StatusText += " · " + String.Join(" · ", _configuration.Warnings);
         }
 
@@ -85,7 +87,7 @@ namespace TotalUpdater.Next.UI
                     row.Apply(row.Candidate ?? new UpdateCandidate { Plugin = row.Plugin, State = UpdateState.LocalVersionConflict });
                     continue;
                 }
-                if (row.Candidate == null || row.Candidate.DownloadUrl == null) { row.Apply(new UpdateCandidate { Plugin = row.Plugin, State = UpdateState.Error, Details = Text.Get("NoDownload") }); continue; }
+                if (!row.CanDownload) { if (row.Candidate != null) row.Apply(row.Candidate); else row.Apply(new UpdateCandidate { Plugin = row.Plugin, State = UpdateState.NotChecked, Details = Text.Get("NoDownload") }); continue; }
                 try { var path = await _downloads.DownloadAsync(row.Candidate.DownloadUrl, _paths.DownloadDirectory, CancellationToken.None); row.Apply(new UpdateCandidate { Plugin = row.Plugin, State = UpdateState.UpdateAvailable, AvailableVersion = row.Candidate.AvailableVersion, SourceUrl = row.Candidate.SourceUrl, DownloadUrl = row.Candidate.DownloadUrl, Details = String.Format(Text.Get("Downloaded"), Path.GetFileName(path)) }); done++; }
                 catch (Exception ex) { row.Apply(new UpdateCandidate { Plugin = row.Plugin, State = UpdateState.Error, Details = ex.Message }); }
             }

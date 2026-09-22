@@ -4,6 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization.Json;
+using System.Text.RegularExpressions;
+using TotalUpdater.Next.Core;
 
 namespace TotalUpdater.Next.Catalog
 {
@@ -17,12 +19,21 @@ namespace TotalUpdater.Next.Catalog
             _userCatalogPath = userCatalogPath;
         }
 
+        public IList<CatalogDiagnostic> Diagnostics { get; private set; } = new List<CatalogDiagnostic>();
+
         public IList<PluginCatalogEntry> Load()
         {
-            var entries = ReadEmbedded().Concat(ReadFile(_userCatalogPath))
-                .GroupBy(x => x.Id, StringComparer.OrdinalIgnoreCase)
-                .Select(x => x.Last()).ToList();
-            return entries;
+            return LoadWithDiagnostics().Entries;
+        }
+
+        public CatalogLoadResult LoadWithDiagnostics()
+        {
+            var diagnostics = new List<CatalogDiagnostic>();
+            var entries = new Dictionary<string, PluginCatalogEntry>(StringComparer.OrdinalIgnoreCase);
+            AddEntries(ReadEmbedded(), entries, diagnostics, false);
+            AddEntries(ReadFile(_userCatalogPath), entries, diagnostics, true);
+            Diagnostics = diagnostics;
+            return new CatalogLoadResult { Entries = entries.Values.OrderBy(x => x.Name, StringComparer.CurrentCultureIgnoreCase).ToList(), Diagnostics = diagnostics };
         }
 
         public PluginCatalogEntry FindByAlias(string fileName)
@@ -30,6 +41,12 @@ namespace TotalUpdater.Next.Catalog
             var entries = Load();
             var entry = entries.FirstOrDefault(x => x.Aliases.Any(alias => alias.Equals(fileName, StringComparison.OrdinalIgnoreCase)));
             return entry ?? entries.FirstOrDefault(x => x.Aliases.Any(alias => alias.Equals(NormalizeCompanionAlias(fileName), StringComparison.OrdinalIgnoreCase)));
+        }
+
+        public PluginCatalogEntry FindById(string id)
+        {
+            if (String.IsNullOrWhiteSpace(id)) return null;
+            return Load().FirstOrDefault(x => x.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
         }
 
         private static string NormalizeCompanionAlias(string fileName)
@@ -51,6 +68,66 @@ namespace TotalUpdater.Next.Catalog
         public IList<PluginCatalogEntry> LoadUserCatalog()
         {
             return ReadFile(_userCatalogPath);
+        }
+
+        private static void AddEntries(IEnumerable<PluginCatalogEntry> candidates, IDictionary<string, PluginCatalogEntry> entries, ICollection<CatalogDiagnostic> diagnostics, bool userCatalog)
+        {
+            var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var entry in candidates)
+            {
+                var id = entry == null ? "" : entry.Id;
+                if (!seenIds.Add(id ?? "")) { AddDiagnostic(diagnostics, id, "Повторяющийся id в каталоге."); continue; }
+                string error;
+                if (!IsValid(entry, out error)) { AddDiagnostic(diagnostics, id, error); continue; }
+                var others = entries.Where(x => !x.Key.Equals(entry.Id, StringComparison.OrdinalIgnoreCase)).Select(x => x.Value).ToList();
+                var conflict = FindAliasConflict(entry, others);
+                if (conflict != null) { AddDiagnostic(diagnostics, entry.Id, "Alias конфликтует с записью '" + conflict.Id + "'."); continue; }
+                if (!userCatalog && entries.ContainsKey(entry.Id)) { AddDiagnostic(diagnostics, entry.Id, "Повторяющийся id во встроенном каталоге."); continue; }
+                entries[entry.Id] = entry;
+            }
+        }
+
+        private static PluginCatalogEntry FindAliasConflict(PluginCatalogEntry entry, IEnumerable<PluginCatalogEntry> others)
+        {
+            var aliases = new HashSet<string>(entry.Aliases.Select(NormalizeCompanionAlias), StringComparer.OrdinalIgnoreCase);
+            return others.FirstOrDefault(x => x.Aliases.Select(NormalizeCompanionAlias).Any(aliases.Contains));
+        }
+
+        private static bool IsValid(PluginCatalogEntry entry, out string error)
+        {
+            error = "";
+            if (entry == null || String.IsNullOrWhiteSpace(entry.Id)) { error = "Пустой id."; return false; }
+            if (String.IsNullOrWhiteSpace(entry.Name)) { error = "Пустое name."; return false; }
+            PluginType type;
+            if (!Enum.TryParse(entry.Type, true, out type) || type == PluginType.Other) { error = "Неизвестный PluginType."; return false; }
+            if (entry.Aliases == null || entry.Aliases.Count == 0 || entry.Aliases.Any(String.IsNullOrWhiteSpace)) { error = "Пустой aliases."; return false; }
+            if (entry.Sources == null || entry.Sources.Count == 0) { error = "Пустой sources."; return false; }
+            foreach (var source in entry.Sources)
+            {
+                if (source == null || !IsKnownProvider(source.Provider)) { error = "Неизвестный provider."; return false; }
+                if (source.Priority <= 0) { error = "Некорректный priority."; return false; }
+                if (source.Provider.Equals("totalcmd.net", StringComparison.OrdinalIgnoreCase) && String.IsNullOrWhiteSpace(source.Id)) { error = "Пустой id источника totalcmd.net."; return false; }
+                if (source.Provider.Equals("github", StringComparison.OrdinalIgnoreCase) && !Regex.IsMatch(source.Repository ?? "", @"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")) { error = "Некорректный GitHub repository."; return false; }
+                if (source.Provider.Equals("generic-html", StringComparison.OrdinalIgnoreCase))
+                {
+                    Uri uri; if (!Uri.TryCreate(source.Url, UriKind.Absolute, out uri) || String.IsNullOrWhiteSpace(source.VersionPattern)) { error = "Некорректный URL GenericHtml."; return false; }
+                    try { new Regex(source.VersionPattern ?? "", RegexOptions.CultureInvariant); } catch { error = "Некорректный GenericHtml regex."; return false; }
+                }
+                else if (!String.IsNullOrWhiteSpace(source.VersionPattern)) { error = "versionPattern разрешён только для generic-html."; return false; }
+                else if (!String.IsNullOrWhiteSpace(source.Url) && !Uri.IsWellFormedUriString(source.Url, UriKind.Absolute)) { error = "Некорректный URL."; return false; }
+                if (!String.IsNullOrWhiteSpace(source.AssetPattern)) try { new Regex(source.AssetPattern, RegexOptions.CultureInvariant); } catch { error = "Некорректный assetPattern."; return false; }
+            }
+            return true;
+        }
+
+        private static bool IsKnownProvider(string provider)
+        {
+            return "totalcmd.net".Equals(provider, StringComparison.OrdinalIgnoreCase) || "ghisler".Equals(provider, StringComparison.OrdinalIgnoreCase) || "github".Equals(provider, StringComparison.OrdinalIgnoreCase) || "generic-html".Equals(provider, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static void AddDiagnostic(ICollection<CatalogDiagnostic> diagnostics, string id, string message)
+        {
+            diagnostics.Add(new CatalogDiagnostic { Severity = CatalogDiagnosticSeverity.Error, EntryId = id ?? "", Message = message });
         }
 
         private static IList<PluginCatalogEntry> ReadEmbedded()

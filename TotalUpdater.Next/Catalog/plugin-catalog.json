@@ -1,7 +1,14 @@
 [
-  { "id":"totalcmd", "name":"Total Commander", "type":"TotalCommander", "aliases":["totalcmd.exe","totalcmd64.exe"], "source":{"provider":"ghisler", "id":"totalcmd", "url":"https://www.ghisler.com/download.htm", "versionPattern":"Download\\s+version\\s+([0-9.]+)\\s+of\\s+Total\\s+Commander"} },
-  { "id":"total7zip", "name":"Total7zip", "type":"Wcx", "aliases":["total7zip.wcx"], "source":{"provider":"totalcmd.net", "id":"Total7zip", "url":"https://totalcmd.net/plugring/Total7zip.html", "versionPattern":"Total7zip\\s+([0-9.]+)", "downloadUrl":"https://totalcmd.net/download.php?id=Total7zip"} },
-  { "id":"7zip-plugin", "name":"7Zip Plugin", "type":"Wcx", "aliases":["7zip.wcx"], "source":{"provider":"totalcmd.net", "id":"7zip_plugin", "url":"https://totalcmd.net/plugring/7zip_plugin.html", "versionPattern":"7Zip\\s+Plugin\\s+([0-9.]+)", "downloadUrl":"https://totalcmd.net/download.php?id=7zip_plugin"} },
-  { "id":"fileinfo", "name":"FileInfo", "type":"Wlx", "aliases":["fileinfo.wlx","fileinfo64.wlx"], "source":{"provider":"totalcmd.net", "id":"fileinfo", "url":"https://totalcmd.net/plugring/fileinfo.html", "versionPattern":"FileInfo\\s+([0-9.]+)", "downloadUrl":"https://totalcmd.net/download.php?id=fileinfo"} },
-  { "id":"wdxguideinlister", "name":"WDXGuideInLister", "type":"Wlx", "aliases":["wdxguideinlister.wlx"], "source":{"provider":"totalcmd.net", "id":"wdxguideinlister64", "url":"https://totalcmd.net/plugring/wdxguideinlister64.html", "versionPattern":"WDXGuideInLister64\\s+([0-9.]+)"} }
+  { "id":"totalcmd", "name":"Total Commander", "type":"TotalCommander", "aliases":["totalcmd.exe","totalcmd64.exe"], "sources":[{"provider":"ghisler","id":"totalcmd","priority":100}] },
+  { "id":"total7zip", "name":"Total7zip", "type":"Wcx", "aliases":["total7zip.wcx","total7zip.uwcx","total7zip.wcx64"], "sources":[{"provider":"totalcmd.net","id":"Total7zip","priority":100}] },
+  { "id":"7zip-plugin", "name":"7Zip Plugin", "type":"Wcx", "aliases":["7zip.wcx"], "sources":[{"provider":"totalcmd.net","id":"7zip_plugin","priority":100}] },
+  { "id":"fileinfo", "name":"FileInfo", "type":"Wlx", "aliases":["fileinfo.wlx","fileinfo.uwlx","fileinfo.wlx64","fileinfo64.wlx"], "localVersionStrategy":"fileinfo", "sources":[{"provider":"totalcmd.net","id":"fileinfo","priority":100}] },
+  { "id":"wdxguideinlister", "name":"WDXGuideInLister", "type":"Wlx", "aliases":["wdxguideinlister.wlx"], "sources":[{"provider":"totalcmd.net","id":"wdxguideinlister64","priority":100}] },
+  { "id":"imagine", "name":"Imagine", "type":"Wlx", "aliases":["imagine.wlx"], "sources":[{"provider":"totalcmd.net","id":"Imagine","priority":100}] },
+  { "id":"unrar", "name":"UnRAR", "type":"Wcx", "aliases":["unrar.wcx"], "sources":[{"provider":"totalcmd.net","id":"unrar","priority":100}] },
+  { "id":"webdav", "name":"WebDAV", "type":"Wfx", "aliases":["webdav.wfx"], "sources":[{"provider":"totalcmd.net","id":"WebDAV","priority":100}] },
+  { "id":"sftp", "name":"SFTP", "type":"Wfx", "aliases":["sftpplug.wfx"], "sources":[{"provider":"totalcmd.net","id":"sftpplug","priority":100}] },
+  { "id":"exif", "name":"Exif", "type":"Wdx", "aliases":["exif.wdx"], "sources":[{"provider":"totalcmd.net","id":"exif","priority":100}] },
+  { "id":"anytag", "name":"AnyTag", "type":"Wdx", "aliases":["anytag.wdx"], "sources":[{"provider":"totalcmd.net","id":"anytag","priority":100}] },
+  { "id":"doublecmd", "name":"Double Commander", "type":"Wlx", "aliases":["doublecmd.wlx"], "sources":[{"provider":"github","repository":"doublecmd/doublecmd","assetPattern":".*windows.*","priority":100}] }
 ]

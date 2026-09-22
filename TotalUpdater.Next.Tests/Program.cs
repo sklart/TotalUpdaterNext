@@ -19,7 +19,7 @@ namespace TotalUpdater.Next.Tests
         {
             try
             {
-                Versions(); Paths(); DiscoveryRealIniFormats(); ArchitectureAwareDiscovery(); FamilyIdentityAndConflict(); FileInfoPeVersionStrategy(); StrategyPriorityAndFallback(); ConfigurationDetection(); ConfigurationPrecedenceFinalization(); RedirectSections(); IniEncodingsAndPathExpansion(); CatalogAliases(); ApplicationMetadataAndUserAgent();
+                Versions(); Paths(); DiscoveryRealIniFormats(); ArchitectureAwareDiscovery(); FamilyIdentityAndConflict(); CatalogV2AndProviders(); FileInfoPeVersionStrategy(); StrategyPriorityAndFallback(); ConfigurationDetection(); ConfigurationPrecedenceFinalization(); RedirectSections(); IniEncodingsAndPathExpansion(); CatalogAliases(); ApplicationMetadataAndUserAgent();
                 Console.WriteLine("PASS " + _count + " tests"); return 0;
             }
             catch (Exception ex) { Console.Error.WriteLine("FAIL: " + ex.Message); return 1; }
@@ -168,6 +168,50 @@ namespace TotalUpdater.Next.Tests
             }
             finally { Directory.Delete(root, true); }
         }
+        private static void CatalogV2AndProviders()
+        {
+            var root = NewRoot();
+            try
+            {
+                var user = Path.Combine(root, "user.json"); var catalog = new CatalogService(user); var baseCatalog = catalog.LoadWithDiagnostics();
+                Assert(baseCatalog.Entries.Count >= 10 && baseCatalog.Entries.Single(x => x.Id == "fileinfo").Sources.Count == 1 && baseCatalog.Entries.Single(x => x.Id == "fileinfo").LocalVersionStrategy == "fileinfo", "Catalog v2 embedded deserialize");
+                File.WriteAllText(user, "[{\"id\":\"fileinfo\",\"name\":\"FileInfo override\",\"type\":\"Wlx\",\"aliases\":[\"myfileinfo.wlx\"],\"localVersionStrategy\":\"fileinfo\",\"sources\":[{\"provider\":\"totalcmd.net\",\"id\":\"fileinfo\",\"priority\":200}]}]");
+                Assert(catalog.Load().Single(x => x.Id == "fileinfo").Name == "FileInfo override", "user catalog completely overrides embedded entry");
+                File.WriteAllText(user, "[{\"id\":\"fileinfo\",\"name\":\"\",\"type\":\"Wlx\",\"aliases\":[\"bad.wlx\"],\"sources\":[]}]");
+                var invalidOverride = catalog.LoadWithDiagnostics(); Assert(invalidOverride.Entries.Single(x => x.Id == "fileinfo").Name == "FileInfo" && invalidOverride.Diagnostics.Count > 0, "invalid user override keeps embedded entry");
+                File.WriteAllText(user, "[{\"id\":\"alias-conflict\",\"name\":\"Alias\",\"type\":\"Wlx\",\"aliases\":[\"fileinfo.uwlx\"],\"sources\":[{\"provider\":\"totalcmd.net\",\"id\":\"a\",\"priority\":1}]},{\"id\":\"unknown\",\"name\":\"Unknown\",\"type\":\"Wlx\",\"aliases\":[\"unknown.wlx\"],\"sources\":[{\"provider\":\"unknown\",\"priority\":1}]},{\"id\":\"regex\",\"name\":\"Regex\",\"type\":\"Wlx\",\"aliases\":[\"regex.wlx\"],\"sources\":[{\"provider\":\"generic-html\",\"url\":\"https://example.test\",\"versionPattern\":\"[\",\"priority\":1}]},{\"id\":\"duplicate\",\"name\":\"Duplicate\",\"type\":\"Wlx\",\"aliases\":[\"dup.wlx\"],\"sources\":[{\"provider\":\"totalcmd.net\",\"id\":\"d\",\"priority\":1}]},{\"id\":\"duplicate\",\"name\":\"Duplicate 2\",\"type\":\"Wlx\",\"aliases\":[\"dup2.wlx\"],\"sources\":[{\"provider\":\"totalcmd.net\",\"id\":\"d\",\"priority\":1}]}]");
+                var invalid = catalog.LoadWithDiagnostics(); Assert(invalid.Diagnostics.Count >= 4 && invalid.Entries.All(x => x.Id != "alias-conflict" && x.Id != "unknown" && x.Id != "regex") && invalid.Diagnostics.Any(x => x.Message.IndexOf("Повторяющийся", StringComparison.OrdinalIgnoreCase) >= 0), "conflicting alias unknown provider bad regex and duplicate id are rejected");
+
+                var totalCmdNet = TotalCmdNetSourceProvider.Parse("fileinfo", "FileInfo Version: 2.23");
+                Assert(totalCmdNet.Status == SourceQueryStatus.Success && totalCmdNet.Release.Version.Raw == "2.23" && totalCmdNet.Release.Packages.Count == 1, "TotalCmdNet version and package parsing");
+                var ghisler = GhislerSourceProvider.Parse("Download version 11.50 of Total Commander"); Assert(ghisler.Status == SourceQueryStatus.Success, "Ghisler Total Commander parsing");
+                var githubJson = "[{\"tag_name\":\"v2.0\",\"prerelease\":true,\"draft\":false,\"html_url\":\"https://github.test/pre\",\"assets\":[]},{\"tag_name\":\"v1.5\",\"prerelease\":false,\"draft\":false,\"html_url\":\"https://github.test/stable\",\"assets\":[{\"name\":\"plugin-win64.zip\",\"browser_download_url\":\"https://github.test/x64\"},{\"name\":\"plugin-win32.zip\",\"browser_download_url\":\"https://github.test/x86\"}]}]";
+                var gitStable = GitHubReleaseSourceProvider.Parse(githubJson, new CatalogSource { IncludePrerelease = false, AssetPattern = "win64" });
+                var gitPre = GitHubReleaseSourceProvider.Parse(githubJson, new CatalogSource { IncludePrerelease = true });
+                Assert(gitStable.Status == SourceQueryStatus.Success && gitStable.Release.Version.Raw == "1.5" && gitStable.Release.Packages.Count == 1, "GitHub stable and assetPattern");
+                Assert(gitPre.Status == SourceQueryStatus.Success && gitPre.Release.Version.Raw == "2.0", "GitHub prerelease allowed");
+
+                File.WriteAllText(user, "[{\"id\":\"fileinfo\",\"name\":\"FileInfo\",\"type\":\"Wlx\",\"aliases\":[\"fileinfo.wlx\"],\"localVersionStrategy\":\"fileinfo\",\"sources\":[{\"provider\":\"generic-html\",\"url\":\"https://example.test/one\",\"versionPattern\":\"([0-9.]+)\",\"priority\":100},{\"provider\":\"generic-html\",\"url\":\"https://example.test/two\",\"versionPattern\":\"([0-9.]+)\",\"priority\":90}]}]"); catalog = new CatalogService(user);
+                var plugin = new InstalledPlugin { Identity = new PluginIdentity { Id = "fileinfo", Type = PluginType.Wlx }, PrimaryPath = "unrelated-name.wlx", FileExists = true, Architecture = PluginArchitecture.X86, LocalVersion = FileVersionProbe.Create("1.0", VersionSource.FileVersion, VersionConfidence.Exact) };
+                var fallback = new ScriptedProvider(new SourceQueryResult { Status = SourceQueryStatus.Unavailable, Details = "offline" }, new SourceQueryResult { Status = SourceQueryStatus.Success, Release = Release("2.0", RemotePackageArchitecture.Combined) });
+                var update = new UpdateService(catalog, new IUpdateSourceProvider[] { fallback }).CheckAsync(plugin, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+                Assert(update.State == UpdateState.UpdateAvailable && update.SourceName == "script-2", "source #1 failure falls back to #2 and identity lookup is used");
+                var allFail = new UpdateService(catalog, new IUpdateSourceProvider[] { new ScriptedProvider(new SourceQueryResult { Status = SourceQueryStatus.NotFound, Details = "missing" }) }).CheckAsync(plugin, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+                Assert(allFail.State == UpdateState.SourceUnavailable, "all sources fail gives SourceUnavailable");
+                var availableRow = new PluginRowViewModel(plugin); availableRow.Apply(update); Assert(availableRow.CanDownload, "UpdateAvailable with package is downloadable");
+                foreach (var state in new[] { UpdateState.UpToDate, UpdateState.DevelopmentVersion, UpdateState.VersionComparisonUnknown, UpdateState.LocalVersionConflict }) { var row = new PluginRowViewModel(plugin); row.Apply(new UpdateCandidate { Plugin = plugin, State = state, DownloadUrl = new Uri("https://example.test/file") }); Assert(!row.CanDownload, state + " is not downloadable"); }
+                var dual = new InstalledPlugin { Identity = plugin.Identity, PrimaryPath = plugin.PrimaryPath, FileExists = true, Architecture = PluginArchitecture.X86 | PluginArchitecture.X64, LocalVersion = plugin.LocalVersion };
+                var split = new UpdateService(catalog, new IUpdateSourceProvider[] { new ScriptedProvider(new SourceQueryResult { Status = SourceQueryStatus.Success, Release = Release("2.0", RemotePackageArchitecture.X86, RemotePackageArchitecture.X64) }) }).CheckAsync(dual, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+                Assert(split.State == UpdateState.UpdateAvailable && split.DownloadUrl == null && split.Details.IndexOf("неоднознач", StringComparison.OrdinalIgnoreCase) >= 0, "separate x86 and x64 packages are ambiguous");
+                var combined = new UpdateService(catalog, new IUpdateSourceProvider[] { new ScriptedProvider(new SourceQueryResult { Status = SourceQueryStatus.Success, Release = Release("2.0", RemotePackageArchitecture.Combined) }) }).CheckAsync(dual, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+                Assert(combined.DownloadUrl != null, "combined package is accepted");
+            }
+            finally { Directory.Delete(root, true); }
+        }
+        private static RemoteRelease Release(string version, params RemotePackageArchitecture[] architectures)
+        {
+            return new RemoteRelease { VersionText = version, Version = VersionValue.Parse(version), SourceUrl = new Uri("https://example.test/source"), Packages = architectures.Select((x, i) => new RemotePackage { Architecture = x, FileName = "package" + i + ".zip", Url = new Uri("https://example.test/package" + i) }).ToList() };
+        }
         private static void FileInfoPeVersionStrategy()
         {
             var x86 = FileInfoVersionStrategy.FromPeFileVersion("2.2.3.0");
@@ -181,11 +225,11 @@ namespace TotalUpdater.Next.Tests
             var custom = FileInfoVersionStrategy.FromPeFileVersion("2.2.3.0");
             var generic = FileVersionProbe.Create("9.9.9.9", VersionSource.FileVersion, VersionConfidence.Exact);
             var resolver = new LocalVersionResolver(new IPluginSpecificVersionStrategy[] { new FixedFileInfoStrategy(custom) }, new IVersionProbe[] { new FixedProbe(generic) });
-            var fileInfo = resolver.Resolve("not-used", new PluginIdentity { Id = "fileinfo", Type = PluginType.Wlx });
+            var fileInfo = resolver.Resolve("not-used", new PluginIdentity { Id = "fileinfo", Type = PluginType.Wlx, LocalVersionStrategy = "fileinfo" });
             Assert(fileInfo.ParsedValue.Raw == "2.23" && fileInfo.Source == VersionSource.CustomRule, "FileInfo strategy precedes generic FileVersion");
 
             var fallbackResolver = new LocalVersionResolver(new IPluginSpecificVersionStrategy[] { new FixedFileInfoStrategy(LocalVersion.Unknown) }, new IVersionProbe[] { new FixedProbe(generic) });
-            Assert(fallbackResolver.Resolve("not-used", new PluginIdentity { Id = "fileinfo", Type = PluginType.Wlx }).Source == VersionSource.FileVersion, "Unknown strategy falls back to FileVersion");
+            Assert(fallbackResolver.Resolve("not-used", new PluginIdentity { Id = "fileinfo", Type = PluginType.Wlx, LocalVersionStrategy = "fileinfo" }).Source == VersionSource.FileVersion, "Unknown strategy falls back to FileVersion");
             Assert(resolver.Resolve("not-used", new PluginIdentity { Id = "ordinary", Type = PluginType.Wlx }).Source == VersionSource.FileVersion, "ordinary plugin uses FileVersion fallback");
         }
         private static void ConfigurationDetection()
@@ -324,7 +368,7 @@ namespace TotalUpdater.Next.Tests
         {
             private readonly LocalVersion _version;
             public FixedFileInfoStrategy(LocalVersion version) { _version = version; }
-            public bool CanHandle(PluginIdentity identity) { return identity != null && identity.Id == "fileinfo"; }
+            public string Name { get { return "fileinfo"; } }
             public LocalVersion Probe(string filePath) { return _version; }
         }
         private sealed class FixedProbe : IVersionProbe
@@ -345,9 +389,21 @@ namespace TotalUpdater.Next.Tests
             public FixedRemoteProvider(string version) { _version = VersionValue.Parse(version); }
             public string Name { get { return "test"; } }
             public bool CanHandle(CatalogSource source) { return true; }
-            public System.Threading.Tasks.Task<RemoteRelease> GetLatestReleaseAsync(CatalogSource source, System.Threading.CancellationToken cancellationToken)
+            public System.Threading.Tasks.Task<SourceQueryResult> QueryAsync(CatalogSource source, System.Threading.CancellationToken cancellationToken)
             {
-                return System.Threading.Tasks.Task.FromResult(new RemoteRelease { VersionText = _version.Raw, Version = _version, SourceUrl = new Uri("https://example.test/source"), DownloadUrl = new Uri("https://example.test/download") });
+                return System.Threading.Tasks.Task.FromResult(new SourceQueryResult { Status = SourceQueryStatus.Success, Release = new RemoteRelease { VersionText = _version.Raw, Version = _version, SourceUrl = new Uri("https://example.test/source"), Packages = new System.Collections.Generic.List<RemotePackage> { new RemotePackage { Architecture = RemotePackageArchitecture.Combined, Url = new Uri("https://example.test/download") } } } });
+            }
+        }
+        private sealed class ScriptedProvider : IUpdateSourceProvider
+        {
+            private readonly System.Collections.Generic.Queue<SourceQueryResult> _results;
+            private int _calls;
+            public ScriptedProvider(params SourceQueryResult[] results) { _results = new System.Collections.Generic.Queue<SourceQueryResult>(results); }
+            public string Name { get { return "script-" + _calls; } }
+            public bool CanHandle(CatalogSource source) { return true; }
+            public System.Threading.Tasks.Task<SourceQueryResult> QueryAsync(CatalogSource source, System.Threading.CancellationToken cancellationToken)
+            {
+                _calls++; return System.Threading.Tasks.Task.FromResult(_results.Count == 0 ? new SourceQueryResult { Status = SourceQueryStatus.Unavailable, Details = "no scripted result" } : _results.Dequeue());
             }
         }
         private sealed class FakeRegistry : IRegistryConfigurationReader
