@@ -557,6 +557,10 @@ namespace TotalUpdater.Next.Tests
                 var mismatch = new UpdateService(new CatalogService(user), new IUpdateSourceProvider[] { new SourceRouteProvider("1.9", false) }).CheckAsync(plugin, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
                 Assert(mismatch.DownloadUrl == null, "different-version lower authority package is blocked");
 
+                File.WriteAllText(user, "[{\"id\":\"fileinfo\",\"name\":\"FileInfo\",\"type\":\"Wlx\",\"aliases\":[\"fileinfo.wlx\"],\"sources\":[{\"provider\":\"totalcmd.net\",\"id\":\"community\",\"authority\":\"CommunityCatalog\",\"purpose\":\"MetadataAndDownload\",\"priority\":300},{\"provider\":\"totalcmd.net\",\"id\":\"ghisler\",\"authority\":\"OfficialTotalCommander\",\"purpose\":\"MetadataAndDownload\",\"priority\":100}]}]");
+                var ghislerPackage = new UpdateService(new CatalogService(user), new IUpdateSourceProvider[] { new SourceRouteProvider("2.0", true) }).CheckAsync(plugin, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+                Assert(ghislerPackage.DownloadSource.Authority == SourceAuthority.OfficialTotalCommander, "Ghisler same-version package beats community package");
+
                 File.WriteAllText(user, "[{\"id\":\"bad\",\"name\":\"Bad\",\"type\":\"Wlx\",\"aliases\":[\"bad.wlx\"],\"sources\":[{\"provider\":\"totalcmd.net\",\"authority\":\"ManualOverride\",\"purpose\":\"Metadata\",\"priority\":1,\"manualOverride\":{\"version\":\"bad\"}}]}]");
                 Assert(new CatalogService(user).LoadWithDiagnostics().Diagnostics.Any(x => x.Severity == CatalogDiagnosticSeverity.Error && x.Message.IndexOf("ManualOverride", StringComparison.OrdinalIgnoreCase) >= 0), "malformed ManualOverride is catalog error");
                 File.WriteAllText(user, "[{\"id\":\"old\",\"name\":\"Old\",\"type\":\"Wlx\",\"aliases\":[\"old.wlx\"],\"sources\":[{\"provider\":\"totalcmd.net\",\"id\":\"old\",\"authority\":\"ManualOverride\",\"purpose\":\"Metadata\",\"priority\":1,\"manualOverride\":{\"version\":\"1.0\",\"evidenceUrl\":\"https://evidence.test/old\",\"reason\":\"old\",\"verifiedAt\":\"2000-01-01\"}}]}]");
@@ -685,7 +689,7 @@ namespace TotalUpdater.Next.Tests
             public bool CanHandle(CatalogSource source) { return true; }
             public System.Threading.Tasks.Task<SourceQueryResult> QueryAsync(CatalogSource source, System.Threading.CancellationToken token)
             {
-                Calls++; var official = source.AuthorityValue == SourceAuthority.OfficialAuthor; var version = official ? "2.0" : _communityVersion;
+                Calls++; var official = source.AuthorityValue == SourceAuthority.OfficialAuthor || source.AuthorityValue == SourceAuthority.OfficialTotalCommander; var version = official ? "2.0" : _communityVersion;
                 var packages = (official ? _officialPackage : true) ? new List<RemotePackage> { new RemotePackage { Architecture = RemotePackageArchitecture.Combined, Url = new Uri("https://example.test/" + (official ? "official" : "community")) } } : new List<RemotePackage>();
                 return System.Threading.Tasks.Task.FromResult(new SourceQueryResult { Status = SourceQueryStatus.Success, Release = new RemoteRelease { VersionText = version, Version = VersionValue.Parse(version), SourceUrl = new Uri("https://example.test/source"), Packages = packages } });
             }
