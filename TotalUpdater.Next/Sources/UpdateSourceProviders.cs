@@ -143,7 +143,7 @@ namespace TotalUpdater.Next.Sources
             var match = Regex.Match(html ?? "", @"(?:Download\s+version|Total\s+Commander)\s+([0-9]+(?:\.[0-9]+){1,3})", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
             if (!match.Success) return Result(SourceQueryStatus.NotFound, null, "Версия Total Commander не найдена.");
             var version = VersionValue.Parse(match.Groups[1].Value);
-            return version.IsKnown ? Result(SourceQueryStatus.Success, new RemoteRelease { VersionText = match.Groups[1].Value, Version = version, SourceUrl = new Uri("https://www.ghisler.com/download.htm"), Packages = ParseDownloadLinks(html, new Uri("https://www.ghisler.com/")) }, "") : Result(SourceQueryStatus.InvalidResponse, null, "Некорректная версия Total Commander.");
+            return version.IsKnown ? Result(SourceQueryStatus.Success, new RemoteRelease { VersionText = match.Groups[1].Value, Version = version, SourceUrl = new Uri("https://www.ghisler.com/download.htm"), Packages = ParseDownloadLinks(html, new Uri("https://www.ghisler.com/")).Where(x => x.Architecture != RemotePackageArchitecture.Unknown).ToList() }, "") : Result(SourceQueryStatus.InvalidResponse, null, "Некорректная версия Total Commander.");
         }
     }
 

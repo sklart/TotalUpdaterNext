@@ -4,7 +4,7 @@
   { "id":"7zip-plugin", "name":"7Zip Plugin", "type":"Wcx", "aliases":["7zip.wcx"], "sources":[{"provider":"totalcmd.net","id":"7zip_plugin","priority":100}] },
   { "id":"fileinfo", "name":"FileInfo", "type":"Wlx", "aliases":["fileinfo.wlx","fileinfo.uwlx","fileinfo.wlx64","fileinfo64.wlx"], "localVersionStrategy":"fileinfo", "sources":[{"provider":"totalcmd.net","id":"fileinfo","priority":100}] },
   { "id":"wdxguideinlister", "name":"WDXGuideInLister", "type":"Wlx", "aliases":["wdxguideinlister.wlx"], "sources":[{"provider":"totalcmd.net","id":"wdxguideinlister64","priority":100}] },
-  { "id":"imagine", "name":"Imagine", "type":"Wlx", "aliases":["imagine.wlx"], "sources":[{"provider":"totalcmd.net","id":"Imagine","priority":100}] },
+  { "id":"imagine", "name":"Imagine", "type":"Wlx", "aliases":["imagine.wlx"], "sources":[{"provider":"totalcmd.net","id":"imagine","priority":100}] },
   { "id":"unrar", "name":"UnRAR", "type":"Wcx", "aliases":["unrar.wcx"], "sources":[{"provider":"totalcmd.net","id":"unrar","priority":100}] },
   { "id":"webdav", "name":"WebDAV", "type":"Wfx", "aliases":["davplug.wfx","davplug.uwfx","davplug.wfx64"], "sources":[{"provider":"totalcmd.net","id":"webdav","priority":100}] },
   { "id":"sftp", "name":"SFTP", "type":"Wfx", "aliases":["sftpplug.wfx"], "sources":[{"provider":"totalcmd.net","id":"sftp4tc","priority":100}] },
