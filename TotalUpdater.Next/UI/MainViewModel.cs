@@ -154,7 +154,8 @@ namespace TotalUpdater.Next.UI
                 if (selected.Count != 1) { StatusText = "Для отката отметьте ровно один плагин."; return; }
                 var manifest = BackupService.FindLatest(_backupRoot, selected[0].Plugin.Identity.Id, selected[0].Plugin.PrimaryPath);
                 if (manifest == null) { StatusText = "Нет обновления выбранного плагина для отката."; return; }
-                var prompt = "Откатить " + manifest.PluginId + " " + manifest.NewVersion + " → " + manifest.OldVersion + "?" + Environment.NewLine + manifest.TargetDirectory;
+                var retry = manifest.State == InstallStateMachine.RecoveryConflict || manifest.State == InstallStateMachine.RollbackVerificationFailed || manifest.State == InstallStateMachine.InstallConflict;
+                var prompt = (retry ? "Повторить откат " : "Откатить ") + manifest.PluginId + " " + manifest.NewVersion + " → " + manifest.OldVersion + "?" + Environment.NewLine + manifest.TargetDirectory;
                 if (System.Windows.MessageBox.Show(System.Windows.Application.Current.MainWindow, prompt, "Откатить последнее обновление", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning) != System.Windows.MessageBoxResult.Yes) return;
                 if (System.Diagnostics.Process.GetProcessesByName("TOTALCMD").Any() || System.Diagnostics.Process.GetProcessesByName("TOTALCMD64").Any())
                     throw new InvalidOperationException("Закройте Total Commander перед откатом.");
@@ -182,8 +183,11 @@ namespace TotalUpdater.Next.UI
                     System.Windows.MessageBox.Show(System.Windows.Application.Current.MainWindow, StatusText, "Восстановление после сбоя", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
                     return;
                 }
-                var prompt = "Незавершённая установка " + manifest.PluginId + " (" + manifest.State + ")." + Environment.NewLine +
-                    manifest.TargetDirectory + Environment.NewLine + "Восстановить исходные файлы из backup?";
+                var reason = manifest.State == InstallStateMachine.RecoveryConflict ? "Конфликт восстановления" :
+                    manifest.State == InstallStateMachine.RollbackVerificationFailed ? "Проверка отката не завершена" :
+                    manifest.State == InstallStateMachine.InstallConflict ? "Конфликт установки" : "Незавершённая установка";
+                var prompt = reason + ": " + manifest.PluginId + " (" + manifest.State + ")." + Environment.NewLine +
+                    manifest.TargetDirectory + Environment.NewLine + "Повторить откат из backup?";
                 if (System.Windows.MessageBox.Show(System.Windows.Application.Current.MainWindow, prompt, "Восстановление после сбоя", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning) != System.Windows.MessageBoxResult.Yes) continue;
                 try
                 {

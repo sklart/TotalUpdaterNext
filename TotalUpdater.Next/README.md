@@ -1,4 +1,4 @@
-# Total Updater Next — Phase 7.1
+# Total Updater Next — Phase 7.2
 
 WPF-программа для Windows 7 SP1+ под .NET Framework 4.8. Это независимая новая реализация: старый Total Updater и его бинарные ресурсы не используются.
 
@@ -9,7 +9,7 @@ WPF-программа для Windows 7 SP1+ под .NET Framework 4.8. Это �
 * встроенный каталог со стабильными ID и alias-именами файлов;
 * явные состояния проверки, безопасное сравнение beta/rc/финальных версий;
 * HTTP-провайдеры Ghisler и Totalcmd.net, скачивание в отдельный каталог;
-* безопасная установка ZIP для уже установленных WCX/WLX/WFX/WDX с backup, проверкой после записи, crash recovery и откатом выбранного плагина;
+* безопасная установка ZIP для уже установленных WCX/WLX/WFX/WDX с backup, проверкой после записи, повторяемым crash recovery и откатом выбранного плагина;
 * четыре вкладки: «Обновления», «Настройки», «Локальная БД», «О программе».
 
 ## Сборка и тесты
@@ -21,7 +21,7 @@ dotnet run --project .\TotalUpdater.Next.Tests\TotalUpdater.Next.Tests.csproj
 
 ## Single EXE
 
-Release-архив [`../release/TotalUpdater-0.8.1-win7plus.zip`](../release/TotalUpdater-0.8.1-win7plus.zip) содержит только `TotalUpdater.exe`. Стандартный каталог находится внутри EXE как embedded resource; внешний JSON не требуется на первом запуске.
+Release-архив [`../release/TotalUpdater-0.8.2-win7plus.zip`](../release/TotalUpdater-0.8.2-win7plus.zip) содержит только `TotalUpdater.exe`. Стандартный каталог находится внутри EXE как embedded resource; внешний JSON не требуется на первом запуске.
 
 Пользовательская БД создаётся только по явной команде: рядом с EXE в portable-режиме либо в `%APPDATA%\TotalUpdaterNext` при read-only установке.
 

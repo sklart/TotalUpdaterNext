@@ -32,9 +32,20 @@ namespace TotalUpdater.Next.Tests
                 var interrupted = new BackupService().Create(second.Plan);
                 interrupted.State = "Installing"; BackupService.Save(interrupted);
                 File.Copy(second.Plan.Files[0].Source.StagedPath, second.PrimaryPath, true);
+                check(interrupted.Files[0].State == InstallStateMachine.PendingFile && File.ReadAllText(second.PrimaryPath) == "new", "crash before Installed marker uses hash as truth");
                 check(new RecoveryService(backupRoot).FindPending().Any(x => x.TransactionId == interrupted.TransactionId), "Installing manifest detected at startup");
                 new RecoveryService(backupRoot).Recover(interrupted, second.Old);
                 check(interrupted.State == "RolledBack" && File.ReadAllText(second.PrimaryPath) == "old" && !File.Exists(Path.Combine(second.TargetDirectory, "extra.txt")), "crash after first file rollback");
+
+                var marked = Fixture(root, backupRoot, "marked", stages, true);
+                var markedManifest = new BackupService().Create(marked.Plan);
+                InstallStateMachine.Set(markedManifest, InstallStateMachine.Installing);
+                InstallStateMachine.SetFile(markedManifest.Files[0], InstallStateMachine.InstallingFile);
+                File.Copy(marked.Plan.Files[0].Source.StagedPath, marked.PrimaryPath, true);
+                InstallStateMachine.SetFile(markedManifest.Files[0], InstallStateMachine.InstalledFile); BackupService.Save(markedManifest);
+                new RecoveryService(backupRoot).Recover(markedManifest, marked.Old);
+                check(markedManifest.State == InstallStateMachine.RolledBack && markedManifest.Files.All(x => x.State == InstallStateMachine.RestoredFile),
+                    "crash with Installed and Pending markers recovers both files");
 
                 var rolling = Fixture(root, backupRoot, "rolling", stages, true);
                 var rollingManifest = new TransactionalInstaller(isTotalCommanderRunning: () => false).Install(rolling.Plan, rolling.Current);
@@ -76,8 +87,8 @@ namespace TotalUpdater.Next.Tests
                     new Uri("https://example.test/plugin.zip"), backupRoot, sourceCandidate);
                 var latestManifest = new TransactionalInstaller(isTotalCommanderRunning: () => false).Install(provenancePlan, latest.Current);
                 check(BackupService.FindLatest(backupRoot, latest.Plugin.Identity.Id, latest.PrimaryPath).TransactionId == latestManifest.TransactionId &&
-                    BackupService.FindLatest(backupRoot, "modified", modified.PrimaryPath) == null, "latest rollback scoped to plugin id and primary path");
-                check(latestManifest.ManifestVersion == 2 && latestManifest.CanonicalSource == "official" && latestManifest.DownloadSource == "mirror" &&
+                    BackupService.FindLatest(backupRoot, "modified", modified.PrimaryPath).State == InstallStateMachine.RecoveryConflict, "latest rollback scoped to plugin id and primary path; conflict remains retryable");
+                check(latestManifest.ManifestVersion == 3 && latestManifest.CanonicalSource == "official" && latestManifest.DownloadSource == "mirror" &&
                     latestManifest.DownloadAuthority == "Mirror" && latestManifest.PackageSha256 == PackageInspector.Hash(latest.ZipPath), "manifest provenance and actual ZIP SHA stored");
                 var sibling = Fixture(root, backupRoot, "sibling", stages, false);
                 sibling.Plugin.Identity.Id = latest.Plugin.Identity.Id;
@@ -114,6 +125,59 @@ namespace TotalUpdater.Next.Tests
                 check(DownloadedPackagePolicy.Resolve(next) == latest.ZipPath, "downloaded ZIP reused when URL version and SHA match");
                 File.AppendAllText(latest.ZipPath, "tampered");
                 check(Fails(() => DownloadedPackagePolicy.Resolve(next)), "modified downloaded ZIP rejected");
+
+                var installRace = Fixture(root, backupRoot, "installrace", stages, false);
+                check(Fails(() => new TransactionalInstaller(isTotalCommanderRunning: () => false,
+                    beforeOperation: (m, f) => File.WriteAllText(installRace.PrimaryPath, "user race")).Install(installRace.Plan, installRace.Current)) &&
+                    File.ReadAllText(installRace.PrimaryPath) == "user race", "changed target after backup blocks install and preserves user change");
+                var installRaceManifest = BackupService.Load(Path.Combine(installRace.Plan.BackupDirectory, "manifest.json"), backupRoot);
+                check(installRaceManifest.State == InstallStateMachine.InstallConflict && installRaceManifest.Files[0].State == InstallStateMachine.InstallingFile &&
+                    new RecoveryService(backupRoot).FindPending().Any(x => x.TransactionId == installRaceManifest.TransactionId), "InstallConflict and per-file Installing persisted for startup");
+                check(Fails(() => new RecoveryService(backupRoot).Recover(installRaceManifest, installRace.Old)) &&
+                    installRaceManifest.State == InstallStateMachine.RecoveryConflict && File.ReadAllText(installRace.PrimaryPath) == "user race", "unresolved RecoveryConflict retry is non-destructive");
+                File.WriteAllText(installRace.PrimaryPath, "old");
+                new RecoveryService(backupRoot).Recover(installRaceManifest, installRace.Old);
+                check(installRaceManifest.State == InstallStateMachine.RolledBack && installRaceManifest.Files[0].State == InstallStateMachine.RestoredFile,
+                    "RecoveryConflict fixed then retry reaches RolledBack");
+
+                var newRace = Fixture(root, backupRoot, "newrace", stages, true);
+                var appeared = Path.Combine(newRace.TargetDirectory, "extra.txt");
+                check(Fails(() => new TransactionalInstaller(isTotalCommanderRunning: () => false,
+                    beforeOperation: (m, f) => { if (f.RelativePath == "extra.txt") File.WriteAllText(appeared, "user added"); }).Install(newRace.Plan, newRace.Current)) &&
+                    File.ReadAllText(appeared) == "user added" && File.ReadAllText(newRace.PrimaryPath) == "old", "new destination race preserves user file and rolls back prior replacement");
+                var newRaceManifest = BackupService.Load(Path.Combine(newRace.Plan.BackupDirectory, "manifest.json"), backupRoot);
+                check(newRaceManifest.State == InstallStateMachine.InstallConflict && newRaceManifest.Files[0].State == InstallStateMachine.RestoredFile &&
+                    newRaceManifest.Files[1].State == InstallStateMachine.InstallingFile, "partial install rollback records Restored and Installing states");
+
+                var rollbackRace = Fixture(root, backupRoot, "rollbackrace", stages, false);
+                var rollbackRaceManifest = new TransactionalInstaller(isTotalCommanderRunning: () => false).Install(rollbackRace.Plan, rollbackRace.Current);
+                check(Fails(() => new RollbackService((m, f) => File.WriteAllText(rollbackRace.PrimaryPath, "changed during rollback"))
+                    .Rollback(rollbackRaceManifest, backupRoot, rollbackRace.Old)) &&
+                    rollbackRaceManifest.State == InstallStateMachine.RecoveryConflict && File.ReadAllText(rollbackRace.PrimaryPath) == "changed during rollback",
+                    "replaced target changed after rollback pre-check is preserved");
+
+                var deleteRace = Fixture(root, backupRoot, "deleterace", stages, true);
+                var deleteRaceManifest = new TransactionalInstaller(isTotalCommanderRunning: () => false).Install(deleteRace.Plan, deleteRace.Current);
+                var addedPath = Path.Combine(deleteRace.TargetDirectory, "extra.txt");
+                check(Fails(() => new RollbackService((m, f) => { if (f.RelativePath == "extra.txt") File.WriteAllText(addedPath, "changed before delete"); })
+                    .Rollback(deleteRaceManifest, backupRoot, deleteRace.Old)) && File.ReadAllText(addedPath) == "changed before delete" &&
+                    File.ReadAllText(deleteRace.PrimaryPath) == "new", "added file changed after rollback pre-check is not deleted");
+
+                var verifyRetry = Fixture(root, backupRoot, "verifyretry", stages, false);
+                var verifyManifest = new TransactionalInstaller(isTotalCommanderRunning: () => false).Install(verifyRetry.Plan, verifyRetry.Current);
+                check(Fails(() => new RollbackService().Rollback(verifyManifest, backupRoot, verifyRetry.New)) &&
+                    verifyManifest.State == InstallStateMachine.RollbackVerificationFailed &&
+                    new RecoveryService(backupRoot).FindPending().Any(x => x.TransactionId == verifyManifest.TransactionId), "RollbackVerificationFailed remains discoverable");
+                new RecoveryService(backupRoot).Recover(verifyManifest, verifyRetry.Old);
+                check(verifyManifest.State == InstallStateMachine.RolledBack, "RollbackVerificationFailed retry succeeds after verifier fixed");
+
+                var state = new InstallManifest { State = InstallStateMachine.Prepared };
+                InstallStateMachine.Set(state, InstallStateMachine.Installing); InstallStateMachine.Set(state, InstallStateMachine.InstallConflict);
+                check(Fails(() => InstallStateMachine.Set(state, InstallStateMachine.Completed)), "invalid manifest transition rejected");
+                var fileState = new InstallManifestFile { State = InstallStateMachine.PendingFile };
+                InstallStateMachine.SetFile(fileState, InstallStateMachine.InstallingFile); InstallStateMachine.SetFile(fileState, InstallStateMachine.InstalledFile);
+                InstallStateMachine.SetFile(fileState, InstallStateMachine.RestoredFile);
+                check(Fails(() => InstallStateMachine.SetFile(fileState, InstallStateMachine.InstalledFile)), "per-file state transitions enforced");
             }
             finally
             {

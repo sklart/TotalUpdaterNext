@@ -13,9 +13,11 @@ namespace TotalUpdater.Next.Infrastructure.Installation
         private readonly BackupService _backups;
         private readonly RollbackService _rollback;
         private readonly Action<int> _afterFile;
+        private readonly Action<InstallManifest, InstallManifestFile> _beforeOperation;
         private readonly Func<bool> _isTotalCommanderRunning;
-        public TransactionalInstaller(BackupService backups = null, RollbackService rollback = null, Action<int> afterFile = null, Func<bool> isTotalCommanderRunning = null)
-        { _backups = backups ?? new BackupService(); _rollback = rollback ?? new RollbackService(); _afterFile = afterFile; _isTotalCommanderRunning = isTotalCommanderRunning; }
+        public TransactionalInstaller(BackupService backups = null, RollbackService rollback = null, Action<int> afterFile = null, Func<bool> isTotalCommanderRunning = null,
+            Action<InstallManifest, InstallManifestFile> beforeOperation = null)
+        { _backups = backups ?? new BackupService(); _rollback = rollback ?? new RollbackService(); _afterFile = afterFile; _isTotalCommanderRunning = isTotalCommanderRunning; _beforeOperation = beforeOperation; }
 
         public InstallManifest Install(InstallPlan plan, Func<InstalledPlugin> rediscover)
         {
@@ -24,20 +26,29 @@ namespace TotalUpdater.Next.Infrastructure.Installation
             var manifest = _backups.Create(plan);
             try
             {
-                manifest.State = "Installing"; BackupService.Save(manifest);
+                InstallStateMachine.Set(manifest, InstallStateMachine.Installing); BackupService.Save(manifest);
                 var installedCount = 0;
                 foreach (var file in plan.Files)
                 {
                     if (PackageInspector.Hash(file.Source.StagedPath) != file.Source.Sha256) throw new IOException("Staging file changed.");
                     Directory.CreateDirectory(Path.GetDirectoryName(file.Destination));
+                    var record = manifest.Files.Single(x => String.Equals(x.RelativePath, file.Source.RelativePath, StringComparison.OrdinalIgnoreCase));
+                    InstallStateMachine.SetFile(record, InstallStateMachine.InstallingFile); BackupService.Save(manifest);
                     var temporary = file.Destination + ".tu-new-" + Guid.NewGuid().ToString("N");
                     try
                     {
                         File.Copy(file.Source.StagedPath, temporary, false);
+                        _beforeOperation?.Invoke(manifest, record);
+                        CheckTargetUnchanged(file, record);
                         if (file.ReplacesExisting) File.Replace(temporary, file.Destination, null);
-                        else File.Move(temporary, file.Destination);
+                        else
+                        {
+                            try { File.Move(temporary, file.Destination); }
+                            catch (IOException) { if (File.Exists(file.Destination) || Directory.Exists(file.Destination)) throw new InstallConflictException(record.RelativePath, "Новый target появился после preflight: " + record.RelativePath); throw; }
+                        }
                     }
                     finally { if (File.Exists(temporary)) File.Delete(temporary); }
+                    InstallStateMachine.SetFile(record, InstallStateMachine.InstalledFile); BackupService.Save(manifest);
                     _afterFile?.Invoke(++installedCount);
                 }
                 var detected = rediscover();
@@ -47,8 +58,15 @@ namespace TotalUpdater.Next.Infrastructure.Installation
                     detected.LocalVersion.ParsedValue.CompareTo(VersionValue.Parse(plan.NewVersion)) != VersionComparison.Equal ||
                     plan.Plugin.Binaries.Where(x => x.Exists).Any(old => !detected.Binaries.Any(current => current.Exists && String.Equals(current.Path, old.Path, StringComparison.OrdinalIgnoreCase))))
                     throw new InvalidOperationException("Post-install verification failed: plugin/version/architecture mismatch.");
-                manifest.State = "Completed"; BackupService.Save(manifest);
+                InstallStateMachine.Set(manifest, InstallStateMachine.Completed); BackupService.Save(manifest);
                 return manifest;
+            }
+            catch (InstallConflictException conflict)
+            {
+                InstallStateMachine.Set(manifest, InstallStateMachine.InstallConflict); BackupService.Save(manifest);
+                try { _rollback.RollbackInstalledBeforeConflict(manifest, Path.GetDirectoryName(manifest.BackupDirectory), conflict.RelativePath); }
+                catch (Exception rollbackError) { throw new AggregateException("Конфликт установки; безопасный частичный откат не завершён.", conflict, rollbackError); }
+                throw;
             }
             catch (Exception original)
             {
@@ -56,6 +74,16 @@ namespace TotalUpdater.Next.Infrastructure.Installation
                 catch (Exception rollbackError) { throw new AggregateException("Ошибка установки и автоматического отката; backup сохранён: " + manifest.BackupDirectory, original, rollbackError); }
                 throw;
             }
+        }
+        private static void CheckTargetUnchanged(InstallFile file, InstallManifestFile record)
+        {
+            if (file.ReplacesExisting)
+            {
+                if (!File.Exists(file.Destination) || !String.Equals(PackageInspector.Hash(file.Destination), record.OriginalSha256, StringComparison.OrdinalIgnoreCase))
+                    throw new InstallConflictException(record.RelativePath, "Установленный файл изменён после backup: " + record.RelativePath);
+            }
+            else if (File.Exists(file.Destination) || Directory.Exists(file.Destination))
+                throw new InstallConflictException(record.RelativePath, "Новый target появился после preflight: " + record.RelativePath);
         }
 
         public static void Preflight(InstallPlan plan, Func<bool> isTotalCommanderRunning = null)

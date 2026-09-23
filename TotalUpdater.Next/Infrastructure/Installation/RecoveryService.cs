@@ -14,7 +14,9 @@ namespace TotalUpdater.Next.Infrastructure.Installation
         public IList<InstallManifest> FindPending() { return BackupService.FindIncomplete(_backupRoot); }
         public void Recover(InstallManifest manifest, Func<InstalledPlugin> rediscover)
         {
-            if (manifest == null || (manifest.State != "Prepared" && manifest.State != "Installing" && manifest.State != "RollingBack"))
+            if (manifest == null || (manifest.State != InstallStateMachine.Prepared && manifest.State != InstallStateMachine.Installing &&
+                manifest.State != InstallStateMachine.InstallConflict && manifest.State != InstallStateMachine.RollingBack &&
+                manifest.State != InstallStateMachine.RecoveryConflict && manifest.State != InstallStateMachine.RollbackVerificationFailed))
                 throw new InvalidOperationException("Этот manifest не ожидает восстановления.");
             _rollback.Rollback(manifest, _backupRoot, rediscover);
         }

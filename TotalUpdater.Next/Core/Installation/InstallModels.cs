@@ -53,6 +53,11 @@ namespace TotalUpdater.Next.Core.Installation
         public string Destination { get; set; }
         public bool ReplacesExisting { get; set; }
     }
+    public sealed class InstallConflictException : IOException
+    {
+        public InstallConflictException(string relativePath, string message) : base(message) { RelativePath = relativePath; }
+        public string RelativePath { get; private set; }
+    }
     [DataContract]
     public sealed class InstallManifest
     {
@@ -78,6 +83,7 @@ namespace TotalUpdater.Next.Core.Installation
     [DataContract]
     public sealed class InstallManifestFile
     {
+        [DataMember] public string State { get; set; }
         [DataMember] public string RelativePath { get; set; }
         [DataMember] public bool Replaced { get; set; }
         [DataMember] public string OriginalSha256 { get; set; }
