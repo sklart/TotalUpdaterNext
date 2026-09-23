@@ -11,7 +11,8 @@ namespace TotalUpdater.Next.Core
     public enum PluginBinaryVariant { Ansi, Unicode, Native64, Other }
     public enum VersionSource { FileVersion, ProductVersion, TextFile, CustomRule, Unknown }
     public enum VersionConfidence { Exact, Probable, Heuristic, Unknown }
-    public enum UpdateState { Unknown, NotChecked, Checking, UpToDate, UpdateAvailable, DevelopmentVersion, SourceOutdated, VersionComparisonUnknown, LocalVersionConflict, SourceUnavailable, PluginNotRecognized, CatalogAmbiguous, Error }
+    public enum UpdateState { Unknown, NotChecked, Checking, UpToDate, UpdateAvailable, DevelopmentVersion, SourceOutdated, LocalAheadUnknown, VersionComparisonUnknown, LocalVersionConflict, SourceUnavailable, PluginNotRecognized, CatalogAmbiguous, Error }
+    public enum PackageAvailability { Verified, MetadataOnly, Ambiguous, Unavailable, Unverified }
 
     public sealed class PluginIdentity
     {
@@ -64,6 +65,7 @@ namespace TotalUpdater.Next.Core
         public string SourceName { get; set; } = "";
         public Uri SourceUrl { get; set; }
         public Uri DownloadUrl { get; set; }
+        public PackageAvailability PackageAvailability { get; set; } = PackageAvailability.Unavailable;
         public string Details { get; set; } = "";
         public IList<RemoteVersionObservation> Observations { get; set; } = new List<RemoteVersionObservation>();
         public RemoteVersionObservation CanonicalVersionSource { get; set; }

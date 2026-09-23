@@ -111,6 +111,8 @@ namespace TotalUpdater.Next.Catalog
             if (!Enum.TryParse(entry.Type, true, out type) || type == PluginType.Other) { error = "Неизвестный PluginType."; return false; }
             if (entry.Aliases == null || entry.Aliases.Count == 0 || entry.Aliases.Any(String.IsNullOrWhiteSpace)) { error = "Пустой aliases."; return false; }
             if (!LocalVersionStrategyRegistry.Default.Contains(entry.LocalVersionStrategy)) { error = "Неизвестная localVersionStrategy."; return false; }
+            LocalAheadPolicy aheadPolicy;
+            if (!Enum.TryParse(entry.LocalAheadPolicyName ?? "Unknown", true, out aheadPolicy)) { error = "Неизвестная localAheadPolicy."; return false; }
             if (entry.Sources == null || entry.Sources.Count == 0) { error = "Пустой sources."; return false; }
             if (entry.Sources.Any(x => x != null && x.AuthorityValue == SourceAuthority.Mirror && x.PurposeValue != SourcePurpose.Download) &&
                 !entry.Sources.Any(x => x != null && x.AuthorityValue > SourceAuthority.Mirror && x.PurposeValue != SourcePurpose.Download))
@@ -130,6 +132,7 @@ namespace TotalUpdater.Next.Catalog
                 else if (source.Provider.Equals("manual", StringComparison.OrdinalIgnoreCase)) { error = "Provider manual требует authority ManualOverride."; return false; }
                 if (source.Priority <= 0) { error = "Некорректный priority."; return false; }
                 if (!String.IsNullOrWhiteSpace(source.PackageArchitecture) && !Enum.GetNames(typeof(RemotePackageArchitecture)).Any(x => x.Equals(source.PackageArchitecture, StringComparison.OrdinalIgnoreCase))) { error = "Некорректный packageArchitecture."; return false; }
+                if (!String.IsNullOrWhiteSpace(source.VersionTransform) && !String.Equals(source.VersionTransform, "Total7zipPe", StringComparison.OrdinalIgnoreCase)) { error = "Некорректный versionTransform."; return false; }
                 if ((source.Provider.Equals("totalcmd.net", StringComparison.OrdinalIgnoreCase) || source.Provider.Equals("totalcmd.net-index", StringComparison.OrdinalIgnoreCase)) && String.IsNullOrWhiteSpace(source.Id)) { error = "Пустой id источника totalcmd.net."; return false; }
                 if (source.Provider.Equals("github", StringComparison.OrdinalIgnoreCase) && !Regex.IsMatch(source.Repository ?? "", @"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")) { error = "Некорректный GitHub repository."; return false; }
                 if (source.Provider.Equals("generic-html", StringComparison.OrdinalIgnoreCase))

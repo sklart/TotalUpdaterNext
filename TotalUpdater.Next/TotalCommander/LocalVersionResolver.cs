@@ -16,8 +16,8 @@ namespace TotalUpdater.Next.TotalCommander
     public sealed class LocalVersionStrategyRegistry : ILocalVersionStrategyRegistry
     {
         public static readonly LocalVersionStrategyRegistry Default = new LocalVersionStrategyRegistry();
-        public bool Contains(string name) { return String.IsNullOrWhiteSpace(name) || String.Equals(name, "fileinfo", StringComparison.OrdinalIgnoreCase); }
-        public IEnumerable<IPluginSpecificVersionStrategy> CreateStrategies() { return new IPluginSpecificVersionStrategy[] { new FileInfoVersionStrategy() }; }
+        public bool Contains(string name) { return String.IsNullOrWhiteSpace(name) || String.Equals(name, "fileinfo", StringComparison.OrdinalIgnoreCase) || String.Equals(name, "total7zip", StringComparison.OrdinalIgnoreCase); }
+        public IEnumerable<IPluginSpecificVersionStrategy> CreateStrategies() { return new IPluginSpecificVersionStrategy[] { new FileInfoVersionStrategy(), new Total7zipVersionStrategy() }; }
     }
 
     public sealed class LocalVersionResolver
@@ -73,6 +73,24 @@ namespace TotalUpdater.Next.TotalCommander
             var publicVersion = pe.Numbers[0].ToString() + "." + pe.Numbers[1].ToString() + pe.Numbers[2].ToString();
             var parsed = VersionValue.Parse(publicVersion);
             return new LocalVersion { RawValue = publicVersion, ParsedValue = parsed, Source = VersionSource.CustomRule, Confidence = VersionConfidence.Exact };
+        }
+    }
+
+    public sealed class Total7zipVersionStrategy : IPluginSpecificVersionStrategy
+    {
+        public string Name { get { return "total7zip"; } }
+        public LocalVersion Probe(string path)
+        {
+            try { return FromPeFileVersion(FileVersionInfo.GetVersionInfo(path).FileVersion); }
+            catch { return LocalVersion.Unknown; }
+        }
+        public static LocalVersion FromPeFileVersion(string peVersion)
+        {
+            var pe = VersionValue.Parse(peVersion);
+            if (!pe.IsKnown || pe.Numbers.Count != 4 || pe.Numbers[0] != 0 || pe.Numbers[2] > 9 || pe.Numbers[3] > 9)
+                return LocalVersion.Unknown;
+            var publicVersion = pe.Numbers[1].ToString() + "." + pe.Numbers[2] + pe.Numbers[3];
+            return FileVersionProbe.Create(publicVersion, VersionSource.CustomRule, VersionConfidence.Exact);
         }
     }
 

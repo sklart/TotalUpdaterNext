@@ -206,7 +206,14 @@ namespace TotalUpdater.Next.Sources
             try
             {
                 var html = cache == null ? await Http.GetStringAsync(Url, cancellationToken).ConfigureAwait(false) : await cache.GetOrAdd("ghisler:plugins", () => Http.GetStringAsync(Url, cancellationToken)).ConfigureAwait(false);
-                return Parse(source.Id, html);
+                var result = Parse(source.Id, html);
+                Uri packageUrl;
+                if (result.Status == SourceQueryStatus.Success && result.Release != null &&
+                    Uri.TryCreate(source.EphemeralVerifiedPackageUrl, UriKind.Absolute, out packageUrl) &&
+                    packageUrl.Scheme == Uri.UriSchemeHttps)
+                    result.Release.Packages.Add(new RemotePackage { Url = packageUrl, FileName = System.IO.Path.GetFileName(packageUrl.AbsolutePath),
+                        Architecture = GitHubReleaseSourceProvider.DetectArchitecture(packageUrl.AbsolutePath) });
+                return result;
             }
             catch (OperationCanceledException) { throw; }
             catch (Exception ex) { return Result(SourceQueryStatus.Unavailable, null, ex.Message); }

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using TotalUpdater.Next.Catalog;
 using TotalUpdater.Next.Core.Versions;
 using TotalUpdater.Next.Sources;
+using TotalUpdater.Next.TotalCommander;
 
 namespace TotalUpdater.Next.Core
 {
@@ -62,13 +63,17 @@ namespace TotalUpdater.Next.Core
             if (plugin.HasVersionConflict) { var conflict = Candidate(plugin, UpdateState.LocalVersionConflict, canonical.Release, canonical.ProviderName, canonical.Details); ApplyProvenance(conflict, observations, resolution); return conflict; }
             var comparison = plugin.LocalVersion.ParsedValue.CompareTo(canonical.Release.Version);
             var state = comparison == VersionComparison.Less ? UpdateState.UpdateAvailable : comparison == VersionComparison.Greater ?
-                (entry.SourceMayLagLocal ? UpdateState.SourceOutdated : UpdateState.DevelopmentVersion) : comparison == VersionComparison.Equal ? UpdateState.UpToDate : UpdateState.VersionComparisonUnknown;
+                (entry.LocalAheadPolicy == LocalAheadPolicy.SourceMayLag ? UpdateState.SourceOutdated : entry.LocalAheadPolicy == LocalAheadPolicy.Development ? UpdateState.DevelopmentVersion : UpdateState.LocalAheadUnknown) : comparison == VersionComparison.Equal ? UpdateState.UpToDate : UpdateState.VersionComparisonUnknown;
             var candidate = Candidate(plugin, state, canonical.Release, canonical.ProviderName, canonical.Details); ApplyProvenance(candidate, observations, resolution);
-            if (state == UpdateState.UpdateAvailable && !resolution.HasConflict)
+            if (state == UpdateState.UpdateAvailable && resolution.HasConflict)
+            { candidate.PackageAvailability = PackageAvailability.Ambiguous; candidate.Details = "Конфликт источников одного уровня доверия; загрузка отключена."; }
+            else if (state == UpdateState.UpdateAvailable)
             {
                 var download = SelectDownloadObservation(plugin, observations, canonical, out var packageUrl, out var packageDetails);
-                if (download != null) { candidate.DownloadUrl = packageUrl; candidate.DownloadSource = download; candidate.Details = packageDetails; }
-                else if (!String.IsNullOrWhiteSpace(packageDetails)) candidate.Details = packageDetails;
+                if (download != null) { candidate.DownloadUrl = packageUrl; candidate.DownloadSource = download; candidate.PackageAvailability =
+                    download.Source != null && String.Equals(download.Source.EphemeralVerifiedPackageUrl, packageUrl.AbsoluteUri, StringComparison.OrdinalIgnoreCase)
+                        ? PackageAvailability.Verified : PackageAvailability.Unverified; candidate.Details = packageDetails; }
+                else { candidate.PackageAvailability = PackageAvailability.MetadataOnly; candidate.Details = String.IsNullOrWhiteSpace(packageDetails) ? "Версия известна, пакет не найден" : packageDetails; }
             }
             return candidate;
         }
@@ -110,6 +115,11 @@ namespace TotalUpdater.Next.Core
             }
             catch (OperationCanceledException) { if (cancellationToken.IsCancellationRequested) throw; details.Add(provider.Name + ": timeout"); observations.Add(new RemoteVersionObservation { Source = source, ProviderName = provider.Name, Authority = source.AuthorityValue, Purpose = source.PurposeValue, Status = SourceQueryStatus.Unavailable, Details = "Превышено время ожидания источника." }); return; }
             catch (Exception ex) { details.Add(provider.Name + ": " + ex.Message); observations.Add(new RemoteVersionObservation { Source = source, ProviderName = provider.Name, Authority = source.AuthorityValue, Purpose = source.PurposeValue, Status = SourceQueryStatus.Unavailable, Details = ex.Message }); return; }
+            if (result != null && result.Release != null && String.Equals(source.VersionTransform, "Total7zipPe", StringComparison.OrdinalIgnoreCase))
+            {
+                var normalized = Total7zipVersionStrategy.FromPeFileVersion(result.Release.VersionText).ParsedValue;
+                if (normalized.IsKnown) result.Release.Version = normalized;
+            }
             observations.Add(new RemoteVersionObservation { Source = source, ProviderName = provider.Name, Authority = source.AuthorityValue, Purpose = source.PurposeValue, Status = result == null ? SourceQueryStatus.InvalidResponse : result.Status, Release = result == null ? null : result.Release, Details = result == null ? "пустой ответ" : result.Details });
             if (result == null || result.Status != SourceQueryStatus.Success || result.Release == null || !result.Release.Version.IsKnown)
                 details.Add(provider.Name + ": " + (result == null ? "пустой ответ" : result.Details));

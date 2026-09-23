@@ -165,7 +165,16 @@ namespace TotalUpdater.Next.UI
                     continue;
                 }
                 if (!row.CanDownload) { if (row.Candidate != null) row.Apply(row.Candidate); else row.Apply(new UpdateCandidate { Plugin = row.Plugin, State = UpdateState.NotChecked, Details = Text.Get("NoDownload") }); continue; }
-                try { var path = await _downloads.DownloadAsync(row.Candidate.DownloadUrl, _paths.DownloadDirectory, CancellationToken.None); DownloadedPackagePolicy.Record(row.Candidate, path); row.Candidate.Details = String.Format(Text.Get("Downloaded"), Path.GetFileName(path)); row.Apply(row.Candidate); done++; }
+                try { var path = await _downloads.DownloadAsync(row.Candidate.DownloadUrl, _paths.DownloadDirectory, CancellationToken.None);
+                    var entry = _catalog.FindById(row.Plugin.Identity.Id);
+                    if (entry != null && String.Equals(Path.GetExtension(path), ".zip", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (!PackageIdentityVerifier.ContainsCatalogAlias(path, entry))
+                        { row.Candidate.PackageAvailability = PackageAvailability.Ambiguous; row.Candidate.DownloadUrl = null;
+                            row.Candidate.Details = "Пакет не содержит бинарник текущего плагина; установка запрещена."; row.Apply(row.Candidate); continue; }
+                        row.Candidate.PackageAvailability = PackageAvailability.Verified;
+                    }
+                    DownloadedPackagePolicy.Record(row.Candidate, path); row.Candidate.Details = String.Format(Text.Get("Downloaded"), Path.GetFileName(path)); row.Apply(row.Candidate); done++; }
                 catch (Exception ex) { row.Candidate.Details = ex.Message; StatusText = "Скачивание не выполнено: " + ex.Message; }
             }
             StatusText = String.Format(Text.Get("DownloadedCount"), done);
@@ -186,6 +195,9 @@ namespace TotalUpdater.Next.UI
                 if (!String.Equals(Path.GetExtension(packagePath), ".zip", StringComparison.OrdinalIgnoreCase))
                     throw new InvalidOperationException("Этот формат доступен только для скачивания; запуск EXE/MSI/RAR/SFX запрещён.");
                 inspected = new PackageInspector().Inspect(packagePath);
+                var catalogEntry = _catalog.FindById(row.Plugin.Identity.Id);
+                if (catalogEntry != null && !PackageIdentityVerifier.ContainsCatalogAlias(packagePath, catalogEntry))
+                    throw new InvalidDataException("PackageIdentityMismatch: ZIP не содержит alias установленного плагина; автоматическая установка запрещена.");
                 var plan = new InstallPlanBuilder().Build(row.Plugin, inspected, row.Candidate.AvailableVersion, row.Candidate.DownloadUrl, _backupRoot, row.Candidate);
                 TransactionalInstaller.Preflight(plan);
                 var replacements = plan.Files.Where(x => x.ReplacesExisting).Select(x => x.Source.RelativePath);
@@ -272,7 +284,7 @@ namespace TotalUpdater.Next.UI
         {
             var row = e.Item as PluginRowViewModel; if (row == null) { e.Accepted = false; return; }
             if (FilterName == "Updates") { e.Accepted = row.HasUpdate; return; }
-            if (FilterName == "Unknown") { e.Accepted = row.Candidate == null || row.Candidate.State == UpdateState.PluginNotRecognized || row.Candidate.State == UpdateState.CatalogAmbiguous || row.Candidate.State == UpdateState.SourceOutdated || row.Candidate.State == UpdateState.VersionComparisonUnknown; return; }
+            if (FilterName == "Unknown") { e.Accepted = row.Candidate == null || row.Candidate.State == UpdateState.PluginNotRecognized || row.Candidate.State == UpdateState.CatalogAmbiguous || row.Candidate.State == UpdateState.SourceOutdated || row.Candidate.State == UpdateState.LocalAheadUnknown || row.Candidate.State == UpdateState.VersionComparisonUnknown; return; }
             e.Accepted = FilterName != "Errors" || row.HasError;
         }
         private void BrowseIni() { var dialog = new OpenFileDialog { Filter = "wincmd.ini|wincmd.ini;*.ini|Все файлы|*.*", FileName = "wincmd.ini" }; if (dialog.ShowDialog(System.Windows.Application.Current.MainWindow) == true) { IniPath = dialog.FileName; Discover(); RecoverPending(); } }

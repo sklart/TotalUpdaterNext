@@ -59,15 +59,21 @@ namespace TotalUpdater.Next.Catalog
                 catch { /* Unknown archives never become automatic matches. */ }
             }
             var groups = verified.GroupBy(x => x.Type + "|" + x.Name, StringComparer.OrdinalIgnoreCase).ToList();
-            var entries = groups.Select(group => new PluginCatalogEntry
+            var entries = groups.Select(group => BuildVerifiedEntry(group, fileName)).ToList();
+            return CatalogMatcher.Match(plugin.Type, fileName, entries, true);
+        }
+
+        public static PluginCatalogEntry BuildVerifiedEntry(IEnumerable<RemoteIndexCandidate> verifiedGroup, string fileName)
+        {
+            var group = verifiedGroup.ToList();
+            return new PluginCatalogEntry
             {
-                Id = group.First().Id, Name = group.First().Name, Type = group.First().Type.ToString(), Aliases = new List<string> { fileName },
+                Id = group[0].Id, Name = group[0].Name, Type = group[0].Type.ToString(), Aliases = new List<string> { fileName },
                 Sources = group.GroupBy(x => (x.Official ? "ghisler:" : "totalcmd:") + x.Id, StringComparer.OrdinalIgnoreCase).Select(x => x.First())
                     .Select(x => new CatalogSource { Provider = x.Official ? "ghisler-plugins" : "totalcmd.net", Id = x.Id,
-                        Authority = x.Official ? "OfficialTotalCommander" : "CommunityCatalog",
-                        Purpose = x.Official ? "Metadata" : "MetadataAndDownload", Priority = x.Official ? 200 : 100 }).ToList()
-            }).ToList();
-            return CatalogMatcher.Match(plugin.Type, fileName, entries, true);
+                        Authority = x.Official ? "OfficialTotalCommander" : "CommunityCatalog", Purpose = "MetadataAndDownload",
+                        Priority = x.Official ? 200 : 100, EphemeralVerifiedPackageUrl = x.Official ? x.PackageUrl : "" }).ToList()
+            };
         }
 
         public static IList<RemoteIndexCandidate> ParseTotalCmdIndex(string text, PluginType wantedType)

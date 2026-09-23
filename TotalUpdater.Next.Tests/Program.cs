@@ -14,7 +14,7 @@ using TotalUpdater.Next.UI;
 
 namespace TotalUpdater.Next.Tests
 {
-    internal static class Program
+    internal static partial class Program
     {
         private static int _count;
         private static int Main(string[] args)
@@ -25,10 +25,12 @@ namespace TotalUpdater.Next.Tests
                 if (args != null && args.Any(x => x.Equals("--validate-catalog", StringComparison.OrdinalIgnoreCase))) { ValidateCatalog(); return 0; }
                 if (args != null && args.Any(x => x.Equals("--audit-catalog-sources", StringComparison.OrdinalIgnoreCase))) return AuditCatalogSources();
                 if (args != null && args.Any(x => x.Equals("--audit-catalog-packages", StringComparison.OrdinalIgnoreCase))) return AuditCatalogPackages();
+                if (args != null && args.Any(x => x.Equals("--audit-catalog-version-fidelity", StringComparison.OrdinalIgnoreCase))) return AuditCatalogVersionFidelity();
+                if (args != null && args.Any(x => x.Equals("--validate-harvest-evidence", StringComparison.OrdinalIgnoreCase))) return ValidateHarvestEvidence();
                 if (args != null && args.Any(x => x.Equals("--audit-catalog-aliases", StringComparison.OrdinalIgnoreCase))) return AuditCatalogAliases();
                 if (args != null && args.Any(x => x.Equals("--audit-installed-coverage", StringComparison.OrdinalIgnoreCase))) return AuditInstalledCoverage(args);
                 if (args != null && args.Any(x => x.Equals("--audit-installed-version-drift", StringComparison.OrdinalIgnoreCase))) return AuditInstalledVersionDrift(args);
-                Versions(); Paths(); DiscoveryRealIniFormats(); ArchitectureAwareDiscovery(); FamilyIdentityAndConflict(); CatalogV2AndProviders(); CatalogScaleAndCache(); AuthorityResolution(); DownloadProvenance(); AuthorityRuntimeFinalization(); LazySourcesAndCache(); SourceInputHardening(); ScalableCheckRunner(); FileInfoPeVersionStrategy(); StrategyPriorityAndFallback(); ConfigurationDetection(); ConfigurationPrecedenceFinalization(); RedirectSections(); IniEncodingsAndPathExpansion(); CatalogAliases(); CatalogCoverageMatching(); ApplicationMetadataAndUserAgent(); InstallationTests.Run(Assert); RecoveryTests.Run(Assert); NewPluginInstallationTests.Run(Assert);
+                Versions(); Paths(); DiscoveryRealIniFormats(); ArchitectureAwareDiscovery(); FamilyIdentityAndConflict(); CatalogV2AndProviders(); CatalogScaleAndCache(); AuthorityResolution(); DownloadProvenance(); AuthorityRuntimeFinalization(); LazySourcesAndCache(); SourceInputHardening(); ScalableCheckRunner(); FileInfoPeVersionStrategy(); StrategyPriorityAndFallback(); ConfigurationDetection(); ConfigurationPrecedenceFinalization(); RedirectSections(); IniEncodingsAndPathExpansion(); CatalogAliases(); CatalogCoverageMatching(); SourceFidelityRegressions(); ApplicationMetadataAndUserAgent(); InstallationTests.Run(Assert); RecoveryTests.Run(Assert); NewPluginInstallationTests.Run(Assert);
                 Console.WriteLine("PASS " + _count + " tests"); return 0;
             }
             catch (Exception ex) { Console.Error.WriteLine("FAIL: " + ex); return 1; }

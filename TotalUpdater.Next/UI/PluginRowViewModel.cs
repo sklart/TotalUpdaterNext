@@ -62,7 +62,7 @@ namespace TotalUpdater.Next.UI
             switch (state)
             {
                 case UpdateState.UpToDate: return Text.Get("UpToDate"); case UpdateState.UpdateAvailable: return Text.Get("UpdateAvailable");
-                case UpdateState.DevelopmentVersion: return Text.Get("DevelopmentVersion"); case UpdateState.SourceOutdated: return "Источник отстаёт от установленной версии"; case UpdateState.VersionComparisonUnknown: return Text.Get("ComparisonUnknown"); case UpdateState.LocalVersionConflict: return Text.Get("VersionConflict");
+                case UpdateState.DevelopmentVersion: return Text.Get("DevelopmentVersion"); case UpdateState.SourceOutdated: return "Источник обновлений отстаёт"; case UpdateState.LocalAheadUnknown: return "Локальная версия выше источника; статус не определён"; case UpdateState.VersionComparisonUnknown: return Text.Get("ComparisonUnknown"); case UpdateState.LocalVersionConflict: return Text.Get("VersionConflict");
                 case UpdateState.PluginNotRecognized: return Text.Get("NotRecognized"); case UpdateState.CatalogAmbiguous: return "Найдено несколько возможных правил каталога"; case UpdateState.SourceUnavailable: return String.IsNullOrWhiteSpace(details) ? Text.Get("SourceUnavailable") : Text.Get("SourceUnavailable") + ": " + details;
                 default: return Text.Get("Error");
             }

@@ -12,7 +12,7 @@ namespace TotalUpdater.Next.Catalog
         [DataMember(Name = "type")] public string Type { get; set; } = "";
         [DataMember(Name = "aliases")] public List<string> Aliases { get; set; } = new List<string>();
         [DataMember(Name = "localVersionStrategy")] public string LocalVersionStrategy { get; set; } = "";
-        [DataMember(Name = "sourceMayLagLocal")] public bool SourceMayLagLocal { get; set; }
+        [DataMember(Name = "localAheadPolicy")] public string LocalAheadPolicyName { get; set; } = "Unknown";
         [DataMember(Name = "sources")] public List<CatalogSource> Sources { get; set; } = new List<CatalogSource>();
 
         public PluginType PluginType
@@ -23,7 +23,13 @@ namespace TotalUpdater.Next.Catalog
                 return System.Enum.TryParse(Type, true, out type) ? type : PluginType.Other;
             }
         }
+        public LocalAheadPolicy LocalAheadPolicy
+        {
+            get { LocalAheadPolicy value; return System.Enum.TryParse(LocalAheadPolicyName ?? "Unknown", true, out value) ? value : LocalAheadPolicy.Unknown; }
+        }
     }
+
+    public enum LocalAheadPolicy { Unknown, Development, SourceMayLag }
 
     [DataContract]
     public sealed class CatalogSource
@@ -38,9 +44,12 @@ namespace TotalUpdater.Next.Catalog
         [DataMember(Name = "assetPattern")] public string AssetPattern { get; set; } = "";
         [DataMember(Name = "includePrerelease")] public bool IncludePrerelease { get; set; }
         [DataMember(Name = "packageArchitecture")] public string PackageArchitecture { get; set; } = "";
+        [DataMember(Name = "versionTransform")] public string VersionTransform { get; set; } = "";
         [DataMember(Name = "authority")] public string Authority { get; set; } = "";
         [DataMember(Name = "purpose")] public string Purpose { get; set; } = "";
         [DataMember(Name = "manualOverride")] public ManualOverrideMetadata ManualOverride { get; set; }
+        // Transient evidence from an inspected remote archive; never serialized into the user catalog.
+        public string EphemeralVerifiedPackageUrl { get; set; } = "";
         public SourceAuthority AuthorityValue { get { SourceAuthority value; return System.Enum.TryParse(Authority, true, out value) ? value : SourceAuthority.CommunityCatalog; } }
         public SourcePurpose PurposeValue { get { SourcePurpose value; return System.Enum.TryParse(Purpose, true, out value) ? value : SourcePurpose.MetadataAndDownload; } }
     }
