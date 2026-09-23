@@ -108,6 +108,7 @@ namespace TotalUpdater.Next.Infrastructure.Installation
 
         public static void Preflight(NewPluginInstallPlan plan, Func<bool> running = null)
         {
+            NewPluginArchitectureValidator.Validate(plan.TotalCommanderDirectory, plan.Package, plan.PluginType);
             if (!File.Exists(plan.Package.PackagePath) || !String.Equals(PackageInspector.Hash(plan.Package.PackagePath), plan.Package.PackageSha256, StringComparison.OrdinalIgnoreCase))
                 throw new IOException("ZIP изменён после inspection.");
             if ((running ?? (() => Process.GetProcessesByName("TOTALCMD").Any() || Process.GetProcessesByName("TOTALCMD64").Any()))())

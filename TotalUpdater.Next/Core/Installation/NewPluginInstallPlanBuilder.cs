@@ -54,6 +54,7 @@ namespace TotalUpdater.Next.Core.Installation
             if (!NormalizeBinaryName(pluginFile).EndsWith(ext, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("Тип бинарника не совпадает с pluginst.inf.");
             if (entry.Aliases == null || !entry.Aliases.Any(alias => String.Equals(NormalizeBinaryName(alias), NormalizeBinaryName(Path.GetFileName(pluginFile)), StringComparison.OrdinalIgnoreCase)))
                 throw new InvalidDataException("Бинарник ZIP не соответствует alias записи каталога.");
+            NewPluginArchitectureValidator.Validate(configuration.InstallDirectory, package, type);
             var baseValue = configuration.Document.GetSection("Configuration")?.GetValue("PluginBaseDir");
             var baseDir = String.IsNullOrWhiteSpace(baseValue) ? Path.Combine(configuration.InstallDirectory, "plugins") : _paths.ExpandPath(baseValue, configuration);
             var target = Path.GetFullPath(Path.Combine(baseDir, type.ToString().ToLowerInvariant(), package.DefaultDir));
@@ -61,7 +62,7 @@ namespace TotalUpdater.Next.Core.Installation
             if (backup.StartsWith(target + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
                 target.StartsWith(backup + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Backup не может находиться внутри plugin target.");
-            var plan = new NewPluginInstallPlan { PluginId = entry.Id, PluginType = type, Version = candidate.Version.Raw,
+            var plan = new NewPluginInstallPlan { PluginId = entry.Id, PluginType = type, TotalCommanderDirectory = configuration.InstallDirectory, Version = candidate.Version.Raw,
                 TargetDirectory = target, BackupDirectory = backup, Package = package, PackageUrl = candidate.DownloadUrl.AbsoluteUri };
             foreach (var source in package.Files.Where(x => !String.Equals(x.RelativePath, "pluginst.inf", StringComparison.OrdinalIgnoreCase)))
             {

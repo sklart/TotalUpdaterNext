@@ -97,7 +97,7 @@ namespace TotalUpdater.Next.Infrastructure.Installation
             if (File.Exists(path) && !Equal(PackageInspector.Hash(path), record.InstalledSha256))
             {
                 InstallStateMachine.Set(manifest, InstallStateMachine.RecoveryConflict); BackupService.Save(manifest);
-                throw new IOException("RecoveryConflict: файл плагина изменён: " + path);
+                throw new IOException("RecoveryConflict: Файл плагина изменён после установки: " + path);
             }
         }
         private static string Target(InstallManifest manifest, InstallManifestFile record)
@@ -119,7 +119,7 @@ namespace TotalUpdater.Next.Infrastructure.Installation
         private static void Conflict(InstallManifest manifest, string path)
         {
             InstallStateMachine.Set(manifest, InstallStateMachine.ConfigRecoveryConflict); BackupService.Save(manifest);
-            throw new IOException("ConfigRecoveryConflict: INI изменён после установки; исходные данные сохранены: " + path);
+            throw new IOException("ConfigRecoveryConflict: INI изменён после установки: " + path);
         }
     }
 }

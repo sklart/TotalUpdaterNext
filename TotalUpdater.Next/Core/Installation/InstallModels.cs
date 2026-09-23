@@ -57,6 +57,7 @@ namespace TotalUpdater.Next.Core.Installation
     {
         public string PluginId { get; set; }
         public PluginType PluginType { get; set; }
+        public string TotalCommanderDirectory { get; set; }
         public string Version { get; set; }
         public string PrimaryPath { get; set; }
         public string TargetDirectory { get; set; }

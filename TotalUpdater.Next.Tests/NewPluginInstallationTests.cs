@@ -39,11 +39,12 @@ namespace TotalUpdater.Next.Tests
             public TotalCommanderConfiguration Configuration;
             public PluginType Type;
             public NewPluginInstallPlan Plan;
-            public Fixture(PluginType type, bool x64 = false, string iniText = null)
+            public Fixture(PluginType type, bool x64 = false, string iniText = null, bool x64Only = false, bool unicodeOnly = false)
             {
                 Type = type;
                 Root = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tu-new-tests-" + Guid.NewGuid().ToString("N"));
                 Tc = Path.Combine(Root, "TotalCmd"); Directory.CreateDirectory(Tc);
+                File.WriteAllBytes(Path.Combine(Tc, "TOTALCMD.EXE"), new byte[] { 1 });
                 BackupRoot = Path.Combine(Root, "backups");
                 Ini = Path.Combine(Tc, "wincmd.ini");
                 File.WriteAllText(Ini, iniText ?? "[Configuration]\r\n; untouched\r\n", Encoding.UTF8);
@@ -51,9 +52,10 @@ namespace TotalUpdater.Next.Tests
                 var zip = Path.Combine(Root, "sample.zip");
                 using (var archive = ZipFile.Open(zip, ZipArchiveMode.Create))
                 {
-                    Write(archive, "pluginst.inf", "[plugininstall]\n" + "description=Sample plugin\n" + "type=" + type.ToString().ToLowerInvariant() + "\nfile=sample" + ext + "\nversion=2.0\ndefaultdir=sample\n");
-                    Write(archive, "sample" + ext, "new");
-                    if (x64) Write(archive, "sample" + ext + "64", "new64");
+                    Write(archive, "pluginst.inf", "[plugininstall]\n" + "description=Sample plugin\n" + "type=" + type.ToString().ToLowerInvariant() + "\nfile=sample" + (unicodeOnly ? ".u" + ext.Substring(1) : ext + (x64Only ? "64" : "")) + "\nversion=2.0\ndefaultdir=sample\n");
+                    if (!x64Only && !unicodeOnly) Write(archive, "sample" + ext, "new");
+                    if (unicodeOnly) Write(archive, "sample.u" + ext.Substring(1), "new unicode");
+                    if (x64 || x64Only) Write(archive, "sample" + ext + "64", "new64");
                 }
                 Package = new PackageInspector().Inspect(zip);
                 Entry = new PluginCatalogEntry { Id = "sample-" + type.ToString().ToLowerInvariant(), Name = "Sample", Type = type.ToString(), Aliases = new List<string> { "sample" + ext } };
@@ -95,8 +97,59 @@ namespace TotalUpdater.Next.Tests
             using (var output = new StreamWriter(zip.CreateEntry(name).Open(), Encoding.UTF8)) output.Write(value);
         }
         private static bool Fails(Action action) { try { action(); return false; } catch { return true; } }
+        private static bool ArchitectureFails(Action action) { try { action(); return false; } catch (ArchitectureMismatchException) { return true; } }
+        private static bool EncodingFails(Action action) { try { action(); return false; } catch (EncodingConflictException) { return true; } }
         public static void Run(Action<bool, string> check)
         {
+            using (var f = new Fixture(PluginType.Wlx))
+            {
+                check(NewPluginArchitectureValidator.DetectTotalCommander(f.Tc) == PluginArchitecture.X86 &&
+                    NewPluginArchitectureValidator.DetectPackage(f.Package, f.Type) == PluginArchitecture.X86 && f.Build() != null,
+                    "x86 TC + x86 plugin accepted from inspected binaries");
+            }
+            using (var f = new Fixture(PluginType.Wlx, x64Only: true))
+                check(ArchitectureFails(() => f.Build()), "x86 TC + x64-only plugin blocked by ArchitectureMismatch");
+            using (var f = new Fixture(PluginType.Wlx, unicodeOnly: true))
+                check(NewPluginArchitectureValidator.DetectPackage(f.Package, f.Type) == PluginArchitecture.X86 && f.Build() != null,
+                    "x86 TC + Unicode-x86 plugin accepted");
+            using (var f = new Fixture(PluginType.Wlx))
+            {
+                File.Delete(Path.Combine(f.Tc, "TOTALCMD.EXE"));
+                check(ArchitectureFails(() => f.Build()), "unknown TC architecture blocks new installation");
+            }
+            using (var f = new Fixture(PluginType.Wlx, x64Only: true))
+            {
+                File.Delete(Path.Combine(f.Tc, "TOTALCMD.EXE")); File.WriteAllBytes(Path.Combine(f.Tc, "TOTALCMD64.EXE"), new byte[] { 1 });
+                check(NewPluginArchitectureValidator.DetectTotalCommander(f.Tc) == PluginArchitecture.X64 &&
+                    NewPluginArchitectureValidator.DetectPackage(f.Package, f.Type) == PluginArchitecture.X64 && f.Build() != null,
+                    "x64 TC + x64 plugin accepted from inspected binaries");
+            }
+            using (var f = new Fixture(PluginType.Wlx))
+            {
+                File.Delete(Path.Combine(f.Tc, "TOTALCMD.EXE")); File.WriteAllBytes(Path.Combine(f.Tc, "TOTALCMD64.EXE"), new byte[] { 1 });
+                check(ArchitectureFails(() => f.Build()), "x64 TC + x86-only plugin blocked by ArchitectureMismatch");
+            }
+            using (var f = new Fixture(PluginType.Wlx, x64: true))
+            {
+                File.WriteAllBytes(Path.Combine(f.Tc, "TOTALCMD64.EXE"), new byte[] { 1 });
+                check(NewPluginArchitectureValidator.DetectTotalCommander(f.Tc) == (PluginArchitecture.X86 | PluginArchitecture.X64) &&
+                    f.Build() != null, "dual TC + dual plugin accepted");
+            }
+            using (var f = new Fixture(PluginType.Wlx))
+            {
+                File.WriteAllBytes(Path.Combine(f.Tc, "TOTALCMD64.EXE"), new byte[] { 1 });
+                check(ArchitectureFails(() => f.Build()), "dual TC + x86-only plugin blocked by ArchitectureMismatch");
+            }
+            using (var f = new Fixture(PluginType.Wlx, x64Only: true))
+            {
+                File.WriteAllBytes(Path.Combine(f.Tc, "TOTALCMD64.EXE"), new byte[] { 1 });
+                check(ArchitectureFails(() => f.Build()), "dual TC + x64-only plugin blocked by ArchitectureMismatch");
+            }
+            using (var f = new Fixture(PluginType.Wlx))
+            {
+                var plan = f.Build(); File.WriteAllBytes(Path.Combine(f.Tc, "TOTALCMD64.EXE"), new byte[] { 1 });
+                check(ArchitectureFails(() => NewPluginTransactionalInstaller.Preflight(plan, () => false)), "preflight detects TC architecture changed after plan");
+            }
             var catalogEntry = new PluginCatalogEntry { Id = "sample-wlx", Name = "Sample", Type = "Wlx", Aliases = new List<string> { "sample.wlx" },
                 Sources = new List<CatalogSource> { new CatalogSource { Provider = "totalcmd.net", Id = "sample-wlx", Priority = 10 } } };
             var catalogCandidate = new CatalogInstallService(new[] { new CatalogProvider() }).CheckAsync(catalogEntry, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
@@ -164,6 +217,14 @@ namespace TotalUpdater.Next.Tests
             }
             using (var f = new Fixture(PluginType.Wdx, false, "[Configuration]\nPluginBaseDir=custom\n"))
                 check(f.Build().TargetDirectory == Path.Combine(f.Tc, "custom", "wdx", "sample"), "PluginBaseDir respected");
+            using (var f = new Fixture(PluginType.Wdx))
+            {
+                File.WriteAllBytes(f.Ini, new UTF8Encoding(false).GetBytes("[Configuration]\n; русский комментарий\nPluginBaseDir=плагины\n"));
+                var plan = f.Build();
+                check(plan.TargetDirectory == Path.Combine(f.Tc, "плагины", "wdx", "sample"), "UTF-8 no-BOM PluginBaseDir decoded consistently");
+                var manifest = new NewPluginTransactionalInstaller(isTotalCommanderRunning: () => false).Install(plan, f.Rediscover);
+                check(manifest.State == InstallStateMachine.Completed, "UTF-8 no-BOM INI end-to-end install");
+            }
             using (var f = new Fixture(PluginType.Wlx, false, "[ListerPlugins]\r\n0=old.wlx\r\n2=other.wlx\r\n"))
                 check(f.Build().ConfigurationFiles.Single().Changes.Single().Key == "1", "numeric key fills first hole");
             using (var f = new Fixture(PluginType.Wlx, true, "[ListerPlugins64]\r\n0=1\r\n"))
@@ -205,12 +266,22 @@ namespace TotalUpdater.Next.Tests
                 check(Encoding.UTF8.GetString(patch.NewBytes).Contains("; preserve\n0=plugin.wlx\n") &&
                     patch.NewBytes.Take(3).SequenceEqual(Encoding.UTF8.GetPreamble()), "INI BOM/LF/comments/whitespace retained");
                 var cp1251 = Encoding.GetEncoding(1251); var legacy = cp1251.GetBytes("; комментарий\r\n[ListerPlugins]\r\n  x = untouched  \r\n");
-                File.WriteAllBytes(f.Ini, legacy); patch = new IniPatchEngine().Begin(f.Ini); new IniPatchEngine().Add(patch, "ListerPlugins", "0", "plugin.wlx");
-                check(cp1251.GetString(patch.NewBytes).Contains("; комментарий\r\n[ListerPlugins]\r\n  x = untouched  \r\n0=plugin.wlx\r\n") &&
-                    patch.NewBytes.Take(legacy.Length).SequenceEqual(legacy), "legacy codepage CRLF unchanged bytes");
+                File.WriteAllBytes(f.Ini, legacy); var cp1251Engine = new IniPatchEngine(cp1251); patch = cp1251Engine.Begin(f.Ini);
+                cp1251Engine.Add(patch, "ListerPlugins", "0", "плагин.wlx");
+                check(cp1251.GetString(patch.NewBytes).Contains("; комментарий\r\n[ListerPlugins]\r\n  x = untouched  \r\n0=плагин.wlx\r\n") &&
+                    patch.NewBytes.Take(legacy.Length).SequenceEqual(legacy), "CP1251 Cyrillic insertion and original bytes/CRLF retained");
+                var beforeConflict = patch.NewBytes;
+                check(EncodingFails(() => cp1251Engine.Add(patch, "ListerPlugins", "1", "emoji-😀.wlx")) &&
+                    Object.ReferenceEquals(beforeConflict, patch.NewBytes), "CP1251 unrepresentable character blocked without lossy question mark");
+                var western = new IniPatchEngine(Encoding.GetEncoding(1252));
+                File.WriteAllBytes(f.Ini, Encoding.ASCII.GetBytes("[ListerPlugins]\r\n; keep\r\n"));
+                var westernPatch = western.Begin(f.Ini); var westernOriginal = westernPatch.NewBytes;
+                check(EncodingFails(() => western.Add(westernPatch, "ListerPlugins", "0", "плагин.wlx")) &&
+                    Object.ReferenceEquals(westernOriginal, westernPatch.NewBytes) &&
+                    File.ReadAllBytes(f.Ini).SequenceEqual(westernOriginal), "western ANSI + Cyrillic blocked before INI change");
                 var utf16 = Encoding.Unicode.GetPreamble().Concat(Encoding.Unicode.GetBytes("[ListerPlugins]\r\n; keep\r\n")).ToArray();
-                File.WriteAllBytes(f.Ini, utf16); patch = new IniPatchEngine().Begin(f.Ini); new IniPatchEngine().Add(patch, "ListerPlugins", "0", "plugin.wlx");
-                check(patch.NewBytes.Take(utf16.Length).SequenceEqual(utf16) && Encoding.Unicode.GetString(patch.NewBytes, 2, patch.NewBytes.Length - 2).Contains("0=plugin.wlx\r\n"),
+                File.WriteAllBytes(f.Ini, utf16); patch = new IniPatchEngine().Begin(f.Ini); new IniPatchEngine().Add(patch, "ListerPlugins", "0", "плагин.wlx");
+                check(patch.NewBytes.Take(utf16.Length).SequenceEqual(utf16) && Encoding.Unicode.GetString(patch.NewBytes, 2, patch.NewBytes.Length - 2).Contains("0=плагин.wlx\r\n"),
                     "UTF-16 BOM and original bytes retained");
                 var utf8NoBom = new UTF8Encoding(false).GetBytes("[ListerPlugins]\n; русский текст\n");
                 File.WriteAllBytes(f.Ini, utf8NoBom); patch = new IniPatchEngine().Begin(f.Ini); new IniPatchEngine().Add(patch, "ListerPlugins", "0", "плагин.wlx");
@@ -246,10 +317,54 @@ namespace TotalUpdater.Next.Tests
             {
                 var plan = f.Build(); var manifest = new NewPluginTransactionalInstaller(isTotalCommanderRunning: () => false).Install(plan, f.Rediscover);
                 File.AppendAllText(f.Ini, "; user edit\r\n");
-                check(Fails(() => new NewPluginRollbackService().Rollback(manifest, f.BackupRoot)) &&
-                    manifest.State == InstallStateMachine.ConfigRecoveryConflict && File.Exists(plan.PrimaryPath) && File.ReadAllText(f.Ini).Contains("user edit"),
+                string message;
+                try { new NewPluginRollbackService().Rollback(manifest, f.BackupRoot); message = ""; }
+                catch (IOException ex) { message = ex.Message; }
+                check(manifest.State == InstallStateMachine.ConfigRecoveryConflict && File.Exists(plan.PrimaryPath) && File.ReadAllText(f.Ini).Contains("user edit") &&
+                    message.Contains("INI изменён после установки") && !message.Contains("Файл плагина изменён"),
                     "user-edited INI blocks rollback without clobber");
                 check(BackupService.FindIncomplete(f.BackupRoot).Any(x => x.TransactionId == manifest.TransactionId), "ConfigRecoveryConflict remains visible to startup recovery");
+                File.WriteAllBytes(f.Ini, plan.ConfigurationFiles.Single().InstalledBytes);
+                new RecoveryService(f.BackupRoot).Recover(manifest, null);
+                check(manifest.State == InstallStateMachine.RolledBack && !File.Exists(plan.PrimaryPath), "ConfigRecoveryConflict retry after restoring INI hash");
+            }
+            using (var f = new Fixture(PluginType.Wlx))
+            {
+                var plan = f.Build(); var manifest = new NewPluginTransactionalInstaller(isTotalCommanderRunning: () => false).Install(plan, f.Rediscover);
+                File.WriteAllText(plan.PrimaryPath, "user-edited DLL");
+                string message;
+                try { new NewPluginRollbackService().Rollback(manifest, f.BackupRoot); message = ""; }
+                catch (IOException ex) { message = ex.Message; }
+                check(manifest.State == InstallStateMachine.RecoveryConflict && File.Exists(plan.PrimaryPath) &&
+                    message.Contains("Файл плагина изменён после установки") && !message.Contains("INI изменён"),
+                    "modified plugin DLL is RecoveryConflict, not ConfigRecoveryConflict");
+                check(BackupService.FindIncomplete(f.BackupRoot).Any(x => x.TransactionId == manifest.TransactionId), "RecoveryConflict remains visible to startup recovery");
+                File.Copy(plan.Files.Single().Source.StagedPath, plan.PrimaryPath, true);
+                new RecoveryService(f.BackupRoot).Recover(manifest, null);
+                check(manifest.State == InstallStateMachine.RolledBack && !File.Exists(plan.PrimaryPath), "RecoveryConflict retry after restoring plugin hash");
+            }
+            using (var f = new Fixture(PluginType.Wlx))
+            {
+                var plan = f.Build(); var manifest = new NewPluginTransactionalInstaller(isTotalCommanderRunning: () => false).Install(plan, f.Rediscover);
+                File.AppendAllText(f.Ini, "; user edit\r\n"); File.WriteAllText(plan.PrimaryPath, "user-edited DLL");
+                check(Fails(() => new NewPluginRollbackService().Rollback(manifest, f.BackupRoot)) &&
+                    manifest.State == InstallStateMachine.ConfigRecoveryConflict, "config conflict classified first when both modified");
+                File.WriteAllBytes(f.Ini, plan.ConfigurationFiles.Single().InstalledBytes);
+                check(Fails(() => new RecoveryService(f.BackupRoot).Recover(manifest, null)) &&
+                    manifest.State == InstallStateMachine.RecoveryConflict, "retry reclassifies remaining plugin-file conflict");
+                File.Copy(plan.Files.Single().Source.StagedPath, plan.PrimaryPath, true);
+                new RecoveryService(f.BackupRoot).Recover(manifest, null);
+                check(manifest.State == InstallStateMachine.RolledBack, "mixed conflicts can be retried to completion");
+            }
+            using (var f = new Fixture(PluginType.Wlx))
+            {
+                var plan = f.Build(); var manifest = new NewPluginTransactionalInstaller(isTotalCommanderRunning: () => false).Install(plan, f.Rediscover);
+                File.WriteAllText(plan.PrimaryPath, "user-edited DLL");
+                check(Fails(() => new NewPluginRollbackService().Rollback(manifest, f.BackupRoot)) &&
+                    manifest.State == InstallStateMachine.RecoveryConflict, "plugin conflict classified first");
+                File.AppendAllText(f.Ini, "; user edit\r\n");
+                check(Fails(() => new RecoveryService(f.BackupRoot).Recover(manifest, null)) &&
+                    manifest.State == InstallStateMachine.ConfigRecoveryConflict, "retry reclassifies new INI conflict");
             }
             using (var f = new Fixture(PluginType.Wlx))
             {

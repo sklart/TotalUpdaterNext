@@ -14,13 +14,13 @@ namespace TotalUpdater.Next.Core.Installation
         {
             { Prepared, new[] { Installing, RollingBack, InstallConflict, RecoveryConflict, ConfigConflict, ConfigRecoveryConflict } },
             { Installing, new[] { Completed, RollingBack, InstallConflict, RecoveryConflict, ConfigConflict, ConfigRecoveryConflict } },
-            { InstallConflict, new[] { RollingBack, RecoveryConflict } },
+            { InstallConflict, new[] { RollingBack, RecoveryConflict, ConfigRecoveryConflict } },
             { Completed, new[] { RollingBack, RecoveryConflict, ConfigRecoveryConflict } },
             { RollingBack, new[] { RolledBack, RecoveryConflict, ConfigRecoveryConflict, RollbackVerificationFailed } },
-            { RecoveryConflict, new[] { RollingBack, RecoveryConflict } },
-            { ConfigConflict, new[] { RollingBack, ConfigRecoveryConflict } },
-            { ConfigRecoveryConflict, new[] { RollingBack, ConfigRecoveryConflict } },
-            { RollbackVerificationFailed, new[] { RollingBack, RecoveryConflict } },
+            { RecoveryConflict, new[] { RollingBack, RecoveryConflict, ConfigRecoveryConflict } },
+            { ConfigConflict, new[] { RollingBack, RecoveryConflict, ConfigRecoveryConflict } },
+            { ConfigRecoveryConflict, new[] { RollingBack, RecoveryConflict, ConfigRecoveryConflict } },
+            { RollbackVerificationFailed, new[] { RollingBack, RecoveryConflict, ConfigRecoveryConflict } },
             { RolledBack, new string[0] }
         };
         public static bool IsKnown(string state) { return state != null && Next.ContainsKey(state); }

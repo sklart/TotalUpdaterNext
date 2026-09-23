@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace TotalUpdater.Next.TotalCommander
@@ -80,6 +81,11 @@ namespace TotalUpdater.Next.TotalCommander
             if (bytes.Length >= 2 && bytes[0] == 0xff && bytes[1] == 0xfe) { encoding = Encoding.Unicode; offset = 2; }
             else if (bytes.Length >= 2 && bytes[0] == 0xfe && bytes[1] == 0xff) { encoding = Encoding.BigEndianUnicode; offset = 2; }
             else if (bytes.Length >= 3 && bytes[0] == 0xef && bytes[1] == 0xbb && bytes[2] == 0xbf) { encoding = new UTF8Encoding(false); offset = 3; }
+            else if (bytes.Any(x => x >= 0x80))
+            {
+                try { return new UTF8Encoding(false, true).GetString(bytes); }
+                catch (DecoderFallbackException) { }
+            }
             return encoding.GetString(bytes, offset, bytes.Length - offset);
         }
     }

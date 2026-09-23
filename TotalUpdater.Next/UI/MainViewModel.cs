@@ -215,7 +215,8 @@ namespace TotalUpdater.Next.UI
                 if (selected.Count != 1) { StatusText = "Для отката отметьте ровно один плагин."; return; }
                 var manifest = BackupService.FindLatest(_backupRoot, selected[0].Plugin.Identity.Id, selected[0].Plugin.PrimaryPath);
                 if (manifest == null) { StatusText = "Нет обновления выбранного плагина для отката."; return; }
-                var retry = manifest.State == InstallStateMachine.RecoveryConflict || manifest.State == InstallStateMachine.RollbackVerificationFailed || manifest.State == InstallStateMachine.InstallConflict;
+                var retry = manifest.State == InstallStateMachine.RecoveryConflict || manifest.State == InstallStateMachine.ConfigRecoveryConflict ||
+                    manifest.State == InstallStateMachine.ConfigConflict || manifest.State == InstallStateMachine.RollbackVerificationFailed || manifest.State == InstallStateMachine.InstallConflict;
                 var prompt = (retry ? "Повторить откат " : "Откатить ") + manifest.PluginId + " " + manifest.NewVersion + " → " + manifest.OldVersion + "?" + Environment.NewLine + manifest.TargetDirectory;
                 if (System.Windows.MessageBox.Show(System.Windows.Application.Current.MainWindow, prompt, "Откатить последнее обновление", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning) != System.Windows.MessageBoxResult.Yes) return;
                 if (System.Diagnostics.Process.GetProcessesByName("TOTALCMD").Any() || System.Diagnostics.Process.GetProcessesByName("TOTALCMD64").Any())
@@ -247,7 +248,9 @@ namespace TotalUpdater.Next.UI
                     System.Windows.MessageBox.Show(System.Windows.Application.Current.MainWindow, StatusText, "Восстановление после сбоя", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
                     return;
                 }
-                var reason = manifest.State == InstallStateMachine.RecoveryConflict ? "Конфликт восстановления" :
+                var reason = manifest.State == InstallStateMachine.RecoveryConflict ? "Файл плагина изменён после установки" :
+                    manifest.State == InstallStateMachine.ConfigRecoveryConflict ? "INI изменён после установки" :
+                    manifest.State == InstallStateMachine.ConfigConflict ? "INI изменён во время установки" :
                     manifest.State == InstallStateMachine.RollbackVerificationFailed ? "Проверка отката не завершена" :
                     manifest.State == InstallStateMachine.InstallConflict ? "Конфликт установки" : "Незавершённая установка";
                 var prompt = reason + ": " + manifest.PluginId + " (" + manifest.State + ")." + Environment.NewLine +
@@ -257,8 +260,7 @@ namespace TotalUpdater.Next.UI
                 {
                     if (Process.GetProcessesByName("TOTALCMD").Any() || Process.GetProcessesByName("TOTALCMD64").Any())
                         throw new InvalidOperationException("Закройте Total Commander перед восстановлением.");
-                    if (manifest.ManifestVersion == 4) new NewPluginRollbackService().Rollback(manifest, _backupRoot);
-                    else recovery.Recover(manifest, () => Rediscover(manifest.PluginId, manifest.PluginType, manifest.PrimaryPath));
+                    recovery.Recover(manifest, () => Rediscover(manifest.PluginId, manifest.PluginType, manifest.PrimaryPath));
                     Discover(); StatusText = "Исходные файлы восстановлены: " + manifest.PluginId;
                 }
                 catch (Exception ex) { StatusText = "Восстановление остановлено: " + ex.Message; }
