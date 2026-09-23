@@ -15,8 +15,9 @@ namespace TotalUpdater.Next.Core
     {
         private readonly CatalogService _catalog;
         private readonly IList<IUpdateSourceProvider> _providers;
+        private readonly IRemoteCatalogLookup _remoteLookup;
         private readonly SourceAuthorityResolver _authority = new SourceAuthorityResolver();
-        public UpdateService(CatalogService catalog, IEnumerable<IUpdateSourceProvider> providers) { _catalog = catalog; _providers = providers.ToList(); }
+        public UpdateService(CatalogService catalog, IEnumerable<IUpdateSourceProvider> providers, IRemoteCatalogLookup remoteLookup = null) { _catalog = catalog; _providers = providers.ToList(); _remoteLookup = remoteLookup; }
 
         public Task<UpdateCandidate> CheckAsync(InstalledPlugin plugin, CancellationToken cancellationToken)
         {
@@ -31,6 +32,15 @@ namespace TotalUpdater.Next.Core
         public async Task<UpdateCandidate> CheckAsync(InstalledPlugin plugin, CancellationToken cancellationToken, SourceResponseCache sourceCache, SourceQueryMode mode)
         {
             var entry = _catalog.FindById(plugin.Identity == null ? null : plugin.Identity.Id);
+            if (entry == null && _remoteLookup != null)
+            {
+                var match = await _remoteLookup.FindAsync(plugin, sourceCache, cancellationToken).ConfigureAwait(false);
+                plugin.CatalogMatchKind = match.Kind;
+                if (match.Kind == CatalogMatchKind.Ambiguous)
+                    return Candidate(plugin, plugin.HasVersionConflict ? UpdateState.LocalVersionConflict : UpdateState.CatalogAmbiguous,
+                        null, null, "Найдено несколько возможных правил каталога");
+                entry = match.Entry;
+            }
             if (entry == null) return Candidate(plugin, plugin.HasVersionConflict ? UpdateState.LocalVersionConflict : UpdateState.PluginNotRecognized, null, null, "");
             var details = new List<string>(); var observations = new List<RemoteVersionObservation>();
             var ordered = entry.Sources.OrderByDescending(x => x.Priority).ToList();
@@ -51,7 +61,8 @@ namespace TotalUpdater.Next.Core
             if (canonical == null) { var unavailable = Candidate(plugin, plugin.HasVersionConflict ? UpdateState.LocalVersionConflict : UpdateState.SourceUnavailable, null, null, String.Join(" · ", details)); unavailable.Observations = observations; return unavailable; }
             if (plugin.HasVersionConflict) { var conflict = Candidate(plugin, UpdateState.LocalVersionConflict, canonical.Release, canonical.ProviderName, canonical.Details); ApplyProvenance(conflict, observations, resolution); return conflict; }
             var comparison = plugin.LocalVersion.ParsedValue.CompareTo(canonical.Release.Version);
-            var state = comparison == VersionComparison.Less ? UpdateState.UpdateAvailable : comparison == VersionComparison.Greater ? UpdateState.DevelopmentVersion : comparison == VersionComparison.Equal ? UpdateState.UpToDate : UpdateState.VersionComparisonUnknown;
+            var state = comparison == VersionComparison.Less ? UpdateState.UpdateAvailable : comparison == VersionComparison.Greater ?
+                (entry.SourceMayLagLocal ? UpdateState.SourceOutdated : UpdateState.DevelopmentVersion) : comparison == VersionComparison.Equal ? UpdateState.UpToDate : UpdateState.VersionComparisonUnknown;
             var candidate = Candidate(plugin, state, canonical.Release, canonical.ProviderName, canonical.Details); ApplyProvenance(candidate, observations, resolution);
             if (state == UpdateState.UpdateAvailable && !resolution.HasConflict)
             {
@@ -97,7 +108,7 @@ namespace TotalUpdater.Next.Core
                     ? await provider.QueryAsync(source, cancellationToken).ConfigureAwait(false)
                     : await cachedProvider.QueryAsync(source, sourceCache, cancellationToken).ConfigureAwait(false);
             }
-            catch (OperationCanceledException) { throw; }
+            catch (OperationCanceledException) { if (cancellationToken.IsCancellationRequested) throw; details.Add(provider.Name + ": timeout"); observations.Add(new RemoteVersionObservation { Source = source, ProviderName = provider.Name, Authority = source.AuthorityValue, Purpose = source.PurposeValue, Status = SourceQueryStatus.Unavailable, Details = "Превышено время ожидания источника." }); return; }
             catch (Exception ex) { details.Add(provider.Name + ": " + ex.Message); observations.Add(new RemoteVersionObservation { Source = source, ProviderName = provider.Name, Authority = source.AuthorityValue, Purpose = source.PurposeValue, Status = SourceQueryStatus.Unavailable, Details = ex.Message }); return; }
             observations.Add(new RemoteVersionObservation { Source = source, ProviderName = provider.Name, Authority = source.AuthorityValue, Purpose = source.PurposeValue, Status = result == null ? SourceQueryStatus.InvalidResponse : result.Status, Release = result == null ? null : result.Release, Details = result == null ? "пустой ответ" : result.Details });
             if (result == null || result.Status != SourceQueryStatus.Success || result.Release == null || !result.Release.Version.IsKnown)

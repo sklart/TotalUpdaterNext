@@ -1,4 +1,4 @@
-# Total Updater Next — Phase 8.1
+# Total Updater Next — Phase 9
 
 WPF-программа для Windows 7 SP1+ под .NET Framework 4.8. Это независимая новая реализация: старый Total Updater и его бинарные ресурсы не используются.
 
@@ -6,7 +6,8 @@ WPF-программа для Windows 7 SP1+ под .NET Framework 4.8. Это �
 
 * обнаружение `wincmd.ini`, включая portable Total Commander и конфигурацию из AppData;
 * чтение WCX, WLX, WFX и WDX, FileVersion/ProductVersion и текстовый fallback (`version`, `history`, `changelog`, `change`, `readme`);
-* встроенный каталог со стабильными ID и alias-именами файлов;
+* встроенный каталог на 165 записей со стабильными ID и проверенными alias-именами файлов;
+* консервативное remote-сопоставление по двум индексам и имени бинарника в ZIP; неоднозначные варианты блокируются;
 * явные состояния проверки, безопасное сравнение beta/rc/финальных версий;
 * HTTP-провайдеры Ghisler и Totalcmd.net, скачивание в отдельный каталог;
 * безопасная установка ZIP для уже установленных WCX/WLX/WFX/WDX с backup, проверкой после записи, повторяемым crash recovery и откатом выбранного плагина;
@@ -22,7 +23,9 @@ dotnet run --project .\TotalUpdater.Next.Tests\TotalUpdater.Next.Tests.csproj
 
 ## Single EXE
 
-Release-архив [`../release/TotalUpdater-0.9.1-win7plus.zip`](../release/TotalUpdater-0.9.1-win7plus.zip) содержит только `TotalUpdater.exe`. Стандартный каталог находится внутри EXE как embedded resource; внешний JSON не требуется на первом запуске.
+Release-архив [`../release/TotalUpdater-0.9.2-win7plus.zip`](../release/TotalUpdater-0.9.2-win7plus.zip) содержит только `TotalUpdater.exe`. Стандартный каталог находится внутри EXE как embedded resource; внешний JSON не требуется на первом запуске.
+
+Maintenance-команды тестового приложения: `--audit-catalog-aliases` проверяет collisions и расширения, `--audit-installed-coverage --ini=<путь>` показывает Exact/Alias/RemoteExact/Ambiguous/NotFound и процент покрытия; `--offline` отключает сетевой fallback. Remote lookup ничего не устанавливает и не переписывает каталог пользователя.
 
 Новая установка WFX/WLX/WDX проверяет архитектуры TC и бинарников ZIP и останавливается с `ArchitectureMismatch` при несовпадении. INI patch не заменяет непредставимые в исходной кодировке символы на `?`: он выдаёт `EncodingConflict`. При восстановлении `RecoveryConflict` относится к файлу плагина, `ConfigRecoveryConflict` — к INI; после восстановления ожидаемого SHA-256 откат можно повторить.
 

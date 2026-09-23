@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using TotalUpdater.Next.Core.Versions;
+using TotalUpdater.Next.Catalog;
 
 namespace TotalUpdater.Next.Core
 {
@@ -10,7 +11,7 @@ namespace TotalUpdater.Next.Core
     public enum PluginBinaryVariant { Ansi, Unicode, Native64, Other }
     public enum VersionSource { FileVersion, ProductVersion, TextFile, CustomRule, Unknown }
     public enum VersionConfidence { Exact, Probable, Heuristic, Unknown }
-    public enum UpdateState { Unknown, NotChecked, Checking, UpToDate, UpdateAvailable, DevelopmentVersion, VersionComparisonUnknown, LocalVersionConflict, SourceUnavailable, PluginNotRecognized, Error }
+    public enum UpdateState { Unknown, NotChecked, Checking, UpToDate, UpdateAvailable, DevelopmentVersion, SourceOutdated, VersionComparisonUnknown, LocalVersionConflict, SourceUnavailable, PluginNotRecognized, CatalogAmbiguous, Error }
 
     public sealed class PluginIdentity
     {
@@ -42,6 +43,7 @@ namespace TotalUpdater.Next.Core
         public PluginArchitecture Architecture { get; set; }
         public bool FileExists { get; set; }
         public bool HasVersionConflict { get; set; }
+        public CatalogMatchKind CatalogMatchKind { get; set; } = CatalogMatchKind.NotFound;
     }
 
     public sealed class PluginBinary

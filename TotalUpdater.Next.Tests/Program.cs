@@ -25,7 +25,10 @@ namespace TotalUpdater.Next.Tests
                 if (args != null && args.Any(x => x.Equals("--validate-catalog", StringComparison.OrdinalIgnoreCase))) { ValidateCatalog(); return 0; }
                 if (args != null && args.Any(x => x.Equals("--audit-catalog-sources", StringComparison.OrdinalIgnoreCase))) return AuditCatalogSources();
                 if (args != null && args.Any(x => x.Equals("--audit-catalog-packages", StringComparison.OrdinalIgnoreCase))) return AuditCatalogPackages();
-                Versions(); Paths(); DiscoveryRealIniFormats(); ArchitectureAwareDiscovery(); FamilyIdentityAndConflict(); CatalogV2AndProviders(); CatalogScaleAndCache(); AuthorityResolution(); DownloadProvenance(); AuthorityRuntimeFinalization(); LazySourcesAndCache(); SourceInputHardening(); ScalableCheckRunner(); FileInfoPeVersionStrategy(); StrategyPriorityAndFallback(); ConfigurationDetection(); ConfigurationPrecedenceFinalization(); RedirectSections(); IniEncodingsAndPathExpansion(); CatalogAliases(); ApplicationMetadataAndUserAgent(); InstallationTests.Run(Assert); RecoveryTests.Run(Assert); NewPluginInstallationTests.Run(Assert);
+                if (args != null && args.Any(x => x.Equals("--audit-catalog-aliases", StringComparison.OrdinalIgnoreCase))) return AuditCatalogAliases();
+                if (args != null && args.Any(x => x.Equals("--audit-installed-coverage", StringComparison.OrdinalIgnoreCase))) return AuditInstalledCoverage(args);
+                if (args != null && args.Any(x => x.Equals("--audit-installed-version-drift", StringComparison.OrdinalIgnoreCase))) return AuditInstalledVersionDrift(args);
+                Versions(); Paths(); DiscoveryRealIniFormats(); ArchitectureAwareDiscovery(); FamilyIdentityAndConflict(); CatalogV2AndProviders(); CatalogScaleAndCache(); AuthorityResolution(); DownloadProvenance(); AuthorityRuntimeFinalization(); LazySourcesAndCache(); SourceInputHardening(); ScalableCheckRunner(); FileInfoPeVersionStrategy(); StrategyPriorityAndFallback(); ConfigurationDetection(); ConfigurationPrecedenceFinalization(); RedirectSections(); IniEncodingsAndPathExpansion(); CatalogAliases(); CatalogCoverageMatching(); ApplicationMetadataAndUserAgent(); InstallationTests.Run(Assert); RecoveryTests.Run(Assert); NewPluginInstallationTests.Run(Assert);
                 Console.WriteLine("PASS " + _count + " tests"); return 0;
             }
             catch (Exception ex) { Console.Error.WriteLine("FAIL: " + ex); return 1; }
@@ -36,6 +39,125 @@ namespace TotalUpdater.Next.Tests
             foreach (var entry in result.Entries) Console.WriteLine(entry.Id + " | " + entry.PluginType + " | " + String.Join(",", entry.Sources.Select(x => x.Provider + " | " + x.AuthorityValue + " | " + x.PurposeValue + " | valid")));
             foreach (var diagnostic in result.Diagnostics) Console.WriteLine(diagnostic.Severity + " | " + diagnostic.EntryId + " | " + diagnostic.Message);
             Console.WriteLine("Entries=" + result.Entries.Count + "; errors=" + result.Diagnostics.Count(x => x.Severity == CatalogDiagnosticSeverity.Error));
+        }
+        private static int AuditCatalogAliases()
+        {
+            var catalog = new CatalogService(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".json"));
+            var issues = CatalogAliasAudit.Audit(catalog.Load());
+            foreach (var issue in issues) Console.WriteLine(issue.Kind + " | " + issue.Alias + " | " + issue.Entries);
+            Console.WriteLine("Alias audit: entries=" + catalog.Load().Count + "; issues=" + issues.Count);
+            return issues.Count == 0 ? 0 : 1;
+        }
+        private static int AuditInstalledCoverage(string[] args)
+        {
+            var explicitIni = args.FirstOrDefault(x => x.StartsWith("--ini=", StringComparison.OrdinalIgnoreCase));
+            var ini = explicitIni == null ? null : explicitIni.Substring(6).Trim('"');
+            var config = new TotalCommanderConfigurationResolver().Resolve(ini);
+            if (config == null || !File.Exists(config.IniPath)) { Console.Error.WriteLine("INI не найден: " + (ini ?? "auto")); return 1; }
+            var catalog = new CatalogService(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".json"));
+            var plugins = new PluginDiscoveryService(new TotalCommanderConfigurationResolver(), new LocalVersionResolver(), catalog).Discover(config);
+            if (!args.Any(x => x.Equals("--offline", StringComparison.OrdinalIgnoreCase)))
+            {
+                using (var http = new HttpService(ApplicationMetadata.Version))
+                {
+                    var remote = new RemoteCatalogLookup(http); var cache = new SourceResponseCache();
+                    foreach (var plugin in plugins.Where(x => x.CatalogMatchKind == CatalogMatchKind.NotFound))
+                    {
+                        var match = remote.FindAsync(plugin, cache, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+                        plugin.CatalogMatchKind = match.Kind;
+                    }
+                }
+            }
+            var counts = Enum.GetValues(typeof(CatalogMatchKind)).Cast<CatalogMatchKind>().ToDictionary(x => x, x => plugins.Count(p => p.CatalogMatchKind == x));
+            var covered = counts[CatalogMatchKind.Exact] + counts[CatalogMatchKind.Alias] + counts[CatalogMatchKind.RemoteExact];
+            Console.WriteLine("InstallDirectory: " + config.InstallDirectory);
+            Console.WriteLine("Existing binaries: " + plugins.Count(x => x.FileExists));
+            Console.WriteLine("Installed: " + plugins.Count);
+            foreach (var kind in Enum.GetValues(typeof(CatalogMatchKind)).Cast<CatalogMatchKind>()) Console.WriteLine(kind + ": " + counts[kind]);
+            Console.WriteLine("Coverage: " + (plugins.Count == 0 ? 0 : 100.0 * covered / plugins.Count).ToString("F1", System.Globalization.CultureInfo.InvariantCulture) + "%");
+            Console.WriteLine("Missing:"); foreach (var p in plugins.Where(x => x.CatalogMatchKind == CatalogMatchKind.NotFound)) Console.WriteLine("- " + p.Type + " | " + p.DisplayName + " | " + Path.GetFileName(p.PrimaryPath));
+            Console.WriteLine("Ambiguous:"); foreach (var p in plugins.Where(x => x.CatalogMatchKind == CatalogMatchKind.Ambiguous)) Console.WriteLine("- " + p.Type + " | " + p.DisplayName + " | " + Path.GetFileName(p.PrimaryPath));
+            return 0;
+        }
+        private static int AuditInstalledVersionDrift(string[] args)
+        {
+            var explicitIni = args.FirstOrDefault(x => x.StartsWith("--ini=", StringComparison.OrdinalIgnoreCase));
+            var ini = explicitIni == null ? null : explicitIni.Substring(6).Trim('"');
+            var config = new TotalCommanderConfigurationResolver().Resolve(ini);
+            if (config == null || !File.Exists(config.IniPath)) return 1;
+            var catalog = new CatalogService(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".json"));
+            var plugins = new PluginDiscoveryService(new TotalCommanderConfigurationResolver(), new LocalVersionResolver(), catalog).Discover(config)
+                .Where(x => x.CatalogMatchKind != CatalogMatchKind.NotFound && x.LocalVersion.ParsedValue.IsKnown).ToList();
+            using (var http = new HttpService(ApplicationMetadata.Version))
+            {
+                var providers = new IUpdateSourceProvider[] { new TotalCmdNetSourceProvider(http), new TotalCmdNetIndexProvider(http), new GhislerSourceProvider(http), new GhislerPluginsSourceProvider(http), new GitHubReleaseSourceProvider(http), new GenericHtmlSourceProvider(http) };
+                var candidates = new System.Collections.Concurrent.ConcurrentBag<UpdateCandidate>();
+                new UpdateCheckRunner(new UpdateService(catalog, providers)).RunAsync(plugins, (p, c) => candidates.Add(c), (a, b) => { }, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+                foreach (var c in candidates.Where(x => x.State == UpdateState.DevelopmentVersion || x.State == UpdateState.SourceOutdated).OrderBy(x => x.Plugin.DisplayName))
+                    Console.WriteLine(c.Plugin.Identity.Id + " | " + c.State + " | local=" + c.Plugin.LocalVersion.RawValue + " | remote=" + c.AvailableVersion.Raw + " | " + c.SourceName);
+                Console.WriteLine("Checked=" + candidates.Count + "; development=" + candidates.Count(x => x.State == UpdateState.DevelopmentVersion) + "; source_outdated=" + candidates.Count(x => x.State == UpdateState.SourceOutdated) + "; unavailable=" + candidates.Count(x => x.State == UpdateState.SourceUnavailable));
+            }
+            return 0;
+        }
+        private static void CatalogCoverageMatching()
+        {
+            var exact = new PluginCatalogEntry { Id = "CatalogMaker", Name = "CatalogMaker", Type = "Wcx", Aliases = new List<string> { "CatalogMaker.wcx", "CatalogMaker.wcx64" } };
+            var alias = new PluginCatalogEntry { Id = "webdav", Name = "WebDAV", Type = "Wfx", Aliases = new List<string> { "davplug.wfx", "davplug.uwfx", "davplug.wfx64" } };
+            Assert(CatalogMatcher.Match(PluginType.Wcx, "catalogmaker.WCX", new[] { exact }).Kind == CatalogMatchKind.Exact, "embedded exact case insensitive");
+            Assert(CatalogMatcher.Match(PluginType.Wfx, "davplug.uwfx", new[] { alias }).Kind == CatalogMatchKind.Alias, "historical alias");
+            Assert(CatalogMatcher.Match(PluginType.Wfx, "davplug.wfx64", new[] { alias }).Kind == CatalogMatchKind.Alias, "historical x64 alias");
+            Assert(CatalogMatcher.Match(PluginType.Wlx, "CatalogMaker.wcx", new[] { exact }).Kind == CatalogMatchKind.NotFound, "wrong type rejected");
+            Assert(CatalogMatcher.Match(PluginType.Wcx, "CatalogMaker.wcx", new[] { exact }, true).Kind == CatalogMatchKind.RemoteExact, "remote exact");
+            Assert(CatalogMatcher.Match(PluginType.Wcx, "CatalogMaker.wcx", new[] { exact, new PluginCatalogEntry { Id = "other", Name = "Other", Type = "Wcx", Aliases = new List<string> { "CatalogMaker.wcx" } } }, true).Kind == CatalogMatchKind.Ambiguous, "two remote candidates ambiguous");
+            Assert(CatalogMatcher.Match(PluginType.Wcx, "missing.wcx", new[] { exact }, true).Kind == CatalogMatchKind.NotFound, "no remote candidate");
+            var index = "catalogmaker|CatalogMaker|4.1.3|3.01.2022|packer|x32+x64||src\nwrong|CatalogMaker|1.0|1.1.2020|lister|x32||";
+            Assert(RemoteCatalogLookup.ParseTotalCmdIndex(index, PluginType.Wcx).Count == 1, "remote index type filter");
+            var ghislerFixture = "<table><tr><td><strong>Sample</strong> 1.2</td><td><a href=\"https://plugins.ghisler.com/lsplugins/sample.zip\">Download</a></td></tr></table>";
+            Assert(RemoteCatalogLookup.ParseGhislerIndex(ghislerFixture, PluginType.Wlx).Count == 1 && RemoteCatalogLookup.ParseGhislerIndex(ghislerFixture, PluginType.Wcx).Count == 0, "Ghisler index type filter");
+            Assert(RemoteCatalogLookup.MatchesName("catalogmaker", "", RemoteCatalogLookup.ParseTotalCmdIndex(index, PluginType.Wcx)[0]), "remote index exact ID");
+            Assert(!RemoteCatalogLookup.MatchesName("catalog", "", RemoteCatalogLookup.ParseTotalCmdIndex(index, PluginType.Wcx)[0]), "similarity not enough");
+            using (var stream = new MemoryStream())
+            {
+                using (var zip = new ZipArchive(stream, ZipArchiveMode.Create, true)) { zip.CreateEntry("plugin/CatalogMaker.wcx"); zip.CreateEntry("plugin/CatalogMaker.wcx64"); zip.CreateEntry("readme.txt"); }
+                var binaryNames = RemoteCatalogLookup.ArchiveAliases(stream.ToArray(), PluginType.Wcx);
+                Assert(binaryNames.Count == 2 && binaryNames.Contains("CatalogMaker.wcx") && binaryNames.Contains("CatalogMaker.wcx64"), "archive filename verification");
+                Assert(RemoteCatalogLookup.ArchiveAliases(stream.ToArray(), PluginType.Wlx).Count == 0, "archive wrong type rejected");
+            }
+            var cache = new SourceResponseCache(); var fetches = 0;
+            var first = cache.GetOrAdd("totalcmd.net:index", () => { System.Threading.Interlocked.Increment(ref fetches); return System.Threading.Tasks.Task.FromResult(index); });
+            var second = cache.GetOrAdd("totalcmd.net:index", () => { System.Threading.Interlocked.Increment(ref fetches); return System.Threading.Tasks.Task.FromResult("wrong"); });
+            Assert(first.GetAwaiter().GetResult() == second.GetAwaiter().GetResult() && fetches == 1, "remote index fetched once per run");
+            var issues = CatalogAliasAudit.Audit(new[] { exact, new PluginCatalogEntry { Id = "other", Name = "Other", Type = "Wcx", Aliases = new List<string> { "catalogmaker.wcx", "bad.wlx", "bad.wlx" } } });
+            Assert(issues.Any(x => x.Kind == "SameTypeCollision") && issues.Any(x => x.Kind == "InvalidExtension") && issues.Any(x => x.Kind == "DuplicateAlias"), "alias audit collisions and extensions");
+            var catalog = new CatalogService(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".json"));
+            var unknown = new InstalledPlugin { Identity = new PluginIdentity { Id = "family:unknown" }, Type = PluginType.Wcx, PrimaryPath = "unknown.wcx", LocalVersion = LocalVersion.Unknown };
+            var ambiguous = new UpdateService(catalog, new IUpdateSourceProvider[0], new FixedRemoteLookup(CatalogMatchKind.Ambiguous)).CheckAsync(unknown, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+            Assert(ambiguous.State == UpdateState.CatalogAmbiguous && ambiguous.DownloadUrl == null, "ambiguous blocks update and download");
+            var missing = new UpdateService(catalog, new IUpdateSourceProvider[0], new FixedRemoteLookup(CatalogMatchKind.NotFound)).CheckAsync(unknown, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+            Assert(missing.State == UpdateState.PluginNotRecognized, "not found remains not recognized");
+            var ahead = new InstalledPlugin { Identity = new PluginIdentity { Id = "ampview" }, Type = PluginType.Wlx, Architecture = PluginArchitecture.X86,
+                LocalVersion = FileVersionProbe.Create("3.5.0.0", VersionSource.FileVersion, VersionConfidence.Exact) };
+            var stale = new UpdateService(catalog, new IUpdateSourceProvider[] { new FixedRemoteProvider("3.3") }).CheckAsync(ahead, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+            Assert(stale.State == UpdateState.SourceOutdated && stale.DownloadUrl == null, "stale source does not report development or download");
+            var imagine = catalog.FindById("imagine");
+            var author = imagine.Sources.Single(x => x.AuthorityValue == SourceAuthority.OfficialAuthor);
+            Assert(GenericHtmlSourceProvider.Parse(author, "Main Program v2.7.0 (Sep 12 2026)").Release.Version.Raw == "2.7.0", "Imagine author version is parsed");
+            var timedOut = new UpdateService(catalog, new IUpdateSourceProvider[] { new TimeoutProvider() }).CheckAsync(ahead, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+            Assert(timedOut.State == UpdateState.SourceUnavailable, "source timeout does not cancel whole check");
+        }
+        private sealed class FixedRemoteLookup : IRemoteCatalogLookup
+        {
+            private readonly CatalogMatchKind _kind;
+            public FixedRemoteLookup(CatalogMatchKind kind) { _kind = kind; }
+            public System.Threading.Tasks.Task<CatalogMatchResult> FindAsync(InstalledPlugin plugin, SourceResponseCache cache, System.Threading.CancellationToken token)
+            { return System.Threading.Tasks.Task.FromResult(new CatalogMatchResult { Kind = _kind }); }
+        }
+        private sealed class TimeoutProvider : IUpdateSourceProvider
+        {
+            public string Name { get { return "timeout"; } }
+            public bool CanHandle(CatalogSource source) { return true; }
+            public System.Threading.Tasks.Task<SourceQueryResult> QueryAsync(CatalogSource source, System.Threading.CancellationToken token)
+            { return System.Threading.Tasks.Task.FromException<SourceQueryResult>(new System.Threading.Tasks.TaskCanceledException("HTTP timeout")); }
         }
         private static void LiveSources()
         {

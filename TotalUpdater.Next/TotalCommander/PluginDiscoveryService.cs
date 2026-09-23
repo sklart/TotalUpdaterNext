@@ -52,7 +52,9 @@ namespace TotalUpdater.Next.TotalCommander
                     PluginFamily family;
                     if (!families.TryGetValue(familyKey, out family))
                     {
-                        family = new PluginFamily { Type = pair.Value, Identity = identity, FamilyPath = familyPath };
+                        family = new PluginFamily { Type = pair.Value, Identity = identity, FamilyPath = familyPath,
+                            MatchKind = entry == null ? CatalogMatchKind.NotFound :
+                                Path.GetFileNameWithoutExtension(familyPath).Equals(entry.Id, StringComparison.OrdinalIgnoreCase) ? CatalogMatchKind.Exact : CatalogMatchKind.Alias };
                         families.Add(familyKey, family);
                     }
                     if (!family.ConfigurationKeys.Contains(key, StringComparer.OrdinalIgnoreCase)) family.ConfigurationKeys.Add(key);
@@ -97,7 +99,7 @@ namespace TotalUpdater.Next.TotalCommander
                 PrimaryPath = primary == null ? family.FamilyPath : primary.Path,
                 Binaries = binaries, RelatedFiles = actualBinaries.Select(x => x.Path).ToList(),
                 ConfigurationKeys = family.ConfigurationKeys, FileExists = actualBinaries.Any(), Architecture = architectures,
-                LocalVersion = localVersion, HasVersionConflict = hasVersionConflict
+                LocalVersion = localVersion, HasVersionConflict = hasVersionConflict, CatalogMatchKind = family.MatchKind
             };
         }
 
@@ -183,7 +185,7 @@ namespace TotalUpdater.Next.TotalCommander
                 Identity = identity, Type = PluginType.TotalCommander, DisplayName = identity.Name,
                 PrimaryPath = existing[0].Path, Binaries = binaries.ToList(), RelatedFiles = existing.Select(x => x.Path).ToList(),
                 FileExists = true, Architecture = existing.Aggregate(PluginArchitecture.Unknown, (current, binary) => current | binary.Architecture),
-                LocalVersion = version, HasVersionConflict = conflict
+                LocalVersion = version, HasVersionConflict = conflict, CatalogMatchKind = entry == null ? CatalogMatchKind.NotFound : CatalogMatchKind.Exact
             });
         }
 
@@ -192,6 +194,7 @@ namespace TotalUpdater.Next.TotalCommander
             public PluginType Type { get; set; }
             public PluginIdentity Identity { get; set; }
             public string FamilyPath { get; set; }
+            public CatalogMatchKind MatchKind { get; set; }
             public bool MarkerX64 { get; set; }
             public List<string> ConfigurationKeys { get; } = new List<string>();
             public string DisplayName { get { return Identity == null ? FamilyPath : Identity.Name; } }

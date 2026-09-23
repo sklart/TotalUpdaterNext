@@ -10,9 +10,14 @@ namespace TotalUpdater.Next.Sources
     public sealed class SourceResponseCache
     {
         private readonly ConcurrentDictionary<string, Lazy<Task<string>>> _responses = new ConcurrentDictionary<string, Lazy<Task<string>>>(StringComparer.Ordinal);
+        private readonly ConcurrentDictionary<string, Lazy<Task<byte[]>>> _binaryResponses = new ConcurrentDictionary<string, Lazy<Task<byte[]>>>(StringComparer.Ordinal);
         public Task<string> GetOrAdd(string key, Func<Task<string>> factory)
         {
             return _responses.GetOrAdd(key, _ => new Lazy<Task<string>>(factory, LazyThreadSafetyMode.ExecutionAndPublication)).Value;
+        }
+        public Task<byte[]> GetOrAddBytes(string key, Func<Task<byte[]>> factory)
+        {
+            return _binaryResponses.GetOrAdd(key, _ => new Lazy<Task<byte[]>>(factory, LazyThreadSafetyMode.ExecutionAndPublication)).Value;
         }
     }
 

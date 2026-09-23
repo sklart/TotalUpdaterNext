@@ -148,7 +148,7 @@ namespace TotalUpdater.Next.UI
             if (generation == _checkGeneration && !cancellation.IsCancellationRequested)
             {
                 ItemsView.Refresh();
-                StatusText = String.Format(Text.Get("CheckedCount"), target.Count) + " · Обновлений: " + target.Count(x => x.HasUpdate) + " · Ошибок источников: " + target.Count(x => x.HasError) + " · Не распознано: " + target.Count(x => x.Candidate != null && x.Candidate.State == UpdateState.PluginNotRecognized);
+                StatusText = String.Format(Text.Get("CheckedCount"), target.Count) + " · Обновлений: " + target.Count(x => x.HasUpdate) + " · Ошибок источников: " + target.Count(x => x.HasError) + " · Не распознано: " + target.Count(x => x.Candidate != null && x.Candidate.State == UpdateState.PluginNotRecognized) + " · Неоднозначно: " + target.Count(x => x.Candidate != null && x.Candidate.State == UpdateState.CatalogAmbiguous);
             }
         }
 
@@ -272,7 +272,7 @@ namespace TotalUpdater.Next.UI
         {
             var row = e.Item as PluginRowViewModel; if (row == null) { e.Accepted = false; return; }
             if (FilterName == "Updates") { e.Accepted = row.HasUpdate; return; }
-            if (FilterName == "Unknown") { e.Accepted = row.Candidate == null || row.Candidate.State == UpdateState.PluginNotRecognized || row.Candidate.State == UpdateState.VersionComparisonUnknown; return; }
+            if (FilterName == "Unknown") { e.Accepted = row.Candidate == null || row.Candidate.State == UpdateState.PluginNotRecognized || row.Candidate.State == UpdateState.CatalogAmbiguous || row.Candidate.State == UpdateState.SourceOutdated || row.Candidate.State == UpdateState.VersionComparisonUnknown; return; }
             e.Accepted = FilterName != "Errors" || row.HasError;
         }
         private void BrowseIni() { var dialog = new OpenFileDialog { Filter = "wincmd.ini|wincmd.ini;*.ini|Все файлы|*.*", FileName = "wincmd.ini" }; if (dialog.ShowDialog(System.Windows.Application.Current.MainWindow) == true) { IniPath = dialog.FileName; Discover(); RecoverPending(); } }

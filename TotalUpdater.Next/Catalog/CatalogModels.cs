@@ -12,6 +12,7 @@ namespace TotalUpdater.Next.Catalog
         [DataMember(Name = "type")] public string Type { get; set; } = "";
         [DataMember(Name = "aliases")] public List<string> Aliases { get; set; } = new List<string>();
         [DataMember(Name = "localVersionStrategy")] public string LocalVersionStrategy { get; set; } = "";
+        [DataMember(Name = "sourceMayLagLocal")] public bool SourceMayLagLocal { get; set; }
         [DataMember(Name = "sources")] public List<CatalogSource> Sources { get; set; } = new List<CatalogSource>();
 
         public PluginType PluginType

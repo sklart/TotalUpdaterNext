@@ -62,7 +62,7 @@ namespace TotalUpdater.Next.Sources
                 var html = cache == null ? await Http.GetStringAsync(source.Url, cancellationToken).ConfigureAwait(false) : await cache.GetOrAdd("generic-html:" + source.Url, () => Http.GetStringAsync(source.Url, cancellationToken)).ConfigureAwait(false);
                 return Parse(source, html);
             }
-            catch (OperationCanceledException) { throw; }
+            catch (OperationCanceledException) { if (cancellationToken.IsCancellationRequested) throw; return Result(SourceQueryStatus.Unavailable, null, "Превышено время ожидания источника."); }
             catch (Exception ex) { return Result(SourceQueryStatus.Unavailable, null, ex.Message); }
         }
         public static SourceQueryResult Parse(CatalogSource source, string html)

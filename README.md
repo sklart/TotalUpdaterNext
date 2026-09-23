@@ -4,7 +4,7 @@
 
 ## Быстрый старт
 
-1. Скачайте [portable-архив 0.9.1](release/TotalUpdater-0.9.1-win7plus.zip).
+1. Скачайте [portable-архив 0.9.2](release/TotalUpdater-0.9.2-win7plus.zip).
 2. Распакуйте `TotalUpdater.exe` в любую папку и запустите его.
 3. Программа найдёт `wincmd.ini` автоматически. При необходимости укажите файл вручную на вкладке «Настройки».
 4. Нажмите «Проверить обновления». Можно проверить все найденные записи или только отмеченные.
@@ -39,7 +39,9 @@
 
 ## Каталог обновлений
 
-Стандартный каталог встроен в EXE и включает небольшой стартовый набор Total Commander, WCX, WLX, WFX и WDX-плагинов. Каждая запись имеет стабильный ID, aliases, одну или несколько sources с приоритетом и, при необходимости, `localVersionStrategy`.
+Стандартный каталог встроен в EXE и содержит 165 записей Total Commander, WCX, WLX, WFX и WDX. Каждая запись имеет стабильный ID, aliases, одну или несколько sources с приоритетом и, при необходимости, `localVersionStrategy`. Большинство новых aliases сверены с именами бинарников внутри ZIP; для ряда старых плагинов добавлен только metadata-источник, без автоматической загрузки.
+
+Если встроенное и пользовательское правило не найдено, программа проверяет индексы TotalCmd.net и Ghisler один раз за сеанс проверки. `RemoteExact` требует совпадения типа и реального имени бинарника внутри доступного ZIP. Похожее название без этого подтверждения не является совпадением. При нескольких кандидатах показывается «Найдено несколько возможных правил каталога»; обновление, загрузка и установка блокируются. Remote match не записывается в пользовательский каталог.
 
 Пользовательский каталог создаётся только по явной команде во вкладке «Локальная БД»:
 
@@ -87,7 +89,11 @@ ZIP с опасными путями, ссылками, повторяющими
 ```powershell
 dotnet build .\TotalUpdaterNext.slnx -c Release --disable-build-servers
 dotnet run --project .\TotalUpdater.Next.Tests\TotalUpdater.Next.Tests.csproj -c Release --no-build
+dotnet run --project .\TotalUpdater.Next.Tests\TotalUpdater.Next.Tests.csproj -c Release --no-build -- --audit-catalog-aliases
+dotnet run --project .\TotalUpdater.Next.Tests\TotalUpdater.Next.Tests.csproj -c Release --no-build -- --audit-installed-coverage '--ini=C:\Program Files\Total Commander\wincmd.ini'
 ```
+
+`--audit-installed-coverage` выводит Exact, Alias, RemoteExact, Ambiguous, NotFound, процент покрытия и списки пропущенных/неоднозначных плагинов. Добавьте `--offline`, чтобы проверить только встроенный и пользовательский каталоги без сети. На проверенной установке из 47 логических записей локально сопоставлены 43 (91,5%); MultiArc, Cloud, IECache и ReadPE оставлены без автоматического сопоставления из-за недостаточных доказательств источника.
 
 Консольный regression-набор покрывает конфигурацию Total Commander, discovery x86/x64, конфликты версий, Catalog v2, источники и пакеты, а также ZIP inspection, план установки, транзакцию и откат.
 
