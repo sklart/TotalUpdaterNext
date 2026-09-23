@@ -12,7 +12,8 @@ namespace TotalUpdater.Next.Infrastructure.Installation
         public static InstallManifest FindLatest(string backupRoot, string pluginId, string primaryPath)
         {
             return Enumerate(backupRoot).Where(x => (x.State == InstallStateMachine.Completed || x.State == InstallStateMachine.InstallConflict ||
-                x.State == InstallStateMachine.RecoveryConflict || x.State == InstallStateMachine.RollbackVerificationFailed) &&
+                x.State == InstallStateMachine.RecoveryConflict || x.State == InstallStateMachine.ConfigRecoveryConflict ||
+                x.State == InstallStateMachine.ConfigConflict || x.State == InstallStateMachine.RollbackVerificationFailed) &&
                 String.Equals(x.PluginId, pluginId, StringComparison.OrdinalIgnoreCase) &&
                 SamePath(x.PrimaryPath, primaryPath)).OrderByDescending(x => x.CreatedUtc).FirstOrDefault();
         }
@@ -20,7 +21,8 @@ namespace TotalUpdater.Next.Infrastructure.Installation
         {
             return Enumerate(backupRoot).Where(x => x.State == InstallStateMachine.Prepared || x.State == InstallStateMachine.Installing ||
                 x.State == InstallStateMachine.InstallConflict || x.State == InstallStateMachine.RollingBack ||
-                x.State == InstallStateMachine.RecoveryConflict || x.State == InstallStateMachine.RollbackVerificationFailed)
+                x.State == InstallStateMachine.RecoveryConflict || x.State == InstallStateMachine.ConfigRecoveryConflict ||
+                x.State == InstallStateMachine.ConfigConflict || x.State == InstallStateMachine.RollbackVerificationFailed)
                 .OrderBy(x => x.CreatedUtc).ToList();
         }
         private static IEnumerable<InstallManifest> Enumerate(string backupRoot)
@@ -62,6 +64,34 @@ namespace TotalUpdater.Next.Infrastructure.Installation
             Save(manifest);
             return manifest;
         }
+        public InstallManifest CreateNew(NewPluginInstallPlan plan)
+        {
+            Directory.CreateDirectory(plan.BackupDirectory);
+            var manifest = new InstallManifest { ManifestVersion = 4, TransactionId = Path.GetFileName(plan.BackupDirectory),
+                PluginId = plan.PluginId, PluginType = plan.PluginType.ToString(), PrimaryPath = plan.PrimaryPath,
+                NewVersion = plan.Version, PackageUrl = plan.PackageUrl, PackageSha256 = plan.Package.PackageSha256,
+                RequiredBinaryPaths = plan.RequiredBinaryPaths.ToList(), TargetDirectory = plan.TargetDirectory,
+                BackupDirectory = plan.BackupDirectory, CreatedUtc = DateTime.UtcNow, State = InstallStateMachine.Prepared };
+            foreach (var item in plan.Files)
+                manifest.Files.Add(new InstallManifestFile { State = InstallStateMachine.PendingFile, RelativePath = item.Source.RelativePath,
+                    Replaced = false, InstalledSha256 = item.Source.Sha256 });
+            for (var index = 0; index < plan.ConfigurationFiles.Count; index++)
+            {
+                var patch = plan.ConfigurationFiles[index];
+                if (!File.Exists(patch.Path) || !String.Equals(PackageInspector.Hash(patch.Path), patch.OriginalSha256, StringComparison.OrdinalIgnoreCase))
+                    throw new IOException("ConfigConflict: INI изменён до создания backup: " + patch.Path);
+                var record = new InstallManifestConfiguration { ConfigFile = patch.Path, OriginalSha256 = patch.OriginalSha256,
+                    InstalledSha256 = patch.InstalledSha256, State = InstallStateMachine.PendingFile, Changes = patch.Changes };
+                record.BackupPath = ResolveConfigurationBackupPath(manifest, index);
+                Directory.CreateDirectory(Path.GetDirectoryName(record.BackupPath));
+                File.WriteAllBytes(record.BackupPath, patch.OriginalBytes);
+                if (!String.Equals(PackageInspector.Hash(record.BackupPath), record.OriginalSha256, StringComparison.OrdinalIgnoreCase))
+                    throw new IOException("Backup checksum mismatch: " + patch.Path);
+                manifest.ConfigurationFiles.Add(record);
+            }
+            Save(manifest);
+            return manifest;
+        }
 
         public static void Save(InstallManifest manifest)
         {
@@ -91,9 +121,11 @@ namespace TotalUpdater.Next.Infrastructure.Installation
             var root = Path.GetFullPath(backupRoot).TrimEnd(Path.DirectorySeparatorChar);
             if (!SamePath(Path.GetDirectoryName(directory), root) || !SamePath(directory, manifest.BackupDirectory) ||
                 !SamePath(Path.Combine(directory, "manifest.json"), path) ||
-                !SamePath(Path.GetDirectoryName(Path.GetFullPath(manifest.PrimaryPath)), manifest.TargetDirectory))
+                (manifest.ManifestVersion != 4 && !SamePath(Path.GetDirectoryName(Path.GetFullPath(manifest.PrimaryPath)), manifest.TargetDirectory)))
                 throw new InvalidDataException("Manifest находится вне backup root или target не соответствует primary path.");
-            if (manifest.ManifestVersion != 0 && manifest.ManifestVersion != 2 && manifest.ManifestVersion != 3) throw new InvalidDataException("Неизвестная версия manifest.");
+            if (manifest.ManifestVersion != 0 && manifest.ManifestVersion != 2 && manifest.ManifestVersion != 3 && manifest.ManifestVersion != 4) throw new InvalidDataException("Неизвестная версия manifest.");
+            if (manifest.ManifestVersion == 4 && !Path.GetFullPath(manifest.PrimaryPath).StartsWith(Path.GetFullPath(manifest.TargetDirectory).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("Primary path вне target.");
             Guid transactionId;
             if (manifest.ManifestVersion >= 2 && (!Guid.TryParseExact(manifest.TransactionId, "N", out transactionId) ||
                 !String.Equals(manifest.TransactionId, Path.GetFileName(directory), StringComparison.OrdinalIgnoreCase)))
@@ -111,7 +143,8 @@ namespace TotalUpdater.Next.Infrastructure.Installation
                     throw new InvalidDataException("Файл manifest вне target.");
                 if (record.Replaced && String.IsNullOrWhiteSpace(record.OriginalSha256)) throw new InvalidDataException("Отсутствует original hash.");
                 if (String.IsNullOrWhiteSpace(record.InstalledSha256)) throw new InvalidDataException("Отсутствует installed hash.");
-                if (manifest.ManifestVersion == 3 && !InstallStateMachine.IsKnownFile(record.State)) throw new InvalidDataException("Неизвестное состояние файла manifest.");
+                if (manifest.ManifestVersion >= 3 && !InstallStateMachine.IsKnownFile(record.State)) throw new InvalidDataException("Неизвестное состояние файла manifest.");
+                if (manifest.ManifestVersion == 4 && record.Replaced) throw new InvalidDataException("Новая установка не заменяет существующие файлы.");
             }
             if (manifest.ManifestVersion >= 2 && (manifest.RequiredBinaryPaths == null || manifest.RequiredBinaryPaths.Count == 0))
                 throw new InvalidDataException("Нет списка required binaries.");
@@ -119,6 +152,32 @@ namespace TotalUpdater.Next.Infrastructure.Installation
                 manifest.RequiredBinaryPaths = new List<string> { manifest.PrimaryPath };
             if (manifest.RequiredBinaryPaths.Any(x => !Path.IsPathRooted(x) || !Path.GetFullPath(x).StartsWith(Path.GetFullPath(manifest.TargetDirectory).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)))
                 throw new InvalidDataException("Путь required binary вне target.");
+            if (manifest.ManifestVersion == 4)
+            {
+                var creationRoot = Path.GetDirectoryName(Path.GetDirectoryName(Path.GetFullPath(manifest.TargetDirectory)));
+                if (manifest.CreatedDirectories == null || manifest.CreatedDirectories.Any(x => !Path.IsPathRooted(x) ||
+                    (!SamePath(x, creationRoot) && !Path.GetFullPath(x).StartsWith(creationRoot.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))))
+                    throw new InvalidDataException("Created directory вне target.");
+                if (manifest.ConfigurationFiles == null || manifest.ConfigurationFiles.Count == 0) throw new InvalidDataException("Нет configuration records.");
+                var configPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                for (var index = 0; index < manifest.ConfigurationFiles.Count; index++)
+                {
+                    var config = manifest.ConfigurationFiles[index];
+                    if (config == null || !Path.IsPathRooted(config.ConfigFile) || !configPaths.Add(Path.GetFullPath(config.ConfigFile)) ||
+                        !SamePath(config.BackupPath, ResolveConfigurationBackupPath(manifest, index)) ||
+                        String.IsNullOrWhiteSpace(config.OriginalSha256) || String.IsNullOrWhiteSpace(config.InstalledSha256) ||
+                        !InstallStateMachine.IsKnownFile(config.State) || config.Changes == null || config.Changes.Count == 0)
+                        throw new InvalidDataException("Недопустимый configuration record.");
+                }
+            }
+        }
+        public static string ResolveConfigurationBackupPath(InstallManifest manifest, int index)
+        {
+            if (index < 0) throw new ArgumentOutOfRangeException(nameof(index));
+            var root = Path.GetFullPath(Path.Combine(manifest.BackupDirectory, "config"));
+            var path = Path.Combine(root, index.ToString(System.Globalization.CultureInfo.InvariantCulture) + ".ini");
+            RejectReparse(manifest.BackupDirectory, root);
+            return path;
         }
         public static string ResolveBackupPath(InstallManifest manifest, InstallManifestFile record)
         {

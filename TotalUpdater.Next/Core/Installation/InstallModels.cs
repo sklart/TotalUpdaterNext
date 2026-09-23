@@ -53,6 +53,36 @@ namespace TotalUpdater.Next.Core.Installation
         public string Destination { get; set; }
         public bool ReplacesExisting { get; set; }
     }
+    public sealed class NewPluginInstallPlan
+    {
+        public string PluginId { get; set; }
+        public PluginType PluginType { get; set; }
+        public string Version { get; set; }
+        public string PrimaryPath { get; set; }
+        public string TargetDirectory { get; set; }
+        public string BackupDirectory { get; set; }
+        public string PackageUrl { get; set; }
+        public PackageInspection Package { get; set; }
+        public List<InstallFile> Files { get; set; } = new List<InstallFile>();
+        public List<NewPluginConfigPatch> ConfigurationFiles { get; set; } = new List<NewPluginConfigPatch>();
+        public List<string> RequiredBinaryPaths { get; set; } = new List<string>();
+    }
+    public sealed class NewPluginConfigPatch
+    {
+        public string Path { get; set; }
+        public byte[] OriginalBytes { get; set; }
+        public byte[] InstalledBytes { get; set; }
+        public string OriginalSha256 { get; set; }
+        public string InstalledSha256 { get; set; }
+        public List<InstallConfigurationChange> Changes { get; set; } = new List<InstallConfigurationChange>();
+    }
+    [DataContract]
+    public sealed class InstallConfigurationChange
+    {
+        [DataMember] public string Section { get; set; }
+        [DataMember] public string Key { get; set; }
+        [DataMember] public string Value { get; set; }
+    }
     public sealed class InstallConflictException : IOException
     {
         public InstallConflictException(string relativePath, string message) : base(message) { RelativePath = relativePath; }
@@ -79,6 +109,18 @@ namespace TotalUpdater.Next.Core.Installation
         [DataMember] public string State { get; set; }
         [DataMember] public DateTime CreatedUtc { get; set; }
         [DataMember] public List<InstallManifestFile> Files { get; set; } = new List<InstallManifestFile>();
+        [DataMember] public List<InstallManifestConfiguration> ConfigurationFiles { get; set; } = new List<InstallManifestConfiguration>();
+        [DataMember] public List<string> CreatedDirectories { get; set; } = new List<string>();
+    }
+    [DataContract]
+    public sealed class InstallManifestConfiguration
+    {
+        [DataMember] public string ConfigFile { get; set; }
+        [DataMember] public string OriginalSha256 { get; set; }
+        [DataMember] public string InstalledSha256 { get; set; }
+        [DataMember] public string BackupPath { get; set; }
+        [DataMember] public string State { get; set; }
+        [DataMember] public List<InstallConfigurationChange> Changes { get; set; } = new List<InstallConfigurationChange>();
     }
     [DataContract]
     public sealed class InstallManifestFile

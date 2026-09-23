@@ -1,4 +1,4 @@
-# Total Updater Next — Phase 7.2
+# Total Updater Next — Phase 8
 
 WPF-программа для Windows 7 SP1+ под .NET Framework 4.8. Это независимая новая реализация: старый Total Updater и его бинарные ресурсы не используются.
 
@@ -10,7 +10,8 @@ WPF-программа для Windows 7 SP1+ под .NET Framework 4.8. Это �
 * явные состояния проверки, безопасное сравнение beta/rc/финальных версий;
 * HTTP-провайдеры Ghisler и Totalcmd.net, скачивание в отдельный каталог;
 * безопасная установка ZIP для уже установленных WCX/WLX/WFX/WDX с backup, проверкой после записи, повторяемым crash recovery и откатом выбранного плагина;
-* четыре вкладки: «Обновления», «Настройки», «Локальная БД», «О программе».
+* установка новых WFX/WLX/WDX из каталога с транзакционной регистрацией в фактическом INI и manifest v4;
+* пять вкладок: «Обновления», «Каталог», «Настройки», «Локальная БД», «О программе».
 
 ## Сборка и тесты
 
@@ -21,8 +22,8 @@ dotnet run --project .\TotalUpdater.Next.Tests\TotalUpdater.Next.Tests.csproj
 
 ## Single EXE
 
-Release-архив [`../release/TotalUpdater-0.8.2-win7plus.zip`](../release/TotalUpdater-0.8.2-win7plus.zip) содержит только `TotalUpdater.exe`. Стандартный каталог находится внутри EXE как embedded resource; внешний JSON не требуется на первом запуске.
+Release-архив [`../release/TotalUpdater-0.9.0-win7plus.zip`](../release/TotalUpdater-0.9.0-win7plus.zip) содержит только `TotalUpdater.exe`. Стандартный каталог находится внутри EXE как embedded resource; внешний JSON не требуется на первом запуске.
 
 Пользовательская БД создаётся только по явной команде: рядом с EXE в portable-режиме либо в `%APPDATA%\TotalUpdaterNext` при read-only установке.
 
-Загруженные EXE/MSI не запускаются. Автоустановка новых плагинов, Total Commander и self-update не реализованы. Требующие прав администратора операции остаются недоступными без UAC/helper.
+Загруженные EXE/MSI не запускаются. Новая регистрация WCX, установка Total Commander и self-update не реализованы. Требующие прав администратора операции остаются недоступными без UAC/helper.

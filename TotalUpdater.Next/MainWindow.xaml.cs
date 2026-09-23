@@ -22,7 +22,7 @@ namespace TotalUpdater.Next
             var catalog = new CatalogService(paths.UserCatalogPath); var resolver = new TotalCommanderConfigurationResolver();
             var discovery = new PluginDiscoveryService(resolver, new LocalVersionResolver(), catalog);
             var providers = new IUpdateSourceProvider[] { new TotalCmdNetSourceProvider(_http), new TotalCmdNetIndexProvider(_http), new GhislerSourceProvider(_http), new GhislerPluginsSourceProvider(_http), new GitHubReleaseSourceProvider(_http), new GenericHtmlSourceProvider(_http) };
-            DataContext = new MainViewModel(resolver, discovery, new UpdateService(catalog, providers), catalog, new DownloadService(_http), paths);
+            DataContext = new MainViewModel(resolver, discovery, new UpdateService(catalog, providers), catalog, new DownloadService(_http), paths, new TotalUpdater.Next.Core.Installation.CatalogInstallService(providers));
             Loaded += (s, e) => ((MainViewModel)DataContext).Initialize(); Closed += (s, e) => _http.Dispose();
         }
 

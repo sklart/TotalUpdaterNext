@@ -8,15 +8,18 @@ namespace TotalUpdater.Next.Core.Installation
     {
         public const string Prepared = "Prepared", Installing = "Installing", InstallConflict = "InstallConflict", Completed = "Completed";
         public const string RollingBack = "RollingBack", RecoveryConflict = "RecoveryConflict", RollbackVerificationFailed = "RollbackVerificationFailed", RolledBack = "RolledBack";
+        public const string ConfigConflict = "ConfigConflict", ConfigRecoveryConflict = "ConfigRecoveryConflict";
         public const string PendingFile = "Pending", InstallingFile = "Installing", InstalledFile = "Installed", RestoredFile = "Restored";
         private static readonly IDictionary<string, string[]> Next = new Dictionary<string, string[]>(StringComparer.Ordinal)
         {
-            { Prepared, new[] { Installing, RollingBack, InstallConflict, RecoveryConflict } },
-            { Installing, new[] { Completed, RollingBack, InstallConflict, RecoveryConflict } },
+            { Prepared, new[] { Installing, RollingBack, InstallConflict, RecoveryConflict, ConfigConflict, ConfigRecoveryConflict } },
+            { Installing, new[] { Completed, RollingBack, InstallConflict, RecoveryConflict, ConfigConflict, ConfigRecoveryConflict } },
             { InstallConflict, new[] { RollingBack, RecoveryConflict } },
-            { Completed, new[] { RollingBack, RecoveryConflict } },
-            { RollingBack, new[] { RolledBack, RecoveryConflict, RollbackVerificationFailed } },
+            { Completed, new[] { RollingBack, RecoveryConflict, ConfigRecoveryConflict } },
+            { RollingBack, new[] { RolledBack, RecoveryConflict, ConfigRecoveryConflict, RollbackVerificationFailed } },
             { RecoveryConflict, new[] { RollingBack, RecoveryConflict } },
+            { ConfigConflict, new[] { RollingBack, ConfigRecoveryConflict } },
+            { ConfigRecoveryConflict, new[] { RollingBack, ConfigRecoveryConflict } },
             { RollbackVerificationFailed, new[] { RollingBack, RecoveryConflict } },
             { RolledBack, new string[0] }
         };
