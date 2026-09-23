@@ -10,7 +10,9 @@ using System.Windows.Data;
 using Microsoft.Win32;
 using TotalUpdater.Next.Catalog;
 using TotalUpdater.Next.Core;
+using TotalUpdater.Next.Core.Installation;
 using TotalUpdater.Next.Infrastructure;
+using TotalUpdater.Next.Infrastructure.Installation;
 using TotalUpdater.Next.Resources;
 using TotalUpdater.Next.TotalCommander;
 
@@ -24,6 +26,7 @@ namespace TotalUpdater.Next.UI
         private readonly CatalogService _catalog;
         private readonly DownloadService _downloads;
         private readonly UserDataPaths _paths;
+        private readonly string _backupRoot;
         private readonly CollectionViewSource _itemsView;
         private TotalCommanderConfiguration _configuration;
         private CancellationTokenSource _checkCancellation;
@@ -33,8 +36,10 @@ namespace TotalUpdater.Next.UI
         public MainViewModel(TotalCommanderConfigurationResolver resolver, PluginDiscoveryService discovery, UpdateService updates, CatalogService catalog, DownloadService downloads, UserDataPaths paths)
         {
             _resolver = resolver; _discovery = discovery; _updates = updates; _catalog = catalog; _downloads = downloads; _paths = paths;
+            _backupRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TotalUpdaterNext", "backups");
             Items = new ObservableCollection<PluginRowViewModel>(); _itemsView = new CollectionViewSource { Source = Items }; _itemsView.GroupDescriptions.Add(new PropertyGroupDescription("Group")); _itemsView.Filter += Filter;
             DiscoverCommand = new RelayCommand(x => Discover()); CheckCommand = new RelayCommand(async x => await CheckAsync()); DownloadCommand = new RelayCommand(async x => await DownloadAsync());
+            InstallCommand = new RelayCommand(async x => await InstallAsync()); RollbackCommand = new RelayCommand(x => RollbackLast());
             BrowseIniCommand = new RelayCommand(x => BrowseIni()); OpenUserCatalogCommand = new RelayCommand(x => OpenUserCatalog()); OpenSiteCommand = new RelayCommand(x => OpenSite(x as PluginRowViewModel), x => x is PluginRowViewModel row && row.Candidate != null && row.Candidate.SourceUrl != null);
             OpenPathCommand = new RelayCommand(x => OpenPath(x as PluginRowViewModel), x => x is PluginRowViewModel row && File.Exists(row.Path)); CopyPathCommand = new RelayCommand(x => System.Windows.Clipboard.SetText((x as PluginRowViewModel).Path), x => x is PluginRowViewModel row && !String.IsNullOrWhiteSpace(row.Path)); InfoCommand = new RelayCommand(x => ShowInfo(x as PluginRowViewModel), x => x is PluginRowViewModel);
             UserCatalogEntries = new ObservableCollection<PluginCatalogEntry>(_catalog.LoadUserCatalog());
@@ -43,7 +48,7 @@ namespace TotalUpdater.Next.UI
         public ObservableCollection<PluginRowViewModel> Items { get; private set; }
         public ObservableCollection<PluginCatalogEntry> UserCatalogEntries { get; private set; }
         public ICollectionView ItemsView { get { return _itemsView.View; } }
-        public RelayCommand DiscoverCommand { get; private set; } public RelayCommand CheckCommand { get; private set; } public RelayCommand DownloadCommand { get; private set; } public RelayCommand BrowseIniCommand { get; private set; } public RelayCommand OpenUserCatalogCommand { get; private set; } public RelayCommand OpenSiteCommand { get; private set; } public RelayCommand OpenPathCommand { get; private set; } public RelayCommand CopyPathCommand { get; private set; } public RelayCommand InfoCommand { get; private set; }
+        public RelayCommand DiscoverCommand { get; private set; } public RelayCommand CheckCommand { get; private set; } public RelayCommand DownloadCommand { get; private set; } public RelayCommand InstallCommand { get; private set; } public RelayCommand RollbackCommand { get; private set; } public RelayCommand BrowseIniCommand { get; private set; } public RelayCommand OpenUserCatalogCommand { get; private set; } public RelayCommand OpenSiteCommand { get; private set; } public RelayCommand OpenPathCommand { get; private set; } public RelayCommand CopyPathCommand { get; private set; } public RelayCommand InfoCommand { get; private set; }
         public string IniPath { get { return _iniPath; } set { _iniPath = value; Changed("IniPath"); } }
         public string InstallDirectory { get { return _configuration == null ? "—" : _configuration.InstallDirectory; } }
         public string DownloadDirectory { get { return _paths.DownloadDirectory; } }
@@ -103,6 +108,56 @@ namespace TotalUpdater.Next.UI
                 catch (Exception ex) { row.Apply(new UpdateCandidate { Plugin = row.Plugin, State = UpdateState.Error, Details = ex.Message }); }
             }
             StatusText = String.Format(Text.Get("DownloadedCount"), done);
+        }
+
+        private async Task InstallAsync()
+        {
+            var selected = Items.Where(x => x.IsChecked).ToList();
+            if (selected.Count != 1) { StatusText = "Для установки отметьте ровно один существующий плагин."; return; }
+            var row = selected[0];
+            if (!row.CanDownload || row.Plugin.Type == PluginType.TotalCommander || row.Candidate.AuthorityConflict)
+            { StatusText = "Автоустановка для этого элемента недоступна."; return; }
+            string packagePath = null; PackageInspection inspected = null;
+            try
+            {
+                packagePath = await _downloads.DownloadAsync(row.Candidate.DownloadUrl, _paths.DownloadDirectory, CancellationToken.None);
+                if (!String.Equals(Path.GetExtension(packagePath), ".zip", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("Этот формат доступен только для скачивания; запуск EXE/MSI/RAR/SFX запрещён.");
+                inspected = new PackageInspector().Inspect(packagePath);
+                var plan = new InstallPlanBuilder().Build(row.Plugin, inspected, row.Candidate.AvailableVersion, row.Candidate.DownloadUrl, _backupRoot);
+                TransactionalInstaller.Preflight(plan);
+                var replacements = plan.Files.Where(x => x.ReplacesExisting).Select(x => x.Source.RelativePath);
+                var additions = plan.Files.Where(x => !x.ReplacesExisting).Select(x => x.Source.RelativePath);
+                var message = row.Name + " · " + plan.OldVersion + " → " + plan.NewVersion + Environment.NewLine +
+                    "Каталог: " + plan.TargetDirectory + Environment.NewLine +
+                    "Замена: " + String.Join(", ", replacements) + Environment.NewLine +
+                    "Добавление: " + String.Join(", ", additions) + Environment.NewLine +
+                    "Backup: " + plan.BackupDirectory + Environment.NewLine +
+                    (plan.PackageUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ? "Внимание: загрузка по HTTP без защиты канала." + Environment.NewLine : "") +
+                    "SHA-256 проверяет целостность загрузки, но без подписи издателя не удостоверяет происхождение." + Environment.NewLine +
+                    "Продолжить установку?";
+                if (System.Windows.MessageBox.Show(System.Windows.Application.Current.MainWindow, message, "Подтверждение установки", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning) != System.Windows.MessageBoxResult.Yes)
+                { StatusText = "Установка отменена. ZIP сохранён: " + packagePath; return; }
+                var manifest = new TransactionalInstaller().Install(plan, () => _discovery.Discover(_configuration).FirstOrDefault(x => x.Type == row.Plugin.Type && x.Identity.Id == row.Plugin.Identity.Id && String.Equals(x.PrimaryPath, row.Plugin.PrimaryPath, StringComparison.OrdinalIgnoreCase)));
+                Discover(); StatusText = "Установлено: " + row.Name + ". Backup: " + manifest.BackupDirectory;
+            }
+            catch (Exception ex) { StatusText = "Установка не выполнена: " + ex.Message; }
+            finally { if (inspected != null && Directory.Exists(inspected.StagingDirectory)) { try { Directory.Delete(inspected.StagingDirectory, true); } catch { } } }
+        }
+
+        private void RollbackLast()
+        {
+            try
+            {
+                var manifest = BackupService.FindLatest(_backupRoot);
+                if (manifest == null) { StatusText = "Нет обновления для отката."; return; }
+                var prompt = "Откатить " + manifest.PluginId + " " + manifest.NewVersion + " → " + manifest.OldVersion + "?" + Environment.NewLine + manifest.TargetDirectory;
+                if (System.Windows.MessageBox.Show(System.Windows.Application.Current.MainWindow, prompt, "Откатить последнее обновление", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning) != System.Windows.MessageBoxResult.Yes) return;
+                if (System.Diagnostics.Process.GetProcessesByName("TOTALCMD").Any() || System.Diagnostics.Process.GetProcessesByName("TOTALCMD64").Any())
+                    throw new InvalidOperationException("Закройте Total Commander перед откатом.");
+                new RollbackService().Rollback(manifest); Discover(); StatusText = "Откат завершён: " + manifest.PluginId;
+            }
+            catch (Exception ex) { StatusText = "Откат не выполнен: " + ex.Message; }
         }
 
         private System.Collections.Generic.List<PluginRowViewModel> CheckedOrAll() { var checkedRows = Items.Where(x => x.IsChecked).ToList(); return checkedRows.Count > 0 ? checkedRows : Items.ToList(); }
