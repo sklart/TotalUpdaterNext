@@ -58,7 +58,7 @@ namespace TotalUpdater.Next.UI
         public string StatusText { get { return _statusText; } private set { _statusText = value; Changed("StatusText"); } }
         public string FilterName { get { return _filter; } set { _filter = value; _itemsView.View.Refresh(); Changed("FilterName"); } }
 
-        public void Initialize() { Discover(); }
+        public void Initialize() { Discover(); RecoverPending(); }
         private void Discover()
         {
             _configuration = _resolver.Resolve(IniPath); IniPath = _configuration == null ? "" : _configuration.IniPath; Items.Clear();
@@ -104,8 +104,8 @@ namespace TotalUpdater.Next.UI
                     continue;
                 }
                 if (!row.CanDownload) { if (row.Candidate != null) row.Apply(row.Candidate); else row.Apply(new UpdateCandidate { Plugin = row.Plugin, State = UpdateState.NotChecked, Details = Text.Get("NoDownload") }); continue; }
-                try { var path = await _downloads.DownloadAsync(row.Candidate.DownloadUrl, _paths.DownloadDirectory, CancellationToken.None); row.Apply(new UpdateCandidate { Plugin = row.Plugin, State = UpdateState.UpdateAvailable, AvailableVersion = row.Candidate.AvailableVersion, SourceUrl = row.Candidate.SourceUrl, DownloadUrl = row.Candidate.DownloadUrl, Details = String.Format(Text.Get("Downloaded"), Path.GetFileName(path)) }); done++; }
-                catch (Exception ex) { row.Apply(new UpdateCandidate { Plugin = row.Plugin, State = UpdateState.Error, Details = ex.Message }); }
+                try { var path = await _downloads.DownloadAsync(row.Candidate.DownloadUrl, _paths.DownloadDirectory, CancellationToken.None); DownloadedPackagePolicy.Record(row.Candidate, path); row.Candidate.Details = String.Format(Text.Get("Downloaded"), Path.GetFileName(path)); row.Apply(row.Candidate); done++; }
+                catch (Exception ex) { row.Candidate.Details = ex.Message; StatusText = "Скачивание не выполнено: " + ex.Message; }
             }
             StatusText = String.Format(Text.Get("DownloadedCount"), done);
         }
@@ -120,11 +120,12 @@ namespace TotalUpdater.Next.UI
             string packagePath = null; PackageInspection inspected = null;
             try
             {
-                packagePath = await _downloads.DownloadAsync(row.Candidate.DownloadUrl, _paths.DownloadDirectory, CancellationToken.None);
+                packagePath = DownloadedPackagePolicy.Resolve(row.Candidate);
+                if (packagePath == null) { packagePath = await _downloads.DownloadAsync(row.Candidate.DownloadUrl, _paths.DownloadDirectory, CancellationToken.None); DownloadedPackagePolicy.Record(row.Candidate, packagePath); }
                 if (!String.Equals(Path.GetExtension(packagePath), ".zip", StringComparison.OrdinalIgnoreCase))
                     throw new InvalidOperationException("Этот формат доступен только для скачивания; запуск EXE/MSI/RAR/SFX запрещён.");
                 inspected = new PackageInspector().Inspect(packagePath);
-                var plan = new InstallPlanBuilder().Build(row.Plugin, inspected, row.Candidate.AvailableVersion, row.Candidate.DownloadUrl, _backupRoot);
+                var plan = new InstallPlanBuilder().Build(row.Plugin, inspected, row.Candidate.AvailableVersion, row.Candidate.DownloadUrl, _backupRoot, row.Candidate);
                 TransactionalInstaller.Preflight(plan);
                 var replacements = plan.Files.Where(x => x.ReplacesExisting).Select(x => x.Source.RelativePath);
                 var additions = plan.Files.Where(x => !x.ReplacesExisting).Select(x => x.Source.RelativePath);
@@ -138,7 +139,7 @@ namespace TotalUpdater.Next.UI
                     "Продолжить установку?";
                 if (System.Windows.MessageBox.Show(System.Windows.Application.Current.MainWindow, message, "Подтверждение установки", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning) != System.Windows.MessageBoxResult.Yes)
                 { StatusText = "Установка отменена. ZIP сохранён: " + packagePath; return; }
-                var manifest = new TransactionalInstaller().Install(plan, () => _discovery.Discover(_configuration).FirstOrDefault(x => x.Type == row.Plugin.Type && x.Identity.Id == row.Plugin.Identity.Id && String.Equals(x.PrimaryPath, row.Plugin.PrimaryPath, StringComparison.OrdinalIgnoreCase)));
+                var manifest = new TransactionalInstaller().Install(plan, () => Rediscover(row.Plugin.Identity.Id, row.Plugin.Type.ToString(), row.Plugin.PrimaryPath));
                 Discover(); StatusText = "Установлено: " + row.Name + ". Backup: " + manifest.BackupDirectory;
             }
             catch (Exception ex) { StatusText = "Установка не выполнена: " + ex.Message; }
@@ -149,15 +150,50 @@ namespace TotalUpdater.Next.UI
         {
             try
             {
-                var manifest = BackupService.FindLatest(_backupRoot);
-                if (manifest == null) { StatusText = "Нет обновления для отката."; return; }
+                var selected = Items.Where(x => x.IsChecked).ToList();
+                if (selected.Count != 1) { StatusText = "Для отката отметьте ровно один плагин."; return; }
+                var manifest = BackupService.FindLatest(_backupRoot, selected[0].Plugin.Identity.Id, selected[0].Plugin.PrimaryPath);
+                if (manifest == null) { StatusText = "Нет обновления выбранного плагина для отката."; return; }
                 var prompt = "Откатить " + manifest.PluginId + " " + manifest.NewVersion + " → " + manifest.OldVersion + "?" + Environment.NewLine + manifest.TargetDirectory;
                 if (System.Windows.MessageBox.Show(System.Windows.Application.Current.MainWindow, prompt, "Откатить последнее обновление", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning) != System.Windows.MessageBoxResult.Yes) return;
                 if (System.Diagnostics.Process.GetProcessesByName("TOTALCMD").Any() || System.Diagnostics.Process.GetProcessesByName("TOTALCMD64").Any())
                     throw new InvalidOperationException("Закройте Total Commander перед откатом.");
-                new RollbackService().Rollback(manifest); Discover(); StatusText = "Откат завершён: " + manifest.PluginId;
+                new RollbackService().Rollback(manifest, _backupRoot, () => Rediscover(manifest.PluginId, manifest.PluginType, manifest.PrimaryPath)); Discover(); StatusText = "Откат завершён: " + manifest.PluginId;
             }
             catch (Exception ex) { StatusText = "Откат не выполнен: " + ex.Message; }
+        }
+
+        private InstalledPlugin Rediscover(string id, string type, string primaryPath)
+        {
+            return _configuration == null ? null : _discovery.Discover(_configuration).FirstOrDefault(x =>
+                String.Equals(x.Identity.Id, id, StringComparison.OrdinalIgnoreCase) &&
+                String.Equals(x.Type.ToString(), type, StringComparison.OrdinalIgnoreCase) &&
+                String.Equals(x.PrimaryPath, primaryPath, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private void RecoverPending()
+        {
+            var recovery = new RecoveryService(_backupRoot);
+            foreach (var manifest in recovery.FindPending())
+            {
+                if (_configuration == null)
+                {
+                    StatusText = "Найден незавершённый backup. Укажите wincmd.ini для безопасного восстановления.";
+                    System.Windows.MessageBox.Show(System.Windows.Application.Current.MainWindow, StatusText, "Восстановление после сбоя", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                    return;
+                }
+                var prompt = "Незавершённая установка " + manifest.PluginId + " (" + manifest.State + ")." + Environment.NewLine +
+                    manifest.TargetDirectory + Environment.NewLine + "Восстановить исходные файлы из backup?";
+                if (System.Windows.MessageBox.Show(System.Windows.Application.Current.MainWindow, prompt, "Восстановление после сбоя", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning) != System.Windows.MessageBoxResult.Yes) continue;
+                try
+                {
+                    if (Process.GetProcessesByName("TOTALCMD").Any() || Process.GetProcessesByName("TOTALCMD64").Any())
+                        throw new InvalidOperationException("Закройте Total Commander перед восстановлением.");
+                    recovery.Recover(manifest, () => Rediscover(manifest.PluginId, manifest.PluginType, manifest.PrimaryPath));
+                    Discover(); StatusText = "Исходные файлы восстановлены: " + manifest.PluginId;
+                }
+                catch (Exception ex) { StatusText = "Восстановление остановлено: " + ex.Message; }
+            }
         }
 
         private System.Collections.Generic.List<PluginRowViewModel> CheckedOrAll() { var checkedRows = Items.Where(x => x.IsChecked).ToList(); return checkedRows.Count > 0 ? checkedRows : Items.ToList(); }
@@ -168,7 +204,7 @@ namespace TotalUpdater.Next.UI
             if (FilterName == "Unknown") { e.Accepted = row.Candidate == null || row.Candidate.State == UpdateState.PluginNotRecognized || row.Candidate.State == UpdateState.VersionComparisonUnknown; return; }
             e.Accepted = FilterName != "Errors" || row.HasError;
         }
-        private void BrowseIni() { var dialog = new OpenFileDialog { Filter = "wincmd.ini|wincmd.ini;*.ini|Все файлы|*.*", FileName = "wincmd.ini" }; if (dialog.ShowDialog(System.Windows.Application.Current.MainWindow) == true) { IniPath = dialog.FileName; Discover(); } }
+        private void BrowseIni() { var dialog = new OpenFileDialog { Filter = "wincmd.ini|wincmd.ini;*.ini|Все файлы|*.*", FileName = "wincmd.ini" }; if (dialog.ShowDialog(System.Windows.Application.Current.MainWindow) == true) { IniPath = dialog.FileName; Discover(); RecoverPending(); } }
         private void OpenUserCatalog() { _catalog.EnsureUserCatalog(); UserCatalogEntries.Clear(); foreach (var entry in _catalog.LoadUserCatalog()) UserCatalogEntries.Add(entry); Process.Start(new ProcessStartInfo("notepad.exe", "\"" + _paths.UserCatalogPath + "\"") { UseShellExecute = true }); }
         private static void OpenSite(PluginRowViewModel row) { Process.Start(new ProcessStartInfo(row.Candidate.SourceUrl.AbsoluteUri) { UseShellExecute = true }); }
         private static void OpenPath(PluginRowViewModel row) { Process.Start(new ProcessStartInfo("explorer.exe", "/select,\"" + row.Path + "\"") { UseShellExecute = true }); }

@@ -2,24 +2,44 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Runtime.Serialization.Json;
+using System.Collections.Generic;
 using TotalUpdater.Next.Core.Installation;
 
 namespace TotalUpdater.Next.Infrastructure.Installation
 {
     public sealed class BackupService
     {
-        public static InstallManifest FindLatest(string backupRoot)
+        public static InstallManifest FindLatest(string backupRoot, string pluginId, string primaryPath)
         {
-            if (!Directory.Exists(backupRoot)) return null;
-            return Directory.GetDirectories(backupRoot).Select(path => Path.Combine(path, "manifest.json"))
-                .Where(File.Exists).Select(path => { try { return Load(path); } catch { return null; } })
-                .Where(x => x != null && x.State == "Completed").OrderByDescending(x => x.CreatedUtc).FirstOrDefault();
+            return Enumerate(backupRoot).Where(x => x.State == "Completed" &&
+                String.Equals(x.PluginId, pluginId, StringComparison.OrdinalIgnoreCase) &&
+                SamePath(x.PrimaryPath, primaryPath)).OrderByDescending(x => x.CreatedUtc).FirstOrDefault();
+        }
+        public static IList<InstallManifest> FindIncomplete(string backupRoot)
+        {
+            return Enumerate(backupRoot).Where(x => x.State == "Prepared" || x.State == "Installing" || x.State == "RollingBack")
+                .OrderBy(x => x.CreatedUtc).ToList();
+        }
+        private static IEnumerable<InstallManifest> Enumerate(string backupRoot)
+        {
+            if (!Directory.Exists(backupRoot)) yield break;
+            foreach (var directory in Directory.GetDirectories(backupRoot))
+            {
+                var path = Path.Combine(directory, "manifest.json");
+                if (!File.Exists(path)) continue;
+                InstallManifest manifest = null;
+                try { manifest = Load(path, backupRoot); } catch (Exception) { }
+                if (manifest != null) yield return manifest;
+            }
         }
         public InstallManifest Create(InstallPlan plan)
         {
             Directory.CreateDirectory(plan.BackupDirectory);
-            var manifest = new InstallManifest { PluginId = plan.Plugin.Identity.Id, PluginType = plan.Plugin.Type.ToString(), PrimaryPath = plan.Plugin.PrimaryPath,
+            var manifest = new InstallManifest { ManifestVersion = 2, TransactionId = Path.GetFileName(plan.BackupDirectory),
+                PluginId = plan.Plugin.Identity.Id, PluginType = plan.Plugin.Type.ToString(), PrimaryPath = plan.Plugin.PrimaryPath,
                 OldVersion = plan.OldVersion, NewVersion = plan.NewVersion, PackageUrl = plan.PackageUrl, PackageSha256 = plan.Package.PackageSha256,
+                CanonicalSource = plan.CanonicalSource, DownloadSource = plan.DownloadSource, DownloadAuthority = plan.DownloadAuthority,
+                RequiredBinaryPaths = plan.Plugin.Binaries.Where(x => x.Exists).Select(x => Path.GetFullPath(x.Path)).ToList(),
                 TargetDirectory = plan.TargetDirectory, BackupDirectory = plan.BackupDirectory, CreatedUtc = DateTime.UtcNow, State = "Prepared" };
             foreach (var item in plan.Files)
             {
@@ -29,7 +49,7 @@ namespace TotalUpdater.Next.Infrastructure.Installation
                     var info = new FileInfo(item.Destination);
                     record.OriginalSha256 = PackageInspector.Hash(item.Destination);
                     record.CreationTimeUtc = info.CreationTimeUtc; record.LastWriteTimeUtc = info.LastWriteTimeUtc; record.Attributes = info.Attributes;
-                    record.BackupPath = Path.Combine(plan.BackupDirectory, "files", item.Source.RelativePath);
+                    record.BackupPath = ResolveBackupPath(manifest, record);
                     Directory.CreateDirectory(Path.GetDirectoryName(record.BackupPath));
                     File.Copy(item.Destination, record.BackupPath, false);
                     if (PackageInspector.Hash(record.BackupPath) != record.OriginalSha256) throw new IOException("Backup checksum mismatch.");
@@ -50,9 +70,77 @@ namespace TotalUpdater.Next.Infrastructure.Installation
             else File.Move(temporary, path);
         }
 
-        public static InstallManifest Load(string path)
+        public static InstallManifest Load(string path, string backupRoot)
         {
-            using (var input = File.OpenRead(path)) return (InstallManifest)new DataContractJsonSerializer(typeof(InstallManifest)).ReadObject(input);
+            InstallManifest manifest;
+            using (var input = File.OpenRead(path)) manifest = (InstallManifest)new DataContractJsonSerializer(typeof(InstallManifest)).ReadObject(input);
+            Validate(manifest, path, backupRoot);
+            return manifest;
+        }
+        public static void Validate(InstallManifest manifest, string path, string backupRoot)
+        {
+            if (manifest == null || String.IsNullOrWhiteSpace(backupRoot) || String.IsNullOrWhiteSpace(manifest.BackupDirectory) ||
+                String.IsNullOrWhiteSpace(manifest.PrimaryPath) || String.IsNullOrWhiteSpace(manifest.TargetDirectory) || String.IsNullOrWhiteSpace(manifest.PluginId) ||
+                manifest.Files == null || manifest.Files.Count == 0) throw new InvalidDataException("Неполный manifest.");
+            if (!Path.IsPathRooted(backupRoot) || !Path.IsPathRooted(manifest.BackupDirectory) || !Path.IsPathRooted(manifest.PrimaryPath) || !Path.IsPathRooted(manifest.TargetDirectory))
+                throw new InvalidDataException("Manifest содержит не абсолютные пути.");
+            var directory = Path.GetFullPath(Path.GetDirectoryName(path));
+            var root = Path.GetFullPath(backupRoot).TrimEnd(Path.DirectorySeparatorChar);
+            if (!SamePath(Path.GetDirectoryName(directory), root) || !SamePath(directory, manifest.BackupDirectory) ||
+                !SamePath(Path.Combine(directory, "manifest.json"), path) ||
+                !SamePath(Path.GetDirectoryName(Path.GetFullPath(manifest.PrimaryPath)), manifest.TargetDirectory))
+                throw new InvalidDataException("Manifest находится вне backup root или target не соответствует primary path.");
+            if (manifest.ManifestVersion != 0 && manifest.ManifestVersion != 2) throw new InvalidDataException("Неизвестная версия manifest.");
+            Guid transactionId;
+            if (manifest.ManifestVersion == 2 && (!Guid.TryParseExact(manifest.TransactionId, "N", out transactionId) ||
+                !String.Equals(manifest.TransactionId, Path.GetFileName(directory), StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidDataException("TransactionId не совпадает с каталогом backup.");
+            if (new[] { "Prepared", "Installing", "Completed", "RollingBack", "RolledBack", "RecoveryConflict", "RollbackVerificationFailed" }.All(x => x != manifest.State))
+                throw new InvalidDataException("Неизвестное состояние manifest.");
+            RejectReparse(root, directory);
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var record in manifest.Files)
+            {
+                var safe = PackageInspector.SafeRelativePath(record.RelativePath);
+                if (!seen.Add(safe) || String.Equals(safe, "pluginst.inf", StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("Повтор или недопустимый файл в manifest.");
+                var target = Path.GetFullPath(Path.Combine(manifest.TargetDirectory, safe));
+                if (!target.StartsWith(Path.GetFullPath(manifest.TargetDirectory).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidDataException("Файл manifest вне target.");
+                if (record.Replaced && String.IsNullOrWhiteSpace(record.OriginalSha256)) throw new InvalidDataException("Отсутствует original hash.");
+                if (String.IsNullOrWhiteSpace(record.InstalledSha256)) throw new InvalidDataException("Отсутствует installed hash.");
+            }
+            if (manifest.ManifestVersion == 2 && (manifest.RequiredBinaryPaths == null || manifest.RequiredBinaryPaths.Count == 0))
+                throw new InvalidDataException("Нет списка required binaries.");
+            if (manifest.RequiredBinaryPaths == null || manifest.RequiredBinaryPaths.Count == 0)
+                manifest.RequiredBinaryPaths = new List<string> { manifest.PrimaryPath };
+            if (manifest.RequiredBinaryPaths.Any(x => !Path.IsPathRooted(x) || !Path.GetFullPath(x).StartsWith(Path.GetFullPath(manifest.TargetDirectory).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidDataException("Путь required binary вне target.");
+        }
+        public static string ResolveBackupPath(InstallManifest manifest, InstallManifestFile record)
+        {
+            var root = Path.GetFullPath(Path.Combine(manifest.BackupDirectory, "files"));
+            var path = Path.GetFullPath(Path.Combine(root, PackageInspector.SafeRelativePath(record.RelativePath)));
+            if (!path.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("Backup path вне backup directory.");
+            RejectReparse(manifest.BackupDirectory, Path.GetDirectoryName(path));
+            if (File.Exists(path) && (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0) throw new InvalidDataException("Reparse point в backup file.");
+            return path;
+        }
+        private static void RejectReparse(string root, string endpoint)
+        {
+            var cursor = Path.GetFullPath(endpoint);
+            var boundary = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar);
+            while (cursor.Length >= boundary.Length)
+            {
+                if (Directory.Exists(cursor) && (File.GetAttributes(cursor) & FileAttributes.ReparsePoint) != 0)
+                    throw new InvalidDataException("Reparse point в backup path.");
+                if (SamePath(cursor, boundary)) break;
+                cursor = Path.GetDirectoryName(cursor);
+                if (cursor == null) break;
+            }
+        }
+        private static bool SamePath(string left, string right)
+        {
+            return String.Equals(Path.GetFullPath(left).TrimEnd(Path.DirectorySeparatorChar), Path.GetFullPath(right).TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase);
         }
     }
 }

@@ -66,7 +66,7 @@ namespace TotalUpdater.Next.Infrastructure.Installation
                 if (metadata == null) throw new InvalidDataException("В корне ZIP нет pluginst.inf.");
                 var section = new IniDocumentReader().Read(metadata.StagedPath).GetSection("plugininstall");
                 if (section == null) throw new InvalidDataException("Нет секции [plugininstall].");
-                result.Type = section.GetValue("type"); result.File = section.GetValue("file"); result.Version = section.GetValue("version");
+                result.Description = section.GetValue("description"); result.Type = section.GetValue("type"); result.File = section.GetValue("file"); result.Version = section.GetValue("version");
                 result.DefaultDir = section.GetValue("defaultdir"); result.DefaultExtension = section.GetValue("defaultextension");
                 return result;
             }

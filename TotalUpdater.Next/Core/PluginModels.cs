@@ -68,5 +68,9 @@ namespace TotalUpdater.Next.Core
         public RemoteVersionObservation DownloadSource { get; set; }
         public bool HasSourceDisagreement { get; set; }
         public bool AuthorityConflict { get; set; }
+        public string DownloadedPackagePath { get; set; }
+        public string DownloadedPackageSha256 { get; set; }
+        public string DownloadedPackageUrl { get; set; }
+        public string DownloadedCanonicalVersion { get; set; }
     }
 }

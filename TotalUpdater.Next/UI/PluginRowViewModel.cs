@@ -4,6 +4,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using TotalUpdater.Next.Core;
 using TotalUpdater.Next.Resources;
+using TotalUpdater.Next.Infrastructure.Installation;
 
 namespace TotalUpdater.Next.UI
 {
@@ -49,6 +50,7 @@ namespace TotalUpdater.Next.UI
         public void SetChecking() { Status = Plugin.HasVersionConflict ? Text.Get("VersionConflict") : Text.Get("Checking"); }
         public void Apply(UpdateCandidate candidate)
         {
+            DownloadedPackagePolicy.CarryForward(_candidate, candidate);
             if (Plugin.HasVersionConflict) candidate.State = UpdateState.LocalVersionConflict;
             _candidate = candidate; AvailableVersion = candidate.AvailableVersion.IsKnown ? candidate.AvailableVersion.Raw : "—";
             Status = ToStatus(candidate.State, candidate.Details);

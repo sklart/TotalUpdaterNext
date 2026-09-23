@@ -21,6 +21,7 @@ namespace TotalUpdater.Next.Core.Installation
     }
     public sealed class PackageInspection
     {
+        public string Description { get; set; }
         public string PackagePath { get; set; }
         public string StagingDirectory { get; set; }
         public string PackageSha256 { get; set; }
@@ -40,6 +41,9 @@ namespace TotalUpdater.Next.Core.Installation
         public string OldVersion { get; set; }
         public string NewVersion { get; set; }
         public string PackageUrl { get; set; }
+        public string CanonicalSource { get; set; }
+        public string DownloadSource { get; set; }
+        public string DownloadAuthority { get; set; }
         public bool UserConfigRisk { get; set; }
         public List<InstallFile> Files { get; set; } = new List<InstallFile>();
     }
@@ -52,6 +56,8 @@ namespace TotalUpdater.Next.Core.Installation
     [DataContract]
     public sealed class InstallManifest
     {
+        [DataMember] public int ManifestVersion { get; set; }
+        [DataMember] public string TransactionId { get; set; }
         [DataMember] public string PluginId { get; set; }
         [DataMember] public string PluginType { get; set; }
         [DataMember] public string PrimaryPath { get; set; }
@@ -59,6 +65,10 @@ namespace TotalUpdater.Next.Core.Installation
         [DataMember] public string NewVersion { get; set; }
         [DataMember] public string PackageUrl { get; set; }
         [DataMember] public string PackageSha256 { get; set; }
+        [DataMember] public string CanonicalSource { get; set; }
+        [DataMember] public string DownloadSource { get; set; }
+        [DataMember] public string DownloadAuthority { get; set; }
+        [DataMember] public List<string> RequiredBinaryPaths { get; set; } = new List<string>();
         [DataMember] public string TargetDirectory { get; set; }
         [DataMember] public string BackupDirectory { get; set; }
         [DataMember] public string State { get; set; }

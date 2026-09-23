@@ -52,7 +52,7 @@ namespace TotalUpdater.Next.Infrastructure.Installation
             }
             catch (Exception original)
             {
-                try { _rollback.Rollback(manifest); }
+                try { _rollback.Rollback(manifest, Path.GetDirectoryName(manifest.BackupDirectory), rediscover); }
                 catch (Exception rollbackError) { throw new AggregateException("Ошибка установки и автоматического отката; backup сохранён: " + manifest.BackupDirectory, original, rollbackError); }
                 throw;
             }
@@ -60,6 +60,8 @@ namespace TotalUpdater.Next.Infrastructure.Installation
 
         public static void Preflight(InstallPlan plan, Func<bool> isTotalCommanderRunning = null)
         {
+            if (!File.Exists(plan.Package.PackagePath) || !String.Equals(PackageInspector.Hash(plan.Package.PackagePath), plan.Package.PackageSha256, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("ZIP изменён после inspection; установка заблокирована.");
             if ((isTotalCommanderRunning ?? (() => Process.GetProcessesByName("TOTALCMD").Any() || Process.GetProcessesByName("TOTALCMD64").Any()))())
                 throw new InvalidOperationException("Закройте Total Commander перед установкой (TOTALCMD.EXE / TOTALCMD64.EXE).");
             if (!Directory.Exists(plan.TargetDirectory)) throw new DirectoryNotFoundException(plan.TargetDirectory);

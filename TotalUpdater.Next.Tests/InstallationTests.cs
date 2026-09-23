@@ -24,7 +24,7 @@ namespace TotalUpdater.Next.Tests
                 var target = Path.Combine(root, "plugin"); Directory.CreateDirectory(target);
                 var primary = Path.Combine(target, "sample.wlx"); File.WriteAllText(primary, "old");
                 var plugin = Plugin(primary);
-                var zip = Path.Combine(root, "valid.zip"); CreateZip(zip, "[plugininstall]\ntype=wlx\nfile=sample.wlx\nversion=2.0\ndefaultdir=sample\n", "sample.wlx", "new");
+                var zip = Path.Combine(root, "valid.zip"); CreateZip(zip, Metadata(), "sample.wlx", "new");
                 var inspection = Inspect(zip);
                 check(inspection.Type == "wlx" && inspection.File == "sample.wlx" && inspection.Version == "2.0" && inspection.DefaultDir == "sample", "pluginst.inf fields parsed");
                 var plan = Build(plugin, inspection, root);
@@ -33,18 +33,25 @@ namespace TotalUpdater.Next.Tests
                 var manifest = new TransactionalInstaller(isTotalCommanderRunning: () => false).Install(plan, () => Updated(plugin));
                 check(File.ReadAllText(primary) == "new" && manifest.State == "Completed", "successful transactional install");
                 check(manifest.Files[0].OriginalSha256 == PackageInspector.Hash(manifest.Files[0].BackupPath) && File.Exists(Path.Combine(plan.BackupDirectory, "manifest.json")), "backup manifest and original hash");
-                new RollbackService().Rollback(manifest);
-                new RollbackService().Rollback(manifest);
+                new RollbackService().Rollback(manifest, Path.Combine(root, "backups"), () => plugin);
+                new RollbackService().Rollback(manifest, Path.Combine(root, "backups"), () => plugin);
                 check(File.ReadAllText(primary) == "old" && manifest.State == "RolledBack", "manual idempotent rollback");
 
-                var mismatch = Path.Combine(root, "mismatch.zip"); CreateZip(mismatch, "[plugininstall]\ntype=wfx\nfile=sample.wlx\nversion=2.0\ndefaultdir=sample\n", "sample.wlx", "new");
+                var mismatch = Path.Combine(root, "mismatch.zip"); CreateZip(mismatch, Metadata().Replace("type=wlx", "type=wfx"), "sample.wlx", "new");
                 check(Fails(() => Build(plugin, Inspect(mismatch), root)), "pluginst.inf type mismatch");
-                var wrongVersion = Path.Combine(root, "version.zip"); CreateZip(wrongVersion, "[plugininstall]\ntype=wlx\nfile=sample.wlx\nversion=3.0\ndefaultdir=sample\n", "sample.wlx", "new");
+                var wrongVersion = Path.Combine(root, "version.zip"); CreateZip(wrongVersion, Metadata().Replace("version=2.0", "version=3.0"), "sample.wlx", "new");
                 check(Fails(() => Build(plugin, Inspect(wrongVersion), root)), "pluginst.inf canonical version mismatch");
-                var wrongFile = Path.Combine(root, "file.zip"); CreateZip(wrongFile, "[plugininstall]\ntype=wlx\nfile=other.wlx\nversion=2.0\ndefaultdir=sample\n", "other.wlx", "new");
+                var noVersion = Path.Combine(root, "noversion.zip"); CreateZip(noVersion, Metadata().Replace("version=2.0\n", ""), "sample.wlx", "new");
+                check(Build(plugin, Inspect(noVersion), root).Files.Count == 1, "pluginst.inf version optional");
+                check(Fails(() => new TransactionalInstaller(isTotalCommanderRunning: () => false).Install(Build(plugin, Inspect(noVersion), root), () => plugin)) && File.ReadAllText(primary) == "old", "versionless pluginst.inf still requires post-install version verification");
+                var noDescription = Path.Combine(root, "nodescription.zip"); CreateZip(noDescription, Metadata().Replace("description=Sample plugin\n", ""), "sample.wlx", "new");
+                check(Fails(() => Build(plugin, Inspect(noDescription), root)), "pluginst.inf description required");
+                var wrongFile = Path.Combine(root, "file.zip"); CreateZip(wrongFile, Metadata().Replace("file=sample.wlx", "file=other.wlx"), "other.wlx", "new");
                 check(Fails(() => Build(plugin, Inspect(wrongFile), root)), "pluginst.inf file mismatch");
-                var badDir = Path.Combine(root, "defaultdir.zip"); CreateZip(badDir, "[plugininstall]\ntype=wlx\nfile=sample.wlx\nversion=2.0\ndefaultdir=..\\escape\n", "sample.wlx", "new");
+                var badDir = Path.Combine(root, "defaultdir.zip"); CreateZip(badDir, Metadata().Replace("defaultdir=sample", "defaultdir=..\\escape"), "sample.wlx", "new");
                 check(Fails(() => Build(plugin, Inspect(badDir), root)), "pluginst.inf defaultdir validation");
+                var nestedDir = Path.Combine(root, "nesteddir.zip"); CreateZip(nestedDir, Metadata().Replace("defaultdir=sample", "defaultdir=plugins\\sample"), "sample.wlx", "new");
+                check(Fails(() => Build(plugin, Inspect(nestedDir), root)), "pluginst.inf nested defaultdir rejected");
                 foreach (var unsafeName in new[] { "../evil", "/absolute", "\\\\server\\share", "C:\\drive", "sample.ini:ads" })
                 {
                     var bad = Path.Combine(root, Guid.NewGuid().ToString("N") + ".zip"); CreateZip(bad, Metadata(), "sample.wlx", "new", unsafeName, "evil");
@@ -67,12 +74,12 @@ namespace TotalUpdater.Next.Tests
                     check(Fails(() => TransactionalInstaller.Preflight(plan, () => false)), "locked target preflight");
                 var multi = Path.Combine(root, "multi.zip"); CreateZip(multi, Metadata(), "sample.wlx", "new", "extra.txt", "extra");
                 var multiPlan = Build(plugin, Inspect(multi), root);
-                check(Fails(() => new TransactionalInstaller(afterFile: index => { if (index == 1) throw new IOException("simulated failure"); }, isTotalCommanderRunning: () => false).Install(multiPlan, () => Updated(plugin))) &&
+                check(Fails(() => new TransactionalInstaller(afterFile: index => { if (index == 1) throw new IOException("simulated failure"); }, isTotalCommanderRunning: () => false).Install(multiPlan, () => File.ReadAllText(primary) == "old" ? plugin : Updated(plugin))) &&
                     File.ReadAllText(primary) == "old" && !File.Exists(Path.Combine(target, "extra.txt")), "mid-install failure auto rollback");
                 File.WriteAllText(Path.Combine(target, "unrelated.txt"), "keep");
                 var multiManifest = new TransactionalInstaller(isTotalCommanderRunning: () => false).Install(Build(plugin, Inspect(multi), root), () => Updated(plugin));
                 check(File.Exists(Path.Combine(target, "extra.txt")), "new package file installed");
-                new RollbackService().Rollback(multiManifest);
+                new RollbackService().Rollback(multiManifest, Path.Combine(root, "backups"), () => plugin);
                 check(!File.Exists(Path.Combine(target, "extra.txt")) && File.ReadAllText(primary) == "old" && File.ReadAllText(Path.Combine(target, "unrelated.txt")) == "keep", "rollback removes only transaction-added file");
                 var mismatchPlan = Build(plugin, Inspect(zip), root);
                 check(Fails(() => new TransactionalInstaller(isTotalCommanderRunning: () => false).Install(mismatchPlan, () => plugin)) && File.ReadAllText(primary) == "old", "post-install mismatch auto rollback");
@@ -99,7 +106,7 @@ namespace TotalUpdater.Next.Tests
             return result;
         }
 
-        private static string Metadata() { return "[plugininstall]\ntype=wlx\nfile=sample.wlx\nversion=2.0\ndefaultdir=sample\n"; }
+        private static string Metadata() { return "[plugininstall]\ndescription=Sample plugin\ntype=wlx\nfile=sample.wlx\nversion=2.0\ndefaultdir=sample\n"; }
         private static InstalledPlugin Plugin(string path)
         {
             return new InstalledPlugin { Identity = new PluginIdentity { Id = "sample", Type = PluginType.Wlx }, Type = PluginType.Wlx, DisplayName = "Sample", PrimaryPath = path,

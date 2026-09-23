@@ -9,7 +9,7 @@ namespace TotalUpdater.Next.Core.Installation
 {
     public sealed class InstallPlanBuilder
     {
-        public InstallPlan Build(InstalledPlugin plugin, PackageInspection package, VersionValue canonicalVersion, Uri packageUrl, string backupRoot)
+        public InstallPlan Build(InstalledPlugin plugin, PackageInspection package, VersionValue canonicalVersion, Uri packageUrl, string backupRoot, UpdateCandidate candidate = null)
         {
             if (plugin == null || !plugin.FileExists || plugin.Identity == null || plugin.HasVersionConflict || !plugin.LocalVersion.ParsedValue.IsKnown)
                 throw new InvalidOperationException("Нужен установленный плагин с известной согласованной версией.");
@@ -20,10 +20,14 @@ namespace TotalUpdater.Next.Core.Installation
                 throw new InvalidOperationException("Нет canonical версии и HTTP(S)-адреса пакета.");
             if (package == null || !File.Exists(package.PackagePath) || !String.Equals(PackageInspector.Hash(package.PackagePath), package.PackageSha256, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("ZIP изменился после проверки.");
+            if (String.IsNullOrWhiteSpace(package.Description)) throw new InvalidDataException("Нет description в pluginst.inf.");
             if (!String.Equals(package.Type, plugin.Type.ToString(), StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("Тип pluginst.inf не совпадает с установленным плагином.");
-            if (!VersionValue.Parse(package.Version).IsKnown || VersionValue.Parse(package.Version).CompareTo(canonicalVersion) != VersionComparison.Equal)
+            if (!String.IsNullOrWhiteSpace(package.Version) && VersionValue.Parse(package.Version).CompareTo(canonicalVersion) != VersionComparison.Equal)
                 throw new InvalidDataException("Версия pluginst.inf не совпадает с canonical release.");
-            if (String.IsNullOrWhiteSpace(package.DefaultDir) || package.DefaultDir.Contains("..") || package.DefaultDir.IndexOf(':') >= 0 || Path.IsPathRooted(package.DefaultDir))
+            if (String.IsNullOrWhiteSpace(package.DefaultDir) || package.DefaultDir == "." || package.DefaultDir.Contains("..") ||
+                package.DefaultDir.IndexOfAny(new[] { '/', '\\', ':' }) >= 0 || Path.IsPathRooted(package.DefaultDir) ||
+                package.DefaultDir.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 ||
+                package.DefaultDir.EndsWith(" ", StringComparison.Ordinal) || package.DefaultDir.EndsWith(".", StringComparison.Ordinal))
                 throw new InvalidDataException("Некорректный defaultdir в pluginst.inf.");
             if (plugin.Type == PluginType.Wcx && String.IsNullOrWhiteSpace(package.DefaultExtension))
                 throw new InvalidDataException("Для WCX отсутствует defaultextension.");
@@ -39,7 +43,9 @@ namespace TotalUpdater.Next.Core.Installation
             if (backupDirectory.StartsWith(target + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) || target.StartsWith(backupDirectory + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Backup должен находиться вне каталога плагина.");
             var plan = new InstallPlan { Plugin = plugin, Package = package, TargetDirectory = target, BackupDirectory = backupDirectory,
-                OldVersion = plugin.LocalVersion.RawValue, NewVersion = canonicalVersion.Raw, PackageUrl = packageUrl.AbsoluteUri };
+                OldVersion = plugin.LocalVersion.RawValue, NewVersion = canonicalVersion.Raw, PackageUrl = packageUrl.AbsoluteUri,
+                CanonicalSource = candidate?.CanonicalVersionSource?.ProviderName ?? "", DownloadSource = candidate?.DownloadSource?.ProviderName ?? "",
+                DownloadAuthority = candidate?.DownloadSource == null ? "" : candidate.DownloadSource.Authority.ToString() };
             foreach (var source in package.Files.Where(x => !String.Equals(x.RelativePath, "pluginst.inf", StringComparison.OrdinalIgnoreCase)))
             {
                 // Do not let package-supplied subdirectories escape the installed family directory.
