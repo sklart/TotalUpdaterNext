@@ -16,6 +16,9 @@ namespace TotalUpdater.Next.Core
         public SourceQueryStatus Status { get; set; }
         public RemoteRelease Release { get; set; }
         public string Details { get; set; } = "";
+        public bool IsCached { get; set; }
+        public DateTime? CachedAt { get; set; }
+        public bool IsStale { get; set; }
     }
     public sealed class AuthorityResolution
     {

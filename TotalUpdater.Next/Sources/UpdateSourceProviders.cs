@@ -36,6 +36,9 @@ namespace TotalUpdater.Next.Sources
         public SourceQueryStatus Status { get; set; }
         public RemoteRelease Release { get; set; }
         public string Details { get; set; } = "";
+        public bool IsCached { get; set; }
+        public DateTime? CachedAt { get; set; }
+        public bool IsStale { get; set; }
     }
 
     public interface IUpdateSourceProvider
@@ -82,6 +85,12 @@ namespace TotalUpdater.Next.Sources
         }
 
         protected static SourceQueryResult Result(SourceQueryStatus status, RemoteRelease release, string details) { return new SourceQueryResult { Status = status, Release = release, Details = details }; }
+        protected static SourceQueryResult WithProvenance(SourceQueryResult result, SharedSourceResponse response)
+        {
+            if (result == null || response == null) return result;
+            result.IsCached = response.IsCached; result.CachedAt = response.CachedAt; result.IsStale = response.IsStale;
+            return result;
+        }
         protected static IList<RemotePackage> ParseLinks(string html)
         {
             var packages = new List<RemotePackage>();
@@ -153,7 +162,12 @@ namespace TotalUpdater.Next.Sources
         public override async Task<SourceQueryResult> QueryAsync(CatalogSource source, CancellationToken cancellationToken) { return await QueryAsync(source, null, cancellationToken).ConfigureAwait(false); }
         public override async Task<SourceQueryResult> QueryAsync(CatalogSource source, SourceResponseCache cache, CancellationToken cancellationToken)
         {
-            try { var text = cache == null ? await Http.GetTotalCmdIndexAsync(cancellationToken).ConfigureAwait(false) : await cache.GetOrAdd("totalcmd.net:index", () => Http.GetTotalCmdIndexAsync(cancellationToken)).ConfigureAwait(false); return Parse(source.Id, text); }
+            try
+            {
+                if (cache == null) return Parse(source.Id, await Http.GetTotalCmdIndexAsync(cancellationToken).ConfigureAwait(false));
+                var response = await cache.GetSharedMetadataAsync("totalcmd.net", "totalcmd.net:index", Url, () => Http.GetTotalCmdIndexBytesAsync(cancellationToken), HttpService.DecodeTotalCmdIndex, "text/plain", "windows-1251", cancellationToken).ConfigureAwait(false);
+                return WithProvenance(Parse(source.Id, response.Text), response);
+            }
             catch (OperationCanceledException) { throw; }
             catch (Exception ex) { return Result(SourceQueryStatus.Unavailable, null, ex.Message); }
         }
@@ -205,8 +219,9 @@ namespace TotalUpdater.Next.Sources
         {
             try
             {
-                var html = cache == null ? await Http.GetStringAsync(Url, cancellationToken).ConfigureAwait(false) : await cache.GetOrAdd("ghisler:plugins", () => Http.GetStringAsync(Url, cancellationToken)).ConfigureAwait(false);
-                var result = Parse(source.Id, html);
+                SharedSourceResponse response = null;
+                var html = cache == null ? await Http.GetStringAsync(Url, cancellationToken).ConfigureAwait(false) : (response = await cache.GetSharedMetadataAsync("ghisler.com", "ghisler:plugins", Url, () => Http.GetBytesAsync(Url, cancellationToken), Encoding.UTF8.GetString, "text/html", "utf-8", cancellationToken).ConfigureAwait(false)).Text;
+                var result = WithProvenance(Parse(source.Id, html), response);
                 Uri packageUrl;
                 if (result.Status == SourceQueryStatus.Success && result.Release != null &&
                     Uri.TryCreate(source.EphemeralVerifiedPackageUrl, UriKind.Absolute, out packageUrl) &&

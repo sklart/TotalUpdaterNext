@@ -69,6 +69,12 @@ namespace TotalUpdater.Next.Core
             { candidate.PackageAvailability = PackageAvailability.Ambiguous; candidate.Details = "Конфликт источников одного уровня доверия; загрузка отключена."; }
             else if (state == UpdateState.UpdateAvailable)
             {
+                if (!entry.AllowsAutomaticInstall)
+                {
+                    candidate.PackageAvailability = PackageAvailability.MetadataOnly;
+                    candidate.Details = entry.IdentityEvidence == IdentityEvidence.OfficialRegistrationName ? "Подтверждено только имя регистрации; автоматическая установка отключена." : "Версия известна, пакет не найден; автоматическая установка отключена.";
+                    return candidate;
+                }
                 var download = SelectDownloadObservation(plugin, observations, canonical, out var packageUrl, out var packageDetails);
                 if (download != null) { candidate.DownloadUrl = packageUrl; candidate.DownloadSource = download; candidate.PackageAvailability =
                     download.Source != null && String.Equals(download.Source.EphemeralVerifiedPackageUrl, packageUrl.AbsoluteUri, StringComparison.OrdinalIgnoreCase)
@@ -120,21 +126,23 @@ namespace TotalUpdater.Next.Core
                 var normalized = Total7zipVersionStrategy.FromPeFileVersion(result.Release.VersionText).ParsedValue;
                 if (normalized.IsKnown) result.Release.Version = normalized;
             }
-            observations.Add(new RemoteVersionObservation { Source = source, ProviderName = provider.Name, Authority = source.AuthorityValue, Purpose = source.PurposeValue, Status = result == null ? SourceQueryStatus.InvalidResponse : result.Status, Release = result == null ? null : result.Release, Details = result == null ? "пустой ответ" : result.Details });
+            observations.Add(new RemoteVersionObservation { Source = source, ProviderName = provider.Name, Authority = source.AuthorityValue, Purpose = source.PurposeValue, Status = result == null ? SourceQueryStatus.InvalidResponse : result.Status, Release = result == null ? null : result.Release, Details = result == null ? "пустой ответ" : result.Details,
+                IsCached = result != null && result.IsCached, CachedAt = result == null ? null : result.CachedAt, IsStale = result != null && result.IsStale });
             if (result == null || result.Status != SourceQueryStatus.Success || result.Release == null || !result.Release.Version.IsKnown)
                 details.Add(provider.Name + ": " + (result == null ? "пустой ответ" : result.Details));
         }
 
         private static void ApplyProvenance(UpdateCandidate candidate, IList<RemoteVersionObservation> observations, AuthorityResolution resolution)
-        { candidate.Observations = observations; candidate.CanonicalVersionSource = resolution.Canonical; candidate.HasSourceDisagreement = resolution.HasDisagreement; candidate.AuthorityConflict = resolution.HasConflict; }
+        { candidate.Observations = observations; candidate.CanonicalVersionSource = resolution.Canonical; candidate.HasSourceDisagreement = resolution.HasDisagreement; candidate.AuthorityConflict = resolution.HasConflict;
+            if (resolution.Canonical != null) { candidate.IsCached = resolution.Canonical.IsCached; candidate.CachedAt = resolution.Canonical.CachedAt; candidate.IsStale = resolution.Canonical.IsStale; } }
 
         private static RemoteVersionObservation SelectDownloadObservation(InstalledPlugin plugin, IList<RemoteVersionObservation> observations, RemoteVersionObservation canonical, out Uri packageUrl, out string details)
         {
             packageUrl = null; details = "";
-            var eligible = observations.Where(x => x.Release != null && x.Purpose != SourcePurpose.Metadata && x.Release.Version.CompareTo(canonical.Release.Version) == VersionComparison.Equal && x.Release.Packages != null && x.Release.Packages.Count > 0)
+            var eligible = observations.Where(x => !x.IsCached && x.Release != null && x.Purpose != SourcePurpose.Metadata && x.Release.Version.CompareTo(canonical.Release.Version) == VersionComparison.Equal && x.Release.Packages != null && x.Release.Packages.Count > 0)
                 .OrderByDescending(x => x.Authority).ThenByDescending(x => x.Source == null ? 0 : x.Source.Priority).ToList();
             // Canonical observation has precedence when it can provide a safe package.
-            if (canonical.Release.Packages != null && canonical.Release.Packages.Count > 0 && canonical.Purpose != SourcePurpose.Metadata)
+            if (!canonical.IsCached && canonical.Release.Packages != null && canonical.Release.Packages.Count > 0 && canonical.Purpose != SourcePurpose.Metadata)
                 eligible.Remove(canonical);
             else
                 canonical = null;

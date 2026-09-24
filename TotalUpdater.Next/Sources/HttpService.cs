@@ -27,16 +27,22 @@ namespace TotalUpdater.Next.Sources
                 return await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             }
         }
-        public async Task<string> GetTotalCmdIndexAsync(CancellationToken token)
+        public async Task<byte[]> GetBytesAsync(string url, CancellationToken token)
         {
-            const string url = "https://totalcmd.net/get_plugins_list.php";
+            RequireHttpUrl(url);
+            token.ThrowIfCancellationRequested();
             using (var response = await _client.GetAsync(url, token).ConfigureAwait(false))
             {
                 response.EnsureSuccessStatusCode();
-                var bytes = await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
-                return DecodeTotalCmdIndex(bytes);
+                token.ThrowIfCancellationRequested();
+                return await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
             }
         }
+        public async Task<string> GetTotalCmdIndexAsync(CancellationToken token)
+        {
+            return DecodeTotalCmdIndex(await GetTotalCmdIndexBytesAsync(token).ConfigureAwait(false));
+        }
+        public Task<byte[]> GetTotalCmdIndexBytesAsync(CancellationToken token) { return GetBytesAsync("https://totalcmd.net/get_plugins_list.php", token); }
         public static string DecodeTotalCmdIndex(byte[] bytes)
         {
             if (bytes == null) return "";

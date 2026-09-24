@@ -109,7 +109,9 @@ namespace TotalUpdater.Next.Catalog
             if (String.IsNullOrWhiteSpace(entry.Name)) { error = "Пустое name."; return false; }
             PluginType type;
             if (!Enum.TryParse(entry.Type, true, out type) || type == PluginType.Other) { error = "Неизвестный PluginType."; return false; }
-            if (entry.Aliases == null || entry.Aliases.Count == 0 || entry.Aliases.Any(String.IsNullOrWhiteSpace)) { error = "Пустой aliases."; return false; }
+            if (entry.Aliases == null || entry.Aliases.Any(String.IsNullOrWhiteSpace)) { error = "Некорректный aliases."; return false; }
+            IdentityEvidence evidence; if (!Enum.TryParse(entry.IdentityEvidenceName ?? "MetadataOnly", true, out evidence)) { error = "Неизвестный identityEvidence."; return false; }
+            if ((evidence == IdentityEvidence.VerifiedBinary || evidence == IdentityEvidence.VerifiedPackage) && entry.Aliases.Count == 0) { error = "Подтверждённый identity требует aliases."; return false; }
             if (!LocalVersionStrategyRegistry.Default.Contains(entry.LocalVersionStrategy)) { error = "Неизвестная localVersionStrategy."; return false; }
             LocalAheadPolicy aheadPolicy;
             if (!Enum.TryParse(entry.LocalAheadPolicyName ?? "Unknown", true, out aheadPolicy)) { error = "Неизвестная localAheadPolicy."; return false; }

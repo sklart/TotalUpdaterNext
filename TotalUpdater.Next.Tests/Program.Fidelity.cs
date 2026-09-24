@@ -5,6 +5,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using TotalUpdater.Next.Catalog;
@@ -24,6 +25,17 @@ namespace TotalUpdater.Next.Tests
             return Path.Combine(Environment.CurrentDirectory, "TotalUpdater.Next", "Catalog", "catalog-harvest-evidence.json");
         }
 
+        private static int AuditFullCatalog()
+        {
+            var catalog = new CatalogService(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".json")).LoadWithDiagnostics();
+            var entries = catalog.Entries; var aliases = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase); var collisions = 0;
+            foreach (var entry in entries) foreach (var alias in entry.Aliases ?? new List<string>()) { string owner; if (aliases.TryGetValue(alias, out owner) && !owner.Equals(entry.Id, StringComparison.OrdinalIgnoreCase)) collisions++; else aliases[alias] = entry.Id; }
+            Console.WriteLine("Total entries: " + entries.Count);
+            foreach (var type in new[] { PluginType.Wcx, PluginType.Wlx, PluginType.Wfx, PluginType.Wdx }) Console.WriteLine(type + ": " + entries.Count(x => x.PluginType == type));
+            foreach (var evidence in new[] { IdentityEvidence.VerifiedBinary, IdentityEvidence.VerifiedPackage, IdentityEvidence.MetadataOnly }) Console.WriteLine(evidence + ": " + entries.Count(x => x.IdentityEvidence == evidence));
+            Console.WriteLine("Missing source: " + entries.Count(x => x.Sources == null || x.Sources.Count == 0)); Console.WriteLine("Alias collisions: " + collisions);
+            return catalog.Diagnostics.Count(x => x.Severity == CatalogDiagnosticSeverity.Error) == 0 && collisions == 0 ? 0 : 1;
+        }
         private static int ValidateHarvestEvidence()
         {
             var path = HarvestEvidencePath();
@@ -86,6 +98,76 @@ namespace TotalUpdater.Next.Tests
                 stream.Position = 0;
                 Assert(!PackageIdentityVerifier.ContainsCatalogAlias(stream, new PluginCatalogEntry { Id = "sample", Type = "Wlx", Aliases = new List<string> { "sample.wlx" } }),
                     "package identity mismatch blocks verified status");
+            }
+        }
+
+        private static void PersistentSourceCacheContracts()
+        {
+            var root = NewRoot();
+            try
+            {
+                const string key = "totalcmd.net:index";
+                const string url = "https://totalcmd.net/get_plugins_list.php";
+                var bytes = Encoding.UTF8.GetBytes("sample|x|2.0|x|x|x|x\n");
+                var persistent = new PersistentSourceCache(root);
+                var cache = new SourceResponseCache(persistent);
+                var live = cache.GetSharedMetadataAsync("totalcmd.net", key, url, () => Task.FromResult(bytes), Encoding.UTF8.GetString, "text/plain", "utf-8").GetAwaiter().GetResult();
+                CachedSourceResponse stored;
+                Assert(!live.IsCached && persistent.TryRead(key, out stored) && stored.SourceUrl == url && stored.Sha256.Length == 64 && stored.Bytes.SequenceEqual(bytes), "live success writes persistent raw response cache");
+
+                var retryCalls = 0;
+                var retry = new SourceResponseCache(new PersistentSourceCache(Path.Combine(root, "retry"))).GetSharedMetadataAsync("totalcmd.net", key, url,
+                    () => ++retryCalls == 1 ? Task.FromException<byte[]>(new TimeoutException("timeout")) : Task.FromResult(bytes), Encoding.UTF8.GetString, "text/plain", "utf-8").GetAwaiter().GetResult();
+                Assert(retryCalls == 2 && !retry.IsCached, "timeout retries once and accepts live success");
+
+                var fallbackPersistent = new PersistentSourceCache(Path.Combine(root, "fallback"));
+                fallbackPersistent.Save(key, url, bytes, "text/plain", "utf-8"); var fallbackCalls = 0;
+                var fallback = new SourceResponseCache(fallbackPersistent).GetSharedMetadataAsync("totalcmd.net", key, url,
+                    () => { fallbackCalls++; return Task.FromException<byte[]>(new TimeoutException("timeout")); }, Encoding.UTF8.GetString, "text/plain", "utf-8").GetAwaiter().GetResult();
+                Assert(fallbackCalls == 2 && fallback.IsCached && fallback.CachedAt.HasValue && !fallback.IsStale, "two timeouts use last-known-good cache with provenance");
+
+                var perRun = new SourceResponseCache(new PersistentSourceCache(Path.Combine(root, "per-run"))); var perRunCalls = 0;
+                try { perRun.GetOrAdd("faulted", () => { perRunCalls++; return Task.FromException<string>(new TimeoutException()); }).GetAwaiter().GetResult(); } catch (TimeoutException) { }
+                var recovered = perRun.GetOrAdd("faulted", () => { perRunCalls++; return Task.FromResult("ok"); }).GetAwaiter().GetResult();
+                Assert(perRunCalls == 2 && recovered == "ok", "faulted per-run source entry is removed and can retry");
+
+                var sharedPersistent = new PersistentSourceCache(Path.Combine(root, "shared")); sharedPersistent.Save(key, url, bytes); var sharedCalls = 0;
+                var shared = new SourceResponseCache(sharedPersistent);
+                Task.WaitAll(Enumerable.Range(0, 40).Select(_ => shared.GetSharedMetadataAsync("totalcmd.net", key, url,
+                    () => { Interlocked.Increment(ref sharedCalls); return Task.FromException<byte[]>(new TimeoutException()); }, Encoding.UTF8.GetString, "text/plain", "utf-8")).ToArray());
+                Assert(sharedCalls == 2, "forty plugins make no more than two live shared-index attempts");
+
+                var stalePersistent = new PersistentSourceCache(Path.Combine(root, "stale")); stalePersistent.Save(key, url, bytes, fetchedUtc: DateTime.UtcNow.AddDays(-181));
+                var stale = new SourceResponseCache(stalePersistent).GetSharedMetadataAsync("totalcmd.net", key, url,
+                    () => Task.FromException<byte[]>(new TimeoutException()), Encoding.UTF8.GetString, "text/plain", "utf-8").GetAwaiter().GetResult();
+                Assert(stale.IsCached && stale.IsStale, "cache older than 180 days is marked stale");
+
+                var corruptPersistent = new PersistentSourceCache(Path.Combine(root, "corrupt")); corruptPersistent.Save(key, url, bytes);
+                File.WriteAllText(Directory.GetFiles(Path.Combine(root, "corrupt")).Single(), "not a cache envelope");
+                CachedSourceResponse corrupt; Assert(!corruptPersistent.TryRead(key, out corrupt), "corrupted cache is ignored");
+
+                var replacePersistent = new PersistentSourceCache(Path.Combine(root, "replace")); replacePersistent.Save(key, url, Encoding.UTF8.GetBytes("old"));
+                new SourceResponseCache(replacePersistent).GetSharedMetadataAsync("totalcmd.net", key, url, () => Task.FromResult(Encoding.UTF8.GetBytes("new")), Encoding.UTF8.GetString, "text/plain", "utf-8").GetAwaiter().GetResult();
+                CachedSourceResponse replaced; Assert(replacePersistent.TryRead(key, out replaced) && Encoding.UTF8.GetString(replaced.Bytes) == "new", "live result atomically replaces old cache");
+
+                var user = Path.Combine(root, "cached-package.json");
+                File.WriteAllText(user, "[{\"id\":\"cached\",\"name\":\"Cached\",\"type\":\"Wlx\",\"aliases\":[\"cached.wlx\"],\"identityEvidence\":\"VerifiedPackage\",\"sources\":[{\"provider\":\"generic-html\",\"url\":\"https://example.test/meta\",\"versionPattern\":\"([0-9.]+)\",\"authority\":\"OfficialAuthor\",\"purpose\":\"MetadataAndDownload\",\"priority\":100}]}]");
+                var cachedCandidate = new UpdateService(new CatalogService(user), new IUpdateSourceProvider[] { new CachedPackageProvider() }).CheckAsync(
+                    new InstalledPlugin { Identity = new PluginIdentity { Id = "cached" }, Architecture = PluginArchitecture.X86, LocalVersion = FileVersionProbe.Create("1.0", VersionSource.FileVersion, VersionConfidence.Exact) }, CancellationToken.None).GetAwaiter().GetResult();
+                Assert(cachedCandidate.State == UpdateState.UpdateAvailable && cachedCandidate.IsCached && cachedCandidate.DownloadUrl == null && cachedCandidate.PackageAvailability == PackageAvailability.MetadataOnly, "cached metadata can compare version but cannot enable install: " + cachedCandidate.State + "/" + cachedCandidate.IsCached + "/" + cachedCandidate.PackageAvailability + "/" + cachedCandidate.Details);
+            }
+            finally { Directory.Delete(root, true); }
+        }
+
+        private sealed class CachedPackageProvider : IUpdateSourceProvider
+        {
+            public string Name { get { return "cached package fixture"; } }
+            public bool CanHandle(CatalogSource source) { return source != null && source.Provider == "generic-html"; }
+            public Task<SourceQueryResult> QueryAsync(CatalogSource source, CancellationToken token)
+            {
+                return Task.FromResult(new SourceQueryResult { Status = SourceQueryStatus.Success, IsCached = true, CachedAt = DateTime.UtcNow,
+                    Release = new RemoteRelease { VersionText = "2.0", Version = VersionValue.Parse("2.0"), SourceUrl = new Uri("https://example.test/meta"),
+                        Packages = new List<RemotePackage> { new RemotePackage { Architecture = RemotePackageArchitecture.X86, Url = new Uri("https://example.test/package.zip") } } } });
             }
         }
 

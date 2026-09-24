@@ -9,8 +9,11 @@ namespace TotalUpdater.Next.Catalog
     {
         [DataMember(Name = "id")] public string Id { get; set; } = "";
         [DataMember(Name = "name")] public string Name { get; set; } = "";
-        [DataMember(Name = "type")] public string Type { get; set; } = "";
+        [DataMember(Name = "type")] public string Type { get; set; } = "";        [DataMember(Name = "version")] public string Version { get; set; } = "";
         [DataMember(Name = "aliases")] public List<string> Aliases { get; set; } = new List<string>();
+        [DataMember(Name = "registrationAliases")] public List<string> RegistrationAliases { get; set; } = new List<string>();
+        [DataMember(Name = "identityEvidence")] public string IdentityEvidenceName { get; set; } = "MetadataOnly";
+        [DataMember(Name = "verifiedAt")] public string VerifiedAt { get; set; } = "";
         [DataMember(Name = "localVersionStrategy")] public string LocalVersionStrategy { get; set; } = "";
         [DataMember(Name = "localAheadPolicy")] public string LocalAheadPolicyName { get; set; } = "Unknown";
         [DataMember(Name = "sources")] public List<CatalogSource> Sources { get; set; } = new List<CatalogSource>();
@@ -27,9 +30,12 @@ namespace TotalUpdater.Next.Catalog
         {
             get { LocalAheadPolicy value; return System.Enum.TryParse(LocalAheadPolicyName ?? "Unknown", true, out value) ? value : LocalAheadPolicy.Unknown; }
         }
+        public IdentityEvidence IdentityEvidence { get { IdentityEvidence value; return System.Enum.TryParse(IdentityEvidenceName ?? "MetadataOnly", true, out value) ? value : IdentityEvidence.MetadataOnly; } }
+        public bool AllowsAutomaticInstall { get { return IdentityEvidence == IdentityEvidence.VerifiedBinary || IdentityEvidence == IdentityEvidence.VerifiedPackage; } }
     }
 
     public enum LocalAheadPolicy { Unknown, Development, SourceMayLag }
+    public enum IdentityEvidence { MetadataOnly, OfficialRegistrationName, VerifiedBinary, VerifiedPackage }
 
     [DataContract]
     public sealed class CatalogSource
