@@ -75,7 +75,7 @@ namespace TotalUpdater.Next.UI
         public string DownloadDirectory { get { return String.IsNullOrWhiteSpace(Settings.DownloadDirectory) ? _paths.DownloadDirectory : Environment.ExpandEnvironmentVariables(Settings.DownloadDirectory).Replace("%COMMANDER_PATH%", _configuration == null ? "" : _configuration.InstallDirectory); } }
         public string CacheSize { get { return (_persistentCache.GetSizeBytes() / 1024L) + " KB"; } }
         public int ExclusionCount { get { return Settings.ExcludedCatalogIds.Count + Settings.ExcludedUnknownPaths.Count; } }
-        public SettingsExclusion SelectedExclusion { get { return _selectedExclusion; } set { _selectedExclusion = value; Changed("SelectedExclusion"); } }
+        public SettingsExclusion SelectedExclusion { get { return _selectedExclusion; } set { _selectedExclusion = value; Changed("SelectedExclusion"); RestoreSelectedExclusionCommand.RaiseCanExecuteChanged(); } }
         public bool ScanUnregisteredDirectories { get { return Settings.DiscoveryMode == DiscoveryMode.RegisteredAndDirectories; } set { Settings.DiscoveryMode = value ? DiscoveryMode.RegisteredAndDirectories : DiscoveryMode.RegisteredOnly; Changed("ScanUnregisteredDirectories"); } }
         public string ProxyModeName { get { return Settings.ProxyMode.ToString(); } set { ProxyMode mode; if (Enum.TryParse(value, true, out mode)) Settings.ProxyMode = mode; Changed("ProxyModeName"); } }
         public string PostDownloadActionName { get { return Settings.PostDownloadAction.ToString(); } set { PostDownloadAction action; if (Enum.TryParse(value, true, out action)) Settings.PostDownloadAction = action; Changed("PostDownloadActionName"); } }
@@ -107,7 +107,7 @@ namespace TotalUpdater.Next.UI
         private string ExclusionKey(PluginRowViewModel row) { return row.Plugin.CatalogMatchKind == CatalogMatchKind.NotFound ? row.Plugin.Type + "::" + Path.GetFullPath(row.Path).ToLowerInvariant() : row.Plugin.Identity.Id; }
         private void Exclude(PluginRowViewModel row) { if (row == null) return; var key = ExclusionKey(row); var list = row.Plugin.CatalogMatchKind == CatalogMatchKind.NotFound ? Settings.ExcludedUnknownPaths : Settings.ExcludedCatalogIds; if (!list.Contains(key, StringComparer.OrdinalIgnoreCase)) list.Add(key); ApplySettings(); StatusText = "Исключено из проверки: " + row.Name; }
         private void RestoreExcluded(PluginRowViewModel row) { if (row == null) return; var key = ExclusionKey(row); Settings.ExcludedCatalogIds = Settings.ExcludedCatalogIds.Where(x => !x.Equals(key, StringComparison.OrdinalIgnoreCase)).ToList(); Settings.ExcludedUnknownPaths = Settings.ExcludedUnknownPaths.Where(x => !x.Equals(key, StringComparison.OrdinalIgnoreCase)).ToList(); ApplySettings(); StatusText = "Возвращено в проверку: " + row.Name; }
-        private bool IsExcluded(PluginRowViewModel row) { var key = ExclusionKey(row); return Settings.ExcludedCatalogIds.Contains(key, StringComparer.OrdinalIgnoreCase) || Settings.ExcludedUnknownPaths.Contains(key, StringComparer.OrdinalIgnoreCase); }
+        private bool IsExcluded(PluginRowViewModel row) { var key = ExclusionKey(row); return Settings.ExcludedCatalogIds.Contains(key, StringComparer.OrdinalIgnoreCase) || SettingsExclusions.ContainsUnknown(Settings, key); }
         private void Discover()
         {
             _configuration = _resolver.Resolve(IniPath); IniPath = _configuration == null ? "" : _configuration.IniPath; Items.Clear();

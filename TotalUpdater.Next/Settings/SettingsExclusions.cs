@@ -33,6 +33,28 @@ namespace TotalUpdater.Next.Settings
             settings.ExcludedCatalogIds = new List<string>(); settings.ExcludedUnknownPaths = new List<string>();
         }
 
+        public static bool ContainsUnknown(AppSettings settings, string key)
+        {
+            return settings != null && (settings.ExcludedUnknownPaths ?? new List<string>()).Contains(key, StringComparer.OrdinalIgnoreCase);
+        }
+
+        public static IList<string> NormalizeUnknownPaths(IEnumerable<string> values)
+        {
+            return (values ?? Enumerable.Empty<string>()).Where(x => !String.IsNullOrWhiteSpace(x)).Select(MigrateLegacyUnknownPath)
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        }
+
+        public static string MigrateLegacyUnknownPath(string value)
+        {
+            if (String.IsNullOrWhiteSpace(value)) return value;
+            foreach (var type in new[] { "Wcx", "Wlx", "Wfx", "Wdx" })
+            {
+                var prefix = type + "|";
+                if (value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) return type + "::" + value.Substring(prefix.Length);
+            }
+            return value;
+        }
+
         private static IList<string> Without(IEnumerable<string> values, string key)
         {
             return (values ?? Enumerable.Empty<string>()).Where(x => !String.Equals(x, key, StringComparison.OrdinalIgnoreCase)).ToList();
