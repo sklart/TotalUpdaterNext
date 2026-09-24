@@ -4,7 +4,7 @@
 
 ## Быстрый старт
 
-1. Скачайте [portable-архив 0.9.3](release/TotalUpdater-0.9.3-win7plus.zip).
+1. Скачайте [portable-архив 0.9.4](release/TotalUpdater-0.9.4-win7plus.zip).
 2. Распакуйте `TotalUpdater.exe` в любую папку и запустите его.
 3. Программа найдёт `wincmd.ini` автоматически. При необходимости укажите файл вручную на вкладке «Настройки».
 4. Нажмите «Проверить обновления». Можно проверить все найденные записи или только отмеченные.
@@ -91,13 +91,16 @@ dotnet build .\TotalUpdaterNext.slnx -c Release --disable-build-servers
 dotnet run --project .\TotalUpdater.Next.Tests\TotalUpdater.Next.Tests.csproj -c Release --no-build
 dotnet run --project .\TotalUpdater.Next.Tests\TotalUpdater.Next.Tests.csproj -c Release --no-build -- --audit-catalog-aliases
 dotnet run --project .\TotalUpdater.Next.Tests\TotalUpdater.Next.Tests.csproj -c Release --no-build -- --validate-harvest-evidence
+dotnet run --project .\TotalUpdater.Next.Tests\TotalUpdater.Next.Tests.csproj -c Release --no-build -- --diagnose-sources
 dotnet run --project .\TotalUpdater.Next.Tests\TotalUpdater.Next.Tests.csproj -c Release --no-build -- --audit-catalog-version-fidelity
 dotnet run --project .\TotalUpdater.Next.Tests\TotalUpdater.Next.Tests.csproj -c Release --no-build -- --audit-installed-coverage '--ini=C:\Program Files\Total Commander\wincmd.ini'
 ```
 
 `--audit-installed-coverage` выводит Exact, Alias, RemoteExact, Ambiguous, NotFound, процент покрытия и списки пропущенных/неоднозначных плагинов. Добавьте `--offline`, чтобы проверить только встроенный и пользовательский каталоги без сети. На проверенной установке из 48 логических записей локально сопоставлены 44 (91,7%); MultiArc, Cloud, IECache и ReadPE оставлены без автоматического сопоставления из-за недостаточных доказательств источника.
 
-`--audit-catalog-version-fidelity` опрашивает все источники 165 записей и читает доступные ZIP в памяти (не устанавливает и не сохраняет их). Для каждой записи выводятся canonical-источник и версия, authority, найденные aliases, локальная PE/нормализованная версия и категория проблемы. Отсутствие пакета, недоступность источника и несовпадение бинарников различаются. Сетевые результаты зависят от доступности сайтов; диагностические находки не считаются успешной проверкой пакета. Harvest evidence проверяется в CI на повторяющиеся ID/aliases, URL, тип и дату; записи старше 180 дней получают предупреждение.
+`--audit-catalog-version-fidelity` опрашивает источники полного встроенного каталога и читает доступные ZIP в памяти (не устанавливает и не сохраняет их). Для каждой записи выводятся canonical-источник и версия, authority, найденные aliases, локальная PE/нормализованная версия и категория проблемы. Отсутствие пакета, недоступность источника и несовпадение бинарников различаются. Сетевые результаты зависят от доступности сайтов; диагностические находки не считаются успешной проверкой пакета. Harvest evidence проверяется в CI на повторяющиеся ID/aliases, URL, тип и дату; записи старше 180 дней получают предупреждение.
+
+Кнопка «Проверить доступность источников» и `--diagnose-sources` выполняют отдельные bounded-проверки `totalcmd.net index`, `totalcmd.net pages`, `ghisler.com` и `GitHub API`, показывая PASS/FAIL и время ответа. В сводке обновлений недоступный shared-host указывается один раз; в строке плагина сетевой сбой не выдаётся за отсутствие записи каталога, metadata-only или неизвестную версию.
 
 Ссылка на архив до проверки его содержимого имеет состояние `Unverified`. После загрузки ZIP без ожидаемого alias программа запрещает установку; перед самой установкой соответствие проверяется повторно. Если версия известна, но подходящего архива нет, статус показывает «Версия известна, пакет не найден»; недоступный источник показывается отдельно.
 

@@ -1012,5 +1012,3253 @@
     ],
     "packageUrl": "https://totalcmd.net/download.php?id=anyXML",
     "verifiedUtc": "2026-09-23"
+  },
+  {
+    "id": "svgview",
+    "name": "SVGView",
+    "type": "Wlx",
+    "aliases": [
+      "SVGView.wlx",
+      "SVGView.wlx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=svgview",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "zip2zero",
+    "name": "Zip2Zero",
+    "type": "Wcx",
+    "aliases": [
+      "zip2zero.wcx",
+      "zip2zero.wcx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=zip2zero",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "mthumbs.wlx",
+    "name": "mthumbs.wlx",
+    "type": "Wlx",
+    "aliases": [
+      "mthumbs.wlx",
+      "mthumbs.wlx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=mthumbs.wlx",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "gitcmd64",
+    "name": "WDX_GitCommander",
+    "type": "Wdx",
+    "aliases": [
+      "gitcmd.wdx",
+      "gitcmd.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=gitcmd64",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "RVLister",
+    "name": "RVLister",
+    "type": "Wlx",
+    "aliases": [
+      "RVLister.wlx",
+      "RVLister.wlx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=RVLister",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "svginfo",
+    "name": "SVGInfo",
+    "type": "Wdx",
+    "aliases": [
+      "SVGInfo.wdx",
+      "SVGInfo.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=svginfo",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "csvview",
+    "name": "CSV View",
+    "type": "Wlx",
+    "aliases": [
+      "CSVView.wlx",
+      "CSVView.wlx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=csvview",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "eml_view",
+    "name": "EMLView",
+    "type": "Wlx",
+    "aliases": [
+      "EMLView.wlx",
+      "EMLView.wlx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=eml_view",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "AnyELF",
+    "name": "AnyELF",
+    "type": "Wlx",
+    "aliases": [
+      "anyelf.wlx",
+      "anyelf.wlx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=AnyELF",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "NTFSFileStreams2",
+    "name": "NTFS FileStreams",
+    "type": "Wfx",
+    "aliases": [
+      "wfx_FileStreams.wfx",
+      "wfx_FileStreams.wfx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=NTFSFileStreams2",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "mimeinfo",
+    "name": "MIME Info",
+    "type": "Wdx",
+    "aliases": [
+      "MIME_Info.wdx",
+      "MIME_Info.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=mimeinfo",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "listtap",
+    "name": "listtap",
+    "type": "Wlx",
+    "aliases": [
+      "ListTAP.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=listtap",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "nothing",
+    "name": "Nothing",
+    "type": "Wlx",
+    "aliases": [
+      "Nothing.wlx",
+      "Nothing.wlx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=nothing",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "firebirddbviewer",
+    "name": "Firebird DB Viewer",
+    "type": "Wlx",
+    "aliases": [
+      "FirebirdDBViewer.wlx",
+      "FirebirdDBViewer.wlx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=firebirddbviewer",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "webshotswcx2",
+    "name": "Webshots",
+    "type": "Wcx",
+    "aliases": [
+      "WebShots.wcx",
+      "WebShots.wcx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=webshotswcx2",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "Audioconverter",
+    "name": "Audioconverter",
+    "type": "Wcx",
+    "aliases": [
+      "audioconverter.wcx",
+      "audioconverter.wcx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=Audioconverter",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "RamCopy2",
+    "name": "RamCopy",
+    "type": "Wfx",
+    "aliases": [
+      "RamCopy.wfx",
+      "RamCopy.wfx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=RamCopy2",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "wcx_storage",
+    "name": "wcx_storage",
+    "type": "Wcx",
+    "aliases": [
+      "wcx_storage.wcx",
+      "wcx_storage.wcx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=wcx_storage",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "msie_cache2",
+    "name": "MSIE Cache Browser",
+    "type": "Wfx",
+    "aliases": [
+      "IECache.wfx",
+      "IECache.wfx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=msie_cache2",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "kbyte",
+    "name": "kbyte",
+    "type": "Wdx",
+    "aliases": [
+      "kbyte.wdx",
+      "kbyte.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=kbyte",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "KillCopyWCX2",
+    "name": "KillCopy plug-in",
+    "type": "Wcx",
+    "aliases": [
+      "KillCopy.wcx",
+      "KillCopy.wcx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=KillCopyWCX2",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "android_adb",
+    "name": "Android ADB",
+    "type": "Wfx",
+    "aliases": [
+      "ADBPlugin.wfx",
+      "ADBPlugin.wfx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=android_adb",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "xpiinfo2",
+    "name": "XPI_Info",
+    "type": "Wdx",
+    "aliases": [
+      "XPI_Info.wdx",
+      "XPI_Info.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=xpiinfo2",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "wfx_redonec",
+    "name": "RedOneC",
+    "type": "Wfx",
+    "aliases": [
+      "RedOneC.wfx",
+      "RedOneC.wfx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=wfx_redonec",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "mover64",
+    "name": "Mover",
+    "type": "Wcx",
+    "aliases": [
+      "mover.wcx",
+      "mover.wcx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=mover64",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "akfont",
+    "name": "AKFont",
+    "type": "Wlx",
+    "aliases": [
+      "AKFont.wlx",
+      "AKFont.wlx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=akfont",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "fileindir64",
+    "name": "FileInDir",
+    "type": "Wdx",
+    "aliases": [
+      "fileindir.wdx",
+      "fileindir.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=fileindir64",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "wfx_redohm",
+    "name": "RedOHM",
+    "type": "Wfx",
+    "aliases": [
+      "RedOHM.wfx",
+      "RedOHM.wfx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=wfx_redohm",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "accessdbviewer",
+    "name": "Access DB Viewer",
+    "type": "Wlx",
+    "aliases": [
+      "AccessDBViewer.wlx",
+      "AccessDBViewer.wlx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=accessdbviewer",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "wfx_redclipboard",
+    "name": "RedClipboard",
+    "type": "Wfx",
+    "aliases": [
+      "RedClipboard.wfx",
+      "RedClipboard.wfx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=wfx_redclipboard",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "wfx_redsmart",
+    "name": "RedSmart",
+    "type": "Wfx",
+    "aliases": [
+      "RedSmart.wfx",
+      "RedSmart.wfx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=wfx_redsmart",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "groups2",
+    "name": "Groups",
+    "type": "Wdx",
+    "aliases": [
+      "Groups.wdx",
+      "Groups.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=groups2",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "casMSXwcx",
+    "name": "casMSXwcx",
+    "type": "Wcx",
+    "aliases": [
+      "casMSX.wcx",
+      "casMSX.wcx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=casMSXwcx",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "decBin",
+    "name": "decRecycleBinWDX",
+    "type": "Wdx",
+    "aliases": [
+      "decRecycleBinWDX.wdx",
+      "decRecycleBinWDX.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=decBin",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "super_wdx2",
+    "name": "super_wdx",
+    "type": "Wdx",
+    "aliases": [
+      "SUPER_WDX.wdx",
+      "SUPER_WDX.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=super_wdx2",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "https_browser",
+    "name": "WFX HTTPS Browser",
+    "type": "Wfx",
+    "aliases": [
+      "httpsbrowser.wfx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=https_browser",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "eBookInfoWdx",
+    "name": "eBookInfo WDX",
+    "type": "Wdx",
+    "aliases": [
+      "eBookInfo.wdx",
+      "eBookInfo.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=eBookInfoWdx",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "folderpicture",
+    "name": "Folder Picture",
+    "type": "Wlx",
+    "aliases": [
+      "FolderPicture.wlx",
+      "FolderPicture.wlx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=folderpicture",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "mplayer4tc2",
+    "name": "mplayer4tc",
+    "type": "Wlx",
+    "aliases": [
+      "mplayer4tc.wlx",
+      "mplayer4tc.wlx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=mplayer4tc2",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "cdainfonew",
+    "name": "CDA Info New",
+    "type": "Wdx",
+    "aliases": [
+      "CDAInfoNew.wdx",
+      "CDAInfoNew.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=cdainfonew",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "kryptel",
+    "name": "Kryptel",
+    "type": "Wcx",
+    "aliases": [
+      "Kryptel.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=kryptel",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "firstByte",
+    "name": "firstByte",
+    "type": "Wdx",
+    "aliases": [
+      "firstByte.wdx",
+      "firstByte.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=firstByte",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "aml",
+    "name": "Aml View",
+    "type": "Wlx",
+    "aliases": [
+      "AmlView.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=aml",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "Translit2",
+    "name": "Translit_wdx",
+    "type": "Wdx",
+    "aliases": [
+      "wdx_translit.wdx",
+      "wdx_translit.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=Translit2",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "fsmp3base",
+    "name": "MP3 Database",
+    "type": "Wfx",
+    "aliases": [
+      "fsMP3Base.wfx",
+      "fsMP3Base.wfx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=fsmp3base",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "dbfviewer",
+    "name": "DBFViewer",
+    "type": "Wlx",
+    "aliases": [
+      "DBFViewer.wlx",
+      "DBFViewer.wlx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=dbfviewer",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "expander2",
+    "name": "Expander2",
+    "type": "Wdx",
+    "aliases": [
+      "Expander2.wdx",
+      "Expander2.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=expander2",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "wdx_global_diz2",
+    "name": "wdx_global_diz",
+    "type": "Wdx",
+    "aliases": [
+      "global_diz.wdx",
+      "global_diz.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=wdx_global_diz2",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "trid_identifier",
+    "name": "TrID_Identifier",
+    "type": "Wdx",
+    "aliases": [
+      "TrID_Identifier.wdx",
+      "TrID_Identifier.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=trid_identifier",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "lookfits",
+    "name": "LookFits",
+    "type": "Wlx",
+    "aliases": [
+      "LookFits.wlx",
+      "LookFits.wlx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=lookfits",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ExifToolWDX",
+    "name": "ExifToolWDX",
+    "type": "Wdx",
+    "aliases": [
+      "ExifToolWDX.wdx",
+      "ExifToolWDX.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=ExifToolWDX",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "wlx_ans",
+    "name": "ANSI viewer plugin",
+    "type": "Wlx",
+    "aliases": [
+      "tcmdansiviewer.wlx",
+      "tcmdansiviewer.wlx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=wlx_ans",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "DmpView",
+    "name": "DmpView",
+    "type": "Wlx",
+    "aliases": [
+      "DmpView.wlx",
+      "DmpView.wlx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=DmpView",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "WinScriptAdv",
+    "name": "WinScript Advanced",
+    "type": "Wdx",
+    "aliases": [
+      "WinScriptsAdv.wdx",
+      "WinScriptsAdv.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=WinScriptAdv",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "FastFb2_Epub",
+    "name": "Fast Fb2 Epub",
+    "type": "Wdx",
+    "aliases": [
+      "FastFb2_Epub.wdx",
+      "FastFb2_Epub.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=FastFb2_Epub",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "hardlink_meta_packer",
+    "name": "Hard Link meta-packer",
+    "type": "Wcx",
+    "aliases": [
+      "HardLink.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=hardlink_meta_packer",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "stalker_db",
+    "name": "S.T.A.L.K.E.R. db unpacker",
+    "type": "Wcx",
+    "aliases": [
+      "stalker.wcx",
+      "stalker.wcx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=stalker_db",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "stalker_db_explorer",
+    "name": "S.T.A.L.K.E.R. db explorer",
+    "type": "Wfx",
+    "aliases": [
+      "stalker.wfx",
+      "stalker.wfx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=stalker_db_explorer",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "in",
+    "name": "In4Info",
+    "type": "Wdx",
+    "aliases": [
+      "In4Info.wdx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=in",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "file",
+    "name": "File",
+    "type": "Wdx",
+    "aliases": [
+      "File.wdx",
+      "File.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=file",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "dirsizecalc_charts",
+    "name": "DirSizeCalc Charts",
+    "type": "Wlx",
+    "aliases": [
+      "DirSizeCalcCharts.wlx",
+      "DirSizeCalcCharts.wlx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=dirsizecalc_charts",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "tconsole",
+    "name": "TConsole",
+    "type": "Wfx",
+    "aliases": [
+      "TConsole.wfx",
+      "TConsole.wfx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=tconsole",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "totaldcmlister",
+    "name": "Total DICOM Lister",
+    "type": "Wlx",
+    "aliases": [
+      "TotalDcmLister.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=totaldcmlister",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "Chars_Occurences",
+    "name": "CharsOccurrences",
+    "type": "Wlx",
+    "aliases": [
+      "CharsOccurrences.wlx",
+      "CharsOccurrences.wlx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=Chars_Occurences",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "diskdir_extended",
+    "name": "DiskDir Extended",
+    "type": "Wcx",
+    "aliases": [
+      "DiskDirExtended.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=diskdir_extended",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "aai",
+    "name": "Dune aai",
+    "type": "Wlx",
+    "aliases": [
+      "dune_aai.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=aai",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "Tomin.TotalCmd.AzureBlob",
+    "name": "AzureBlob",
+    "type": "Wfx",
+    "aliases": [
+      "Tomin.TotalCmd.AzureBlob.wfx",
+      "Tomin.TotalCmd.AzureBlob.wfx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=Tomin.TotalCmd.AzureBlob",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "isdotnetfixed",
+    "name": "IsDotNET",
+    "type": "Wdx",
+    "aliases": [
+      "IsDotNET.wdx",
+      "IsDotNET.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=isdotnetfixed",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "tcmd_raf_wcx",
+    "name": "RAF packer",
+    "type": "Wcx",
+    "aliases": [
+      "tcmd_raf_wcx.wcx",
+      "tcmd_raf_wcx.wcx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=tcmd_raf_wcx",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "cpmimg",
+    "name": "cpmimg",
+    "type": "Wfx",
+    "aliases": [
+      "CPMWFX.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=cpmimg",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "totalsqx_content",
+    "name": "Total SQX Content",
+    "type": "Wdx",
+    "aliases": [
+      "TotalSQX.wdx",
+      "TotalSQX.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=totalsqx_content",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "LotsOfHashes",
+    "name": "LotsOfHashes",
+    "type": "Wdx",
+    "aliases": [
+      "LotsOfHashes.uwdx",
+      "LotsOfHashes.wdx",
+      "LotsOfHashes.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=LotsOfHashes",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "wdx4i",
+    "name": "WDX for Images",
+    "type": "Wdx",
+    "aliases": [
+      "wdx4i.wdx",
+      "wdx4i.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=wdx4i",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "NameCompare",
+    "name": "NameCompare",
+    "type": "Wdx",
+    "aliases": [
+      "NameCompare.wdx",
+      "NameCompare.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=NameCompare",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "hlight",
+    "name": "TotalHLT",
+    "type": "Wlx",
+    "aliases": [
+      "Highlight.wlx",
+      "Highlight.wlx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=hlight",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "modules_player",
+    "name": "Modules Player",
+    "type": "Wlx",
+    "aliases": [
+      "modules_player.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=modules_player",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "unark",
+    "name": "UnArkWCX",
+    "type": "Wcx",
+    "aliases": [
+      "UnArkWCX.wcx",
+      "UnArkWCX.wcx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=unark",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "DocClassifier_1.6_32_bit",
+    "name": "DocClassifier",
+    "type": "Wfx",
+    "aliases": [
+      "VirtualFSPlugin.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=DocClassifier_1.6_32_bit",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "mp3tagview",
+    "name": "MP3 Tag View",
+    "type": "Wlx",
+    "aliases": [
+      "MP3TagView.wlx",
+      "MP3TagView.wlx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=mp3tagview",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "wdx_ImgSize",
+    "name": "ImgSize",
+    "type": "Wdx",
+    "aliases": [
+      "ImgSize.wdx",
+      "ImgSize.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=wdx_ImgSize",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "rsz",
+    "name": "TotalRSZ",
+    "type": "Wcx",
+    "aliases": [
+      "TotalRSZ.wcx",
+      "TotalRSZ.wcx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=rsz",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "nm2_info",
+    "name": "wdx_nm2_info",
+    "type": "Wdx",
+    "aliases": [
+      "nm2_info.wdx",
+      "nm2_info.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=nm2_info",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "PSARC",
+    "name": "PSARC",
+    "type": "Wcx",
+    "aliases": [
+      "psarc.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=PSARC",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "SkipCompare",
+    "name": "SkipCompare",
+    "type": "Wdx",
+    "aliases": [
+      "SkipCompare.wdx",
+      "SkipCompare.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=SkipCompare",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "wdx_PdbDiz_2",
+    "name": "Palm DB File info content plugin 2 -",
+    "type": "Wdx",
+    "aliases": [
+      "wdx_PdbDiz.wdx",
+      "wdx_PdbDiz.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=wdx_PdbDiz_2",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "PdbView_2",
+    "name": "PdbView 2 -",
+    "type": "Wlx",
+    "aliases": [
+      "wlx_pdbView.wlx",
+      "wlx_pdbView.wlx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=PdbView_2",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "wcx_ico_new",
+    "name": "ICONew",
+    "type": "Wcx",
+    "aliases": [
+      "ICONew.wcx",
+      "ICONew.wcx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=wcx_ico_new",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "procView",
+    "name": "procViewer",
+    "type": "Wfx",
+    "aliases": [
+      "procView.wfx",
+      "procView.wfx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=procView",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "MK_cont",
+    "name": "MKInfoCP",
+    "type": "Wdx",
+    "aliases": [
+      "MKInfoCP.wdx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=MK_cont",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "MK_ls",
+    "name": "MKInfoLS",
+    "type": "Wlx",
+    "aliases": [
+      "MKInfoLS.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=MK_ls",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "CabCE",
+    "name": "CabCE",
+    "type": "Wcx",
+    "aliases": [
+      "CabCE.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=CabCE",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "rudwgpreviewnew",
+    "name": "ruDWGPreview New",
+    "type": "Wlx",
+    "aliases": [
+      "ruDWGPreviewNew.wlx",
+      "ruDWGPreviewNew.wlx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=rudwgpreviewnew",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "filetime_delta",
+    "name": "FileTime Delta",
+    "type": "Wdx",
+    "aliases": [
+      "filetime_delta.uwdx",
+      "filetime_delta.wdx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=filetime_delta",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "Album",
+    "name": "AlbumPack",
+    "type": "Wcx",
+    "aliases": [
+      "albumpack.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=Album",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "cert_pem",
+    "name": "Cert",
+    "type": "Wdx",
+    "aliases": [
+      "wdx_cert.wdx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=cert_pem",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "unsis",
+    "name": "PDUnSIS",
+    "type": "Wcx",
+    "aliases": [
+      "PDunSIS.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=unsis",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "totalupgrade",
+    "name": "Total Upgrade",
+    "type": "Wfx",
+    "aliases": [
+      "TotalUpgrade.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=totalupgrade",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "swfcontentnew",
+    "name": "SWF Content New",
+    "type": "Wdx",
+    "aliases": [
+      "SWFContentNew.wdx",
+      "SWFContentNew.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=swfcontentnew",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "totaliso",
+    "name": "TotalISO",
+    "type": "Wcx",
+    "aliases": [
+      "TotalISO.wcx",
+      "TotalISO.wcx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=totaliso",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "tc_jad_plugin",
+    "name": "TC Jad - Java Decompiler Plugin",
+    "type": "Wlx",
+    "aliases": [
+      "tc_jad_plugin.wlx",
+      "tc_jad_plugin.wlx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=tc_jad_plugin",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "permissions",
+    "name": "Permissions",
+    "type": "Wdx",
+    "aliases": [
+      "Permissions.wdx",
+      "Permissions.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=permissions",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "shellinfo",
+    "name": "ShellInfo",
+    "type": "Wdx",
+    "aliases": [
+      "ShellInfo.uwdx",
+      "ShellInfo.wdx",
+      "ShellInfo.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=shellinfo",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "filegroups",
+    "name": "FileGroups",
+    "type": "Wdx",
+    "aliases": [
+      "FileGroups.wdx",
+      "FileGroups.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=filegroups",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "attributes",
+    "name": "Attributes",
+    "type": "Wdx",
+    "aliases": [
+      "Attributes.wdx",
+      "Attributes.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=attributes",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "image",
+    "name": "Image",
+    "type": "Wdx",
+    "aliases": [
+      "Image.wdx",
+      "Image.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=image",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "filecontent",
+    "name": "FileContent",
+    "type": "Wdx",
+    "aliases": [
+      "FileContent.wdx",
+      "FileContent.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=filecontent",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "summary",
+    "name": "Summary",
+    "type": "Wdx",
+    "aliases": [
+      "Summary.wdx",
+      "Summary.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=summary",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "nicepaths",
+    "name": "NicePaths",
+    "type": "Wdx",
+    "aliases": [
+      "NicePaths.wdx",
+      "NicePaths.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=nicepaths",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "shareinfo",
+    "name": "ShareInfo",
+    "type": "Wdx",
+    "aliases": [
+      "ShareInfo.wdx",
+      "ShareInfo.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=shareinfo",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "iconlibrary",
+    "name": "IconLibrary",
+    "type": "Wdx",
+    "aliases": [
+      "IconLibrary.wdx",
+      "IconLibrary.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=iconlibrary",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "wdx_filedatetime",
+    "name": "FileDateTime",
+    "type": "Wdx",
+    "aliases": [
+      "FileDateTime.wdx",
+      "FileDateTime.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=wdx_filedatetime",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "btdir",
+    "name": "btdir",
+    "type": "Wcx",
+    "aliases": [
+      "btdir.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=btdir",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "wdx_Filename_ChrCount",
+    "name": "Filename ChrCount",
+    "type": "Wdx",
+    "aliases": [
+      "Filename_ChrCount.wdx",
+      "Filename_ChrCount.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=wdx_Filename_ChrCount",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "zar",
+    "name": "TotalZAR",
+    "type": "Wcx",
+    "aliases": [
+      "totalzar.wcx",
+      "totalzar.wcx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=zar",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "copylinktarget",
+    "name": "CopyLinkTarget",
+    "type": "Wcx",
+    "aliases": [
+      "CopyLinkTarget.wcx",
+      "CopyLinkTarget.wcx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=copylinktarget",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "volume",
+    "name": "Volume",
+    "type": "Wdx",
+    "aliases": [
+      "Volume.wdx",
+      "Volume.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=volume",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "dar",
+    "name": "dar wcx",
+    "type": "Wcx",
+    "aliases": [
+      "dar.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=dar",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "shortcut",
+    "name": "Shortcut",
+    "type": "Wdx",
+    "aliases": [
+      "Shortcut.wdx",
+      "Shortcut.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=shortcut",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "directory",
+    "name": "Directory",
+    "type": "Wdx",
+    "aliases": [
+      "Directory.wdx",
+      "Directory.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=directory",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "DateNames",
+    "name": "DateNames",
+    "type": "Wdx",
+    "aliases": [
+      "DateNames.uwdx",
+      "DateNames.wdx",
+      "DateNames.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=DateNames",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "Age",
+    "name": "Age",
+    "type": "Wdx",
+    "aliases": [
+      "Age.uwdx",
+      "Age.wdx",
+      "Age.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=Age",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "BT",
+    "name": "Bluetooth OBEX Object Push",
+    "type": "Wfx",
+    "aliases": [
+      "BOOP.wfx",
+      "BOOP.wfx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=BT",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "misc",
+    "name": "Misc",
+    "type": "Wdx",
+    "aliases": [
+      "Misc.wdx",
+      "Misc.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=misc",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ltar",
+    "name": "LTAR",
+    "type": "Wcx",
+    "aliases": [
+      "ltar.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=ltar",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "Pass_Store",
+    "name": "PassStore",
+    "type": "Wfx",
+    "aliases": [
+      "PassStore.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=Pass_Store",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "FastFb2",
+    "name": "Fast Fb2 wdx",
+    "type": "Wdx",
+    "aliases": [
+      "FastFb2Wdx.wdx",
+      "FastFb2Wdx.wdx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=FastFb2",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "xsudokuwlx",
+    "name": "XSudoku",
+    "type": "Wlx",
+    "aliases": [
+      "xsudoku.wlx",
+      "xsudoku.wlx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=xsudokuwlx",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "mkswfx",
+    "name": "MKS Integrity Browser",
+    "type": "Wfx",
+    "aliases": [
+      "mksbrowser.wfx",
+      "mksbrowser.wfx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=mkswfx",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "urlwlx",
+    "name": "URL Shortcut Viewer",
+    "type": "Wlx",
+    "aliases": [
+      "urlview.wlx",
+      "urlview.wlx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=urlwlx",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "wcxfb2",
+    "name": "wcx_fb2",
+    "type": "Wcx",
+    "aliases": [
+      "wcx_fb2.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=wcxfb2",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "fb2_",
+    "name": "fb2wcx",
+    "type": "Wcx",
+    "aliases": [
+      "fb2wcx.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=fb2_",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "trid",
+    "name": "TrID",
+    "type": "Wdx",
+    "aliases": [
+      "TrID.wdx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=trid",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "twc",
+    "name": "Tweak Collector",
+    "type": "Wfx",
+    "aliases": [
+      "tweakc.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=twc",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "WinWalk",
+    "name": "WinWalk",
+    "type": "Wfx",
+    "aliases": [
+      "WinWalk.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=WinWalk",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "sumatra",
+    "name": "Sumatra PDF based plugin",
+    "type": "Wlx",
+    "aliases": [
+      "SumatraPDF.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=sumatra",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "filter",
+    "name": "MultiLister (former PDF Filter)",
+    "type": "Wlx",
+    "aliases": [
+      "filter.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=filter",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "groups",
+    "name": "Group Sort",
+    "type": "Wdx",
+    "aliases": [
+      "group.wdx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=groups",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "renl",
+    "name": "wdx_Rename",
+    "type": "Wdx",
+    "aliases": [
+      "wdx_rename.wdx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=renl",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "iPhon",
+    "name": "iPlugin",
+    "type": "Wfx",
+    "aliases": [
+      "iPhone.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=iPhon",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "reb",
+    "name": "REB1100",
+    "type": "Wfx",
+    "aliases": [
+      "reb1100.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=reb",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "shedko",
+    "name": "ShedkoBadgesTC",
+    "type": "Wdx",
+    "aliases": [
+      "ShedkoBadgesTC.wdx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=shedko",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "Gcf",
+    "name": "GCF",
+    "type": "Wcx",
+    "aliases": [
+      "GCF TotalCommander.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=Gcf",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "s3",
+    "name": "S3 Browser",
+    "type": "Wfx",
+    "aliases": [
+      "s3browser.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=s3",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "nfo2",
+    "name": "NFOViewer",
+    "type": "Wlx",
+    "aliases": [
+      "nfoviewer.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=nfo2",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "xlsview",
+    "name": "Excellence",
+    "type": "Wlx",
+    "aliases": [
+      "excellence.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=xlsview",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "cabwc",
+    "name": "Cab Packer",
+    "type": "Wcx",
+    "aliases": [
+      "CabWCX.wcx",
+      "CabWCX.wcx64"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=cabwc",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "matlab",
+    "name": "MATLab plugin",
+    "type": "Wcx",
+    "aliases": [
+      "MAT.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=matlab",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "hsys",
+    "name": "HashSys",
+    "type": "Wdx",
+    "aliases": [
+      "hashsys.wdx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=hsys",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ensoniqunpacker",
+    "name": "EnsoniqUnpacker",
+    "type": "Wcx",
+    "aliases": [
+      "EnsoniqUnpacker.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=ensoniqunpacker",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ensoniqunpackerefe",
+    "name": "EnsoniqUnpackerEFE",
+    "type": "Wcx",
+    "aliases": [
+      "EnsoniqUnpackerEFE.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=ensoniqunpackerefe",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "cdaFile",
+    "name": "CDA File Info",
+    "type": "Wdx",
+    "aliases": [
+      "cda_file_info.wdx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=cdaFile",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ensoniqfs",
+    "name": "EnsoniqFS",
+    "type": "Wfx",
+    "aliases": [
+      "EnsoniqFS.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=ensoniqfs",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "reginfo",
+    "name": "RegInfo 21.05.2005",
+    "type": "Wdx",
+    "aliases": [
+      "reginfo.wdx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=reginfo",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "mp3cmd",
+    "name": "MP3Commander",
+    "type": "Wfx",
+    "aliases": [
+      "mp3cmd.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=mp3cmd",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ntfs_stream",
+    "name": "NTFS Stream",
+    "type": "Wdx",
+    "aliases": [
+      "streams.wdx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=ntfs_stream",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "seq_wfx",
+    "name": "Sequences",
+    "type": "Wfx",
+    "aliases": [
+      "sequences.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=seq_wfx",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "xb_dvd",
+    "name": "XBox DVD",
+    "type": "Wfx",
+    "aliases": [
+      "xdvd_fs_plugin.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=xb_dvd",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "wcx_PDB_PRC",
+    "name": "PDB_PRC",
+    "type": "Wcx",
+    "aliases": [
+      "prcwcx.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=wcx_PDB_PRC",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "WCX_PDB",
+    "name": "WCX_PDB",
+    "type": "Wcx",
+    "aliases": [
+      "wcx_pdb.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=WCX_PDB",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "new_unalz_wcx",
+    "name": "alz Unpacker",
+    "type": "Wcx",
+    "aliases": [
+      "unalz.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=new_unalz_wcx",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "tpot",
+    "name": "T-PoT",
+    "type": "Wfx",
+    "aliases": [
+      "T-PoT.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=tpot",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "bmp",
+    "name": "Brew Mobile Plugin",
+    "type": "Wfx",
+    "aliases": [
+      "BrewPlugin.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=bmp",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "gsfinfo",
+    "name": "GSF Info",
+    "type": "Wdx",
+    "aliases": [
+      "GSFInfo.wdx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=gsfinfo",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "gsfview",
+    "name": "GSF View",
+    "type": "Wlx",
+    "aliases": [
+      "GSFView.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=gsfview",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ddsdd",
+    "name": "DDS_DD_Plugin",
+    "type": "Wlx",
+    "aliases": [
+      "DDS_DD_Plugin.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=ddsdd",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "filescan",
+    "name": "FileScanner 1.0",
+    "type": "Wdx",
+    "aliases": [
+      "filescanner.wdx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=filescan",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ziptype",
+    "name": "ZipType",
+    "type": "Wdx",
+    "aliases": [
+      "ZipType.wdx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=ziptype",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "transformerfw",
+    "name": "Transformer Framework",
+    "type": "Wfx",
+    "aliases": [
+      "TransformerFW.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=transformerfw",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "wlx_SQLLite",
+    "name": "wLx_SQLLite",
+    "type": "Wlx",
+    "aliases": [
+      "wLx_SQLLite.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=wlx_SQLLite",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "wcxdat",
+    "name": "X3 resource browser/unpacker",
+    "type": "Wcx",
+    "aliases": [
+      "wcxdat.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=wcxdat",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "mht",
+    "name": "MHTep",
+    "type": "Wcx",
+    "aliases": [
+      "MHTep.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=mht",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "putty",
+    "name": "Putty",
+    "type": "Wlx",
+    "aliases": [
+      "putty.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=putty",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "wiacam",
+    "name": "WIACam",
+    "type": "Wfx",
+    "aliases": [
+      "wiacam.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=wiacam",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "CoRegistry",
+    "name": "CoRegistry",
+    "type": "Wfx",
+    "aliases": [
+      "CoRegistry.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=CoRegistry",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "operaFS",
+    "name": "OperaFS",
+    "type": "Wfx",
+    "aliases": [
+      "OperaFS.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=operaFS",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "LibView",
+    "name": "LibView",
+    "type": "Wcx",
+    "aliases": [
+      "lib.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=LibView",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "OPC",
+    "name": "OPC DA",
+    "type": "Wfx",
+    "aliases": [
+      "opc.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=OPC",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ObjView",
+    "name": "ObjView",
+    "type": "Wlx",
+    "aliases": [
+      "objview.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=ObjView",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "FB2Lib",
+    "name": "FB2Lib",
+    "type": "Wfx",
+    "aliases": [
+      "FB2Lib.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=FB2Lib",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "photofile",
+    "name": "photofile",
+    "type": "Wfx",
+    "aliases": [
+      "photofile.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=photofile",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "logtail",
+    "name": "LogTail",
+    "type": "Wlx",
+    "aliases": [
+      "Logtail_plugin.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=logtail",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "fobia_1_2_0_2",
+    "name": "fobia",
+    "type": "Wcx",
+    "aliases": [
+      "fobia.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=fobia_1_2_0_2",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "wdx_xml",
+    "name": "wdx_xml",
+    "type": "Wdx",
+    "aliases": [
+      "wdx_XML.wdx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=wdx_xml",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "cbxthumbs",
+    "name": "CBxThumbs",
+    "type": "Wlx",
+    "aliases": [
+      "cbxthumbs.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=cbxthumbs",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "wdx-jpg-comment",
+    "name": "Content plugin JPG-Comment",
+    "type": "Wdx",
+    "aliases": [
+      "jpg-comment.wdx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=wdx-jpg-comment",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "gswlx",
+    "name": "gswlx",
+    "type": "Wlx",
+    "aliases": [
+      "gswlx.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=gswlx",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "swfc",
+    "name": "SWF Content",
+    "type": "Wdx",
+    "aliases": [
+      "swfc.wdx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=swfc",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "wdx_MIDlet",
+    "name": "MIDlet",
+    "type": "Wdx",
+    "aliases": [
+      "MIDlet.wdx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=wdx_MIDlet",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "testftp",
+    "name": "TestFTP",
+    "type": "Wfx",
+    "aliases": [
+      "TestFTP_WFX.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=testftp",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "sgviewer",
+    "name": "SGViewer",
+    "type": "Wlx",
+    "aliases": [
+      "SGViewer.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=sgviewer",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "exeformat",
+    "name": "ExeFormat",
+    "type": "Wdx",
+    "aliases": [
+      "ExeFormat.wdx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=exeformat",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "uninstaller",
+    "name": "Uninstaller",
+    "type": "Wfx",
+    "aliases": [
+      "UnInstTC.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=uninstaller",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ivtdir",
+    "name": "ivtdir",
+    "type": "Wcx",
+    "aliases": [
+      "ivtdir.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=ivtdir",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ctconv",
+    "name": "Total Converter",
+    "type": "Wcx",
+    "aliases": [
+      "CTConv.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=ctconv",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ert_wcx",
+    "name": "ert_wcx",
+    "type": "Wcx",
+    "aliases": [
+      "ert.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=ert_wcx",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "IShield",
+    "name": "IShield",
+    "type": "Wcx",
+    "aliases": [
+      "IShield.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=IShield",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "dotnet",
+    "name": "DotNet Wrapper",
+    "type": "Wfx",
+    "aliases": [
+      "MosTech.TotalCommander.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=dotnet",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "swf_lister",
+    "name": "SWF Lister",
+    "type": "Wlx",
+    "aliases": [
+      "swflst.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=swf_lister",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "tlbinfo",
+    "name": "TypeLib Info",
+    "type": "Wdx",
+    "aliases": [
+      "tlbinfo.wdx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=tlbinfo",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "WCReg_patched",
+    "name": "WCReg_patched Packer Plugin",
+    "type": "Wcx",
+    "aliases": [
+      "WCReg_patched.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=WCReg_patched",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "wdx_rarinfo",
+    "name": "RarInfo",
+    "type": "Wdx",
+    "aliases": [
+      "RarInfo.wdx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=wdx_rarinfo",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "visdirsize",
+    "name": "VisualDirSize",
+    "type": "Wlx",
+    "aliases": [
+      "visualdirsize.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=visdirsize",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "dviwlx",
+    "name": "DVI Simple Viewer",
+    "type": "Wlx",
+    "aliases": [
+      "dvi.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=dviwlx",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ado_ds",
+    "name": "ADO Data Sources",
+    "type": "Wfx",
+    "aliases": [
+      "ADO_DS.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=ado_ds",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "FSClipboard",
+    "name": "FSClipboard",
+    "type": "Wfx",
+    "aliases": [
+      "clipbrowser.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=FSClipboard",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "dmflst",
+    "name": "DMF Lister",
+    "type": "Wlx",
+    "aliases": [
+      "dmflst.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=dmflst",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "seeker",
+    "name": "LAN Seeker",
+    "type": "Wfx",
+    "aliases": [
+      "seeker.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=seeker",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "urlwdx",
+    "name": "URL Grank",
+    "type": "Wdx",
+    "aliases": [
+      "urlgrank.wdx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=urlwdx",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "powerpacker",
+    "name": "Power Packer",
+    "type": "Wcx",
+    "aliases": [
+      "pp.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=powerpacker",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "amigadx",
+    "name": "AmigaDX",
+    "type": "Wcx",
+    "aliases": [
+      "AmigaDX.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=amigadx",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "palmdbztxt",
+    "name": "PalmDB zTXT Plugin",
+    "type": "Wcx",
+    "aliases": [
+      "wcx_ztxt.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=palmdbztxt",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "msiplus",
+    "name": "MSI Plus",
+    "type": "Wcx",
+    "aliases": [
+      "msi-plus.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=msiplus",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "CVSBrowser_1.0.5",
+    "name": "CVSBrowser",
+    "type": "Wfx",
+    "aliases": [
+      "CVSBrowser.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=CVSBrowser_1.0.5",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "envvar",
+    "name": "Environment Variables",
+    "type": "Wfx",
+    "aliases": [
+      "envvar.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=envvar",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "OperationFlashpointPBO",
+    "name": "Operation Flashpoint PBO Plugin",
+    "type": "Wcx",
+    "aliases": [
+      "pboplugin.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=OperationFlashpointPBO",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "unwebcompiler",
+    "name": "Webcompiler Unpacker",
+    "type": "Wcx",
+    "aliases": [
+      "unwebcomp.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=unwebcompiler",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "mbox",
+    "name": "Mbox",
+    "type": "Wcx",
+    "aliases": [
+      "mbox.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=mbox",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "SciLister",
+    "name": "Scintilla Lister",
+    "type": "Wlx",
+    "aliases": [
+      "SciLister.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=SciLister",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "targzbz2",
+    "name": "targzbz2",
+    "type": "Wcx",
+    "aliases": [
+      "targzbz2.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=targzbz2",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "WebArc",
+    "name": "WebArc",
+    "type": "Wcx",
+    "aliases": [
+      "WebArc.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=WebArc",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "wdx_image_info",
+    "name": "Image Info",
+    "type": "Wdx",
+    "aliases": [
+      "Images.wdx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=wdx_image_info",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "wszview",
+    "name": "WSZView",
+    "type": "Wlx",
+    "aliases": [
+      "wszview.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=wszview",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "waveview",
+    "name": "WaveView",
+    "type": "Wlx",
+    "aliases": [
+      "WaveView.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=waveview",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "wipe_fs",
+    "name": "Wipe plugin (FS)",
+    "type": "Wfx",
+    "aliases": [
+      "wipe.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=wipe_fs",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "wipe",
+    "name": "Wipe plugin",
+    "type": "Wcx",
+    "aliases": [
+      "wipe.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=wipe",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "wdx_eml",
+    "name": "EML info",
+    "type": "Wdx",
+    "aliases": [
+      "wdx_eml.wdx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=wdx_eml",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "mht_unpacker",
+    "name": "MHT Unpacker",
+    "type": "Wcx",
+    "aliases": [
+      "MHTUnp.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=mht_unpacker",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "lsp",
+    "name": "LISP packer plugin",
+    "type": "Wcx",
+    "aliases": [
+      "lsp.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=lsp",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "wisetracker",
+    "name": "Wise Tracker",
+    "type": "Wlx",
+    "aliases": [
+      "wt.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=wisetracker",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "diskexplorerpro",
+    "name": "Disk Explorer Professional Database Viewer",
+    "type": "Wcx",
+    "aliases": [
+      "ded.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=diskexplorerpro",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "SYMBFS",
+    "name": "SYMBFS",
+    "type": "Wfx",
+    "aliases": [
+      "SymbFS.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=SYMBFS",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "FileRedirector",
+    "name": "File Redirector",
+    "type": "Wfx",
+    "aliases": [
+      "fr.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=FileRedirector",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "fsnetshare",
+    "name": "FSNetShare",
+    "type": "Wfx",
+    "aliases": [
+      "FSNetShare.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=fsnetshare",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "swf_lister_lite",
+    "name": "SWF Lister lite",
+    "type": "Wlx",
+    "aliases": [
+      "swfll.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=swf_lister_lite",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "rudwgpreview",
+    "name": "ruDwgPreview",
+    "type": "Wlx",
+    "aliases": [
+      "ruDwgPreview.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=rudwgpreview",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "office",
+    "name": "Office",
+    "type": "Wlx",
+    "aliases": [
+      "office.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=office",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "MXP_Lister",
+    "name": "MXP Lister",
+    "type": "Wlx",
+    "aliases": [
+      "mxplst.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=MXP_Lister",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "D64",
+    "name": "D64",
+    "type": "Wcx",
+    "aliases": [
+      "d64.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=D64",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ExtrKarText",
+    "name": "ExtrKarText",
+    "type": "Wcx",
+    "aliases": [
+      "ExtrKarText.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=ExtrKarText",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "lte",
+    "name": "LowTraffic",
+    "type": "Wcx",
+    "aliases": [
+      "LowTraffic.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=lte",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "Mod2Wav",
+    "name": "Mod2Wav",
+    "type": "Wcx",
+    "aliases": [
+      "Mod2Wav.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=Mod2Wav",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ICQScheme",
+    "name": "ICQScheme",
+    "type": "Wcx",
+    "aliases": [
+      "ICQScheme.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=ICQScheme",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "pfrep",
+    "name": "3D File viewer",
+    "type": "Wlx",
+    "aliases": [
+      "WCPFREP.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=pfrep",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "bmc_forever",
+    "name": "BMC",
+    "type": "Wcx",
+    "aliases": [
+      "bmc.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=bmc_forever",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "UFO_VFS",
+    "name": "UFO VFS plugin",
+    "type": "Wcx",
+    "aliases": [
+      "tcvfs.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=UFO_VFS",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "tow",
+    "name": "TOW",
+    "type": "Wcx",
+    "aliases": [
+      "tow.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=tow",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "SymbolView",
+    "name": "SymbolView",
+    "type": "Wlx",
+    "aliases": [
+      "SymbolView.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=SymbolView",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "rio",
+    "name": "Diamond Rio PMP300",
+    "type": "Wfx",
+    "aliases": [
+      "rio.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=rio",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "plplugin",
+    "name": "PL Plugin",
+    "type": "Wcx",
+    "aliases": [
+      "pl.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=plplugin",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "BFC",
+    "name": "BFC",
+    "type": "Wcx",
+    "aliases": [
+      "BfcTC.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=BFC",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "mssql",
+    "name": "MS SQL Servers",
+    "type": "Wfx",
+    "aliases": [
+      "MS_SQL.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=mssql",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "checksum",
+    "name": "Checksum",
+    "type": "Wcx",
+    "aliases": [
+      "checksum.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=checksum",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "far2wc",
+    "name": "Far2wc",
+    "type": "Wcx",
+    "aliases": [
+      "far2wc.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=far2wc",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "activepdfview",
+    "name": "ActivePDFView",
+    "type": "Wlx",
+    "aliases": [
+      "ActivePDFView.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=activepdfview",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "activesnapview",
+    "name": "ActiveSnapView",
+    "type": "Wlx",
+    "aliases": [
+      "ActiveSnapView.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=activesnapview",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "dsp",
+    "name": "DSP Plugin",
+    "type": "Wcx",
+    "aliases": [
+      "dsp.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=dsp",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "imagelister",
+    "name": "ImageLister",
+    "type": "Wlx",
+    "aliases": [
+      "ImageLister.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=imagelister",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "vss",
+    "name": "Visual SourceSafe",
+    "type": "Wfx",
+    "aliases": [
+      "vss.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=vss",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "DialPWD",
+    "name": "DialPWD",
+    "type": "Wfx",
+    "aliases": [
+      "DialPWD.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=DialPWD",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ieweblister",
+    "name": "IEWebLister",
+    "type": "Wlx",
+    "aliases": [
+      "IEWebLister.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=ieweblister",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "cryptonite",
+    "name": "Cryptonite",
+    "type": "Wcx",
+    "aliases": [
+      "cryptonite.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=cryptonite",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "netmon",
+    "name": "Shared Files",
+    "type": "Wfx",
+    "aliases": [
+      "NetMon.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=netmon",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "startguard",
+    "name": "Startup Guard",
+    "type": "Wfx",
+    "aliases": [
+      "StartupGuard.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=startguard",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "temporarypanel",
+    "name": "Temporary Panel",
+    "type": "Wfx",
+    "aliases": [
+      "TempPanel.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=temporarypanel",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "scl",
+    "name": "SCL",
+    "type": "Wcx",
+    "aliases": [
+      "SCLwcx.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=scl",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "trd",
+    "name": "TRD",
+    "type": "Wcx",
+    "aliases": [
+      "TRDwcx.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=trd",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "systeminfo",
+    "name": "SystemInfo",
+    "type": "Wlx",
+    "aliases": [
+      "SystemInfo.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=systeminfo",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "grp",
+    "name": "GRP",
+    "type": "Wcx",
+    "aliases": [
+      "grp.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=grp",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "syntaxcolorizer",
+    "name": "SyntaxColorizer",
+    "type": "Wlx",
+    "aliases": [
+      "SyntaxColorizer.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=syntaxcolorizer",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "iniview",
+    "name": "IniView",
+    "type": "Wlx",
+    "aliases": [
+      "iniview.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=iniview",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "uninstall",
+    "name": "Uninstall",
+    "type": "Wfx",
+    "aliases": [
+      "Uninstall.wfx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=uninstall",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "sis",
+    "name": "SIS",
+    "type": "Wcx",
+    "aliases": [
+      "SisView.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=sis",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "smviewer",
+    "name": "SMViewer",
+    "type": "Wlx",
+    "aliases": [
+      "SMViewer.wlx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=smviewer",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ha",
+    "name": "HA",
+    "type": "Wcx",
+    "aliases": [
+      "HA.wcx"
+    ],
+    "packageUrl": "https://totalcmd.net/download.php?id=ha",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wlx-dbf-view",
+    "name": "DBF-View",
+    "type": "Wlx",
+    "aliases": [
+      "CDBFVIEW.WLX"
+    ],
+    "packageUrl": "https://plugins.ghisler.com/lsplugins/cdbfview.zip",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wlx-ebcdicview",
+    "name": "EBCDICview",
+    "type": "Wlx",
+    "aliases": [
+      "ebcdicview.wlx",
+      "ebcdicview.wlx64"
+    ],
+    "packageUrl": "https://plugins.ghisler.com/lsplugins/ebcdicview.zip",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wlx-flic",
+    "name": "Flic",
+    "type": "Wlx",
+    "aliases": [
+      "Flic.wlx"
+    ],
+    "packageUrl": "https://plugins.ghisler.com/lsplugins/wlxflic.zip",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wlx-hpg-ed",
+    "name": "hpg-ed",
+    "type": "Wlx",
+    "aliases": [
+      "HPG_ed.wlx"
+    ],
+    "packageUrl": "https://plugins.ghisler.com/lsplugins/hpg_ed.zip",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wlx-imgview",
+    "name": "ImgView",
+    "type": "Wlx",
+    "aliases": [
+      "ImgView.wlx"
+    ],
+    "packageUrl": "https://plugins.ghisler.com/lsplugins/wlx_imgv_2.0.zip",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wlx-jpegthumbs",
+    "name": "Jpegthumbs",
+    "type": "Wlx",
+    "aliases": [
+      "jpegthumbs.wlx"
+    ],
+    "packageUrl": "https://plugins.ghisler.com/lsplugins/jpegthumbs.zip",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wlx-multimedia-factory",
+    "name": "Multimedia factory",
+    "type": "Wlx",
+    "aliases": [
+      "factory.wlx"
+    ],
+    "packageUrl": "https://plugins.ghisler.com/lsplugins/wlx_mmfactory.zip",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wlx-playlist",
+    "name": "playlist",
+    "type": "Wlx",
+    "aliases": [
+      "Playlist.wlx"
+    ],
+    "packageUrl": "https://plugins.ghisler.com/lsplugins/playlist.zip",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wlx-qrcode",
+    "name": "QRCode",
+    "type": "Wlx",
+    "aliases": [
+      "QRcode.wlx",
+      "QRcode.wlx64"
+    ],
+    "packageUrl": "https://interno.altervista.org/software/QRcode.zip",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wlx-synus",
+    "name": "SynUs",
+    "type": "Wlx",
+    "aliases": [
+      "SynUs.wlx"
+    ],
+    "packageUrl": "https://plugins.ghisler.com/lsplugins/wlx_synus.zip",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wcx-avi",
+    "name": "AVI",
+    "type": "Wcx",
+    "aliases": [
+      "AviWcx.wcx",
+      "AviWcx.wcx64"
+    ],
+    "packageUrl": "https://plugins.ghisler.com/plugins/aviwcx.zip",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wcx-bzip2",
+    "name": "BZIP2",
+    "type": "Wcx",
+    "aliases": [
+      "bzip2dll.wcx",
+      "bzip2dll.wcx64"
+    ],
+    "packageUrl": "https://plugins.ghisler.com/plugins/bzipplug.zip",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wcx-dbx",
+    "name": "DBX",
+    "type": "Wcx",
+    "aliases": [
+      "dbxplug.wcx"
+    ],
+    "packageUrl": "https://plugins.ghisler.com/plugins/dbxplug.zip",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wcx-gif",
+    "name": "GIF",
+    "type": "Wcx",
+    "aliases": [
+      "GifWcx.wcx",
+      "GifWcx.wcx64"
+    ],
+    "packageUrl": "https://plugins.ghisler.com/plugins/gifwcx.zip",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wcx-lzma",
+    "name": "lzma",
+    "type": "Wcx",
+    "aliases": [
+      "lzma.wcx",
+      "lzma.wcx64"
+    ],
+    "packageUrl": "https://plugins.ghisler.com/plugins/wcx_lzma21.zip",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wcx-lzop",
+    "name": "LZOP",
+    "type": "Wcx",
+    "aliases": [
+      "LzopWincmd.wcx"
+    ],
+    "packageUrl": "https://plugins.ghisler.com/plugins/lzop.zip",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wcx-lzx",
+    "name": "LZX",
+    "type": "Wcx",
+    "aliases": [
+      "Unlzx.wcx",
+      "Unlzx.wcx64"
+    ],
+    "packageUrl": "https://plugins.ghisler.com/plugins/lzx_plugin.zip",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wcx-makebat",
+    "name": "MakeBAT",
+    "type": "Wcx",
+    "aliases": [
+      "makebat.wcx",
+      "makebat.wcx64"
+    ],
+    "packageUrl": "https://plugins.ghisler.com/plugins/makebat.zip",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wcx-pack",
+    "name": "PACK",
+    "type": "Wcx",
+    "aliases": [
+      "pack.wcx"
+    ],
+    "packageUrl": "https://plugins.ghisler.com/plugins/pack_plugin.zip",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wcx-ppmd",
+    "name": "PPMd",
+    "type": "Wcx",
+    "aliases": [
+      "Ppmd.wcx"
+    ],
+    "packageUrl": "https://plugins.ghisler.com/plugins/ppmd_plugin.zip",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wcx-sff",
+    "name": "SFF",
+    "type": "Wcx",
+    "aliases": [
+      "sff.wcx"
+    ],
+    "packageUrl": "https://plugins.ghisler.com/plugins/wcx_sff-1.2.zip",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wcx-treecopyplus",
+    "name": "TreeCopyPlus",
+    "type": "Wcx",
+    "aliases": [
+      "TreeCopyPlus.wcx",
+      "TreeCopyPlus.wcx64"
+    ],
+    "packageUrl": "https://plugins.ghisler.com/plugins/treecopyplus.zip",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wcx-xz",
+    "name": "xz",
+    "type": "Wcx",
+    "aliases": [
+      "xz.wcx",
+      "xz.wcx64"
+    ],
+    "packageUrl": "https://plugins.ghisler.com/plugins/wcx_xz12.zip",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wcx-z",
+    "name": "Z",
+    "type": "Wcx",
+    "aliases": [
+      "z.wcx",
+      "z.wcx64"
+    ],
+    "packageUrl": "https://plugins.ghisler.com/plugins/zplugin.zip",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wfx-back2life",
+    "name": "Back2Life",
+    "type": "Wfx",
+    "aliases": [
+      "Back2Life.wfx",
+      "Back2Life.wfx64"
+    ],
+    "packageUrl": "https://plugins.ghisler.com/fsplugins/b2l4tc.zip",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wfx-canoncam",
+    "name": "CanonCam",
+    "type": "Wfx",
+    "aliases": [
+      "CanonCam.wfx"
+    ],
+    "packageUrl": "https://plugins.ghisler.com/fsplugins/canoncamplugin.zip",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wfx-events-nt",
+    "name": "Events NT",
+    "type": "Wfx",
+    "aliases": [
+      "EventNT.wfx"
+    ],
+    "packageUrl": "https://plugins.ghisler.com/fsplugins/eventnt_1_3.zip",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wfx-ext2-reiser",
+    "name": "Ext2+ Reiser",
+    "type": "Wfx",
+    "aliases": [
+      "ex2fs.wfx"
+    ],
+    "packageUrl": "https://plugins.ghisler.com/fsplugins/ex2fs.zip",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wfx-hplx",
+    "name": "HPLX",
+    "type": "Wfx",
+    "aliases": [
+      "hp200lx.wfx"
+    ],
+    "packageUrl": "https://plugins.ghisler.com/fsplugins/wfx_hplx.zip",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wfx-proc",
+    "name": "PROC",
+    "type": "Wfx",
+    "aliases": [
+      "procfs.wfx",
+      "procfs.wfx64"
+    ],
+    "packageUrl": "https://www.diskinternals.com/download/diskinternals_procfs.zip",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wfx-sftp",
+    "name": "SFTP",
+    "type": "Wfx",
+    "aliases": [
+      "sftpplug.wfx",
+      "sftpplug.wfx64"
+    ],
+    "packageUrl": "https://www.totalcommander.ch/win/fs/sftpplug.zip",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wfx-wince",
+    "name": "WinCE",
+    "type": "Wfx",
+    "aliases": [
+      "wincefs.wfx",
+      "wincefs.wfx64"
+    ],
+    "packageUrl": "https://plugins.ghisler.com/fsplugins/wincefs.zip",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wfx-windows-media-audio-mp3",
+    "name": "Windows Media Audio (MP3)",
+    "type": "Wfx",
+    "aliases": [
+      "wmdmplug.wfx"
+    ],
+    "packageUrl": "https://plugins.ghisler.com/fsplugins/wmdmplug.zip",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wfx-windows-media-audio-2-mp3",
+    "name": "Windows Media Audio 2 (MP3)",
+    "type": "Wfx",
+    "aliases": [
+      "wpdplug.wfx",
+      "wpdplug.wfx64"
+    ],
+    "packageUrl": "https://plugins.ghisler.com/fsplugins/wpdplug.zip",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wdx-audioinfo",
+    "name": "AudioInfo",
+    "type": "Wdx",
+    "aliases": [
+      "AudioInfo.wdx"
+    ],
+    "packageUrl": "https://plugins.ghisler.com/content/wdx_audioinfo.zip",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wdx-id3",
+    "name": "id3",
+    "type": "Wdx",
+    "aliases": [
+      "id3.wdx",
+      "id3.wdx64"
+    ],
+    "packageUrl": "https://plugins.ghisler.com/content/wdx_id3.zip",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wdx-media",
+    "name": "Media",
+    "type": "Wdx",
+    "aliases": [
+      "media.WDX"
+    ],
+    "packageUrl": "https://plugins.ghisler.com/content/wdx_media.zip",
+    "verifiedUtc": "2026-09-24"
+  },
+  {
+    "id": "ghisler-wdx-textsearch",
+    "name": "TextSearch",
+    "type": "Wdx",
+    "aliases": [
+      "TextSearch.wdx",
+      "TextSearch.wdx64"
+    ],
+    "packageUrl": "https://plugins.ghisler.com/content/wdx_textsearch.zip",
+    "verifiedUtc": "2026-09-24"
   }
 ]

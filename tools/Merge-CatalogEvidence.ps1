@@ -18,7 +18,7 @@ foreach ($item in $evidence) {
     $id = if ($item.id -match '^\d+$') { ($item.name -replace '[^A-Za-z0-9-]+', '-').Trim('-').ToLowerInvariant() } else { $item.id.ToLowerInvariant() }
     if ($ids.Contains($id) -or @($item.aliases | Where-Object { $aliases.Contains((Normalize-Alias $_)) }).Count -gt 0) { continue }
     $entry = [ordered]@{
-        id = $id; name = $item.name; type = $item.type; aliases = @($item.aliases)
+        id = $id; name = $item.name; type = $item.type; aliases = @($item.aliases); registrationAliases = @(); identityEvidence = 'VerifiedPackage'; verifiedAt = $item.verifiedUtc
         sources = @(
             [ordered]@{ provider='totalcmd.net-index'; id=$item.id; authority='CommunityCatalog'; purpose='Metadata'; priority=150 },
             [ordered]@{ provider='totalcmd.net'; id=$item.id; authority='CommunityCatalog'; purpose='MetadataAndDownload'; priority=100 }

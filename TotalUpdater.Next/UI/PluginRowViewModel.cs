@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using TotalUpdater.Next.Core;
 using TotalUpdater.Next.Resources;
 using TotalUpdater.Next.Infrastructure.Installation;
+using TotalUpdater.Next.Sources;
 
 namespace TotalUpdater.Next.UI
 {
@@ -53,17 +54,23 @@ namespace TotalUpdater.Next.UI
             DownloadedPackagePolicy.CarryForward(_candidate, candidate);
             if (Plugin.HasVersionConflict) candidate.State = UpdateState.LocalVersionConflict;
             _candidate = candidate; AvailableVersion = candidate.AvailableVersion.IsKnown ? candidate.AvailableVersion.Raw : "—";
-            Status = ToStatus(candidate.State, candidate.Details);
+            Status = ToStatus(candidate);
         }
 
-        private static string ToStatus(UpdateState state, string details)
+        private static string ToStatus(UpdateCandidate candidate)
         {
-            if (state == UpdateState.UpdateAvailable && !String.IsNullOrWhiteSpace(details)) return details;
+            var state = candidate == null ? UpdateState.Unknown : candidate.State;
+            if (state == UpdateState.UpdateAvailable && candidate.PackageAvailability != PackageAvailability.MetadataOnly && !String.IsNullOrWhiteSpace(candidate.Details)) return candidate.Details;
             switch (state)
             {
-                case UpdateState.UpToDate: return Text.Get("UpToDate"); case UpdateState.UpdateAvailable: return Text.Get("UpdateAvailable");
-                case UpdateState.DevelopmentVersion: return Text.Get("DevelopmentVersion"); case UpdateState.SourceOutdated: return "Источник обновлений отстаёт"; case UpdateState.LocalAheadUnknown: return "Локальная версия выше источника; статус не определён"; case UpdateState.VersionComparisonUnknown: return Text.Get("ComparisonUnknown"); case UpdateState.LocalVersionConflict: return Text.Get("VersionConflict");
-                case UpdateState.PluginNotRecognized: return Text.Get("NotRecognized"); case UpdateState.CatalogAmbiguous: return "Найдено несколько возможных правил каталога"; case UpdateState.SourceUnavailable: return String.IsNullOrWhiteSpace(details) ? Text.Get("SourceUnavailable") : Text.Get("SourceUnavailable") + ": " + details;
+                case UpdateState.UpToDate: return Text.Get("UpToDate"); case UpdateState.UpdateAvailable: return candidate.PackageAvailability == PackageAvailability.MetadataOnly ? "Метаданные доступны; автоустановка отключена" : Text.Get("UpdateAvailable");
+                case UpdateState.DevelopmentVersion: return Text.Get("DevelopmentVersion"); case UpdateState.SourceOutdated: return "Источник обновлений отстаёт"; case UpdateState.LocalAheadUnknown: return "Локальная версия выше источника; статус не определён"; case UpdateState.VersionComparisonUnknown: return "Версия не определена"; case UpdateState.LocalVersionConflict: return Text.Get("VersionConflict");
+                case UpdateState.PluginNotRecognized: return "Запись отсутствует в каталоге"; case UpdateState.CatalogAmbiguous: return "Найдено несколько возможных правил каталога";
+                case UpdateState.SourceUnavailable:
+                {
+                    var unavailable = candidate.Observations == null ? null : candidate.Observations.FirstOrDefault(x => x.Status == SourceQueryStatus.Unavailable);
+                    return unavailable == null ? Text.Get("SourceUnavailable") : SourceStatusText.Unavailable(unavailable.Source, unavailable.ProviderName);
+                }
                 default: return Text.Get("Error");
             }
         }

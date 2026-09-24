@@ -44,6 +44,7 @@ namespace TotalUpdater.Next.TotalCommander
                     var path = _configurationResolver.ExpandPath(pathValue, configuration);
                     var familyPath = NormalizeFamilyPath(pair.Value, path);
                     var entry = _catalog.FindByAlias(Path.GetFileName(familyPath));
+                    if (entry == null && pair.Value == PluginType.Wfx) entry = _catalog.FindByRegistrationAlias(key);
                     var fallbackName = pair.Value == PluginType.Wfx ? key : Path.GetFileNameWithoutExtension(familyPath);
                     var identity = entry == null
                         ? new PluginIdentity { Id = "family:" + pair.Value + "|" + familyPath.ToLowerInvariant(), Name = fallbackName, Type = pair.Value }

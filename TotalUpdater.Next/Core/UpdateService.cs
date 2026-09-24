@@ -77,8 +77,7 @@ namespace TotalUpdater.Next.Core
                 }
                 var download = SelectDownloadObservation(plugin, observations, canonical, out var packageUrl, out var packageDetails);
                 if (download != null) { candidate.DownloadUrl = packageUrl; candidate.DownloadSource = download; candidate.PackageAvailability =
-                    download.Source != null && String.Equals(download.Source.EphemeralVerifiedPackageUrl, packageUrl.AbsoluteUri, StringComparison.OrdinalIgnoreCase)
-                        ? PackageAvailability.Verified : PackageAvailability.Unverified; candidate.Details = packageDetails; }
+                    IsVerifiedPackageEvidence(download.Source, packageUrl) ? PackageAvailability.Verified : PackageAvailability.Unverified; candidate.Details = packageDetails; }
                 else { candidate.PackageAvailability = PackageAvailability.MetadataOnly; candidate.Details = String.IsNullOrWhiteSpace(packageDetails) ? "Версия известна, пакет не найден" : packageDetails; }
             }
             return candidate;
@@ -158,6 +157,13 @@ namespace TotalUpdater.Next.Core
             }
             if (eligible.Count > 0 && String.IsNullOrWhiteSpace(details)) details = "Нет безопасно выбираемого пакета загрузки.";
             return null;
+        }
+
+        private static bool IsVerifiedPackageEvidence(CatalogSource source, Uri packageUrl)
+        {
+            if (source == null || packageUrl == null || source.PurposeValue != SourcePurpose.MetadataAndDownload) return false;
+            return String.Equals(source.EphemeralVerifiedPackageUrl, packageUrl.AbsoluteUri, StringComparison.OrdinalIgnoreCase) ||
+                String.Equals(source.PackageUrl, packageUrl.AbsoluteUri, StringComparison.OrdinalIgnoreCase);
         }
 
         private static Uri SelectPackage(InstalledPlugin plugin, RemoteRelease release, out string details)

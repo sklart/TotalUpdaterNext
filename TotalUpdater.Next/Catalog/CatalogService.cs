@@ -47,6 +47,13 @@ namespace TotalUpdater.Next.Catalog
             return entry ?? entries.FirstOrDefault(x => x.Aliases.Any(alias => alias.Equals(NormalizeCompanionAlias(fileName), StringComparison.OrdinalIgnoreCase)));
         }
 
+        public PluginCatalogEntry FindByRegistrationAlias(string registrationName)
+        {
+            if (String.IsNullOrWhiteSpace(registrationName)) return null;
+            return Load().FirstOrDefault(x => x.PluginType == PluginType.Wfx && x.IdentityEvidence == IdentityEvidence.OfficialRegistrationName &&
+                (x.RegistrationAliases ?? new List<string>()).Any(alias => alias.Equals(registrationName, StringComparison.OrdinalIgnoreCase)));
+        }
+
         public PluginCatalogEntry FindById(string id)
         {
             if (String.IsNullOrWhiteSpace(id)) return null;
@@ -79,6 +86,7 @@ namespace TotalUpdater.Next.Catalog
             var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var entry in candidates)
             {
+                if (entry != null && entry.RegistrationAliases == null) entry.RegistrationAliases = new List<string>();
                 var id = entry == null ? "" : entry.Id;
                 if (!seenIds.Add(id ?? "")) { AddDiagnostic(diagnostics, id, "Повторяющийся id в каталоге."); continue; }
                 string error;
@@ -99,7 +107,9 @@ namespace TotalUpdater.Next.Catalog
         private static PluginCatalogEntry FindAliasConflict(PluginCatalogEntry entry, IEnumerable<PluginCatalogEntry> others)
         {
             var aliases = new HashSet<string>(entry.Aliases.Select(NormalizeCompanionAlias), StringComparer.OrdinalIgnoreCase);
-            return others.FirstOrDefault(x => x.Aliases.Select(NormalizeCompanionAlias).Any(aliases.Contains));
+            var registrationAliases = new HashSet<string>(entry.RegistrationAliases ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+            return others.FirstOrDefault(x => x.Aliases.Select(NormalizeCompanionAlias).Any(aliases.Contains) ||
+                registrationAliases.Count > 0 && (x.RegistrationAliases ?? new List<string>()).Any(registrationAliases.Contains));
         }
 
         private static bool IsValid(PluginCatalogEntry entry, out string error)
@@ -110,8 +120,10 @@ namespace TotalUpdater.Next.Catalog
             PluginType type;
             if (!Enum.TryParse(entry.Type, true, out type) || type == PluginType.Other) { error = "Неизвестный PluginType."; return false; }
             if (entry.Aliases == null || entry.Aliases.Any(String.IsNullOrWhiteSpace)) { error = "Некорректный aliases."; return false; }
+            if (entry.RegistrationAliases == null || entry.RegistrationAliases.Any(String.IsNullOrWhiteSpace)) { error = "Некорректный registrationAliases."; return false; }
             IdentityEvidence evidence; if (!Enum.TryParse(entry.IdentityEvidenceName ?? "MetadataOnly", true, out evidence)) { error = "Неизвестный identityEvidence."; return false; }
             if ((evidence == IdentityEvidence.VerifiedBinary || evidence == IdentityEvidence.VerifiedPackage) && entry.Aliases.Count == 0) { error = "Подтверждённый identity требует aliases."; return false; }
+            if (entry.RegistrationAliases.Count > 0 && (entry.PluginType != PluginType.Wfx || evidence != IdentityEvidence.OfficialRegistrationName)) { error = "registrationAliases разрешены только для WFX с OfficialRegistrationName."; return false; }
             if (!LocalVersionStrategyRegistry.Default.Contains(entry.LocalVersionStrategy)) { error = "Неизвестная localVersionStrategy."; return false; }
             LocalAheadPolicy aheadPolicy;
             if (!Enum.TryParse(entry.LocalAheadPolicyName ?? "Unknown", true, out aheadPolicy)) { error = "Неизвестная localAheadPolicy."; return false; }
@@ -144,6 +156,7 @@ namespace TotalUpdater.Next.Catalog
                 }
                 else if (!String.IsNullOrWhiteSpace(source.VersionPattern) || !String.IsNullOrWhiteSpace(source.DownloadUrl)) { error = "versionPattern/downloadUrl разрешены только для generic-html."; return false; }
                 else if (!String.IsNullOrWhiteSpace(source.Url) && !IsHttpUrl(source.Url)) { error = "Некорректный URL."; return false; }
+                if (!String.IsNullOrWhiteSpace(source.PackageUrl) && !IsHttpUrl(source.PackageUrl)) { error = "Некорректный packageUrl."; return false; }
                 if (!String.IsNullOrWhiteSpace(source.DownloadUrl) && !IsHttpUrl(source.DownloadUrl)) { error = "Некорректный downloadUrl."; return false; }
                 if (!String.IsNullOrWhiteSpace(source.AssetPattern)) try { new Regex(source.AssetPattern, RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(200)); } catch { error = "Некорректный assetPattern."; return false; }
             }

@@ -77,9 +77,19 @@ namespace TotalUpdater.Next.Tests
             var metadata = service.CheckAsync(old, CancellationToken.None).GetAwaiter().GetResult();
             Assert(metadata.State == UpdateState.UpdateAvailable && metadata.PackageAvailability == PackageAvailability.MetadataOnly && metadata.DownloadUrl == null && metadata.Details.Contains("Версия известна"), "metadata-only is distinct from unavailable source");
             var metadataRow = new PluginRowViewModel(old); metadataRow.Apply(metadata);
-            Assert(metadataRow.Status.Contains("Версия известна, пакет не найден") && !metadataRow.CanDownload, "metadata-only UI status has no install action");
-            var unavailableRow = new PluginRowViewModel(old); unavailableRow.Apply(new UpdateCandidate { Plugin = old, State = UpdateState.SourceUnavailable });
-            Assert(unavailableRow.Status.Contains("Источник недоступен"), "unavailable source UI status is distinct");
+            Assert(metadataRow.Status.Contains("Метаданные доступны") && !metadataRow.CanDownload, "metadata-only UI status has no install action");
+            var unavailableRow = new PluginRowViewModel(old); unavailableRow.Apply(new UpdateCandidate { Plugin = old, State = UpdateState.SourceUnavailable,
+                Observations = new List<RemoteVersionObservation> { new RemoteVersionObservation { Source = new CatalogSource { Provider = "totalcmd.net-index" }, ProviderName = "TotalCmd index", Status = SourceQueryStatus.Unavailable } } });
+            Assert(unavailableRow.Status == "Не удалось связаться с totalcmd.net", "unavailable source UI status is host-level and distinct");
+            var notFoundRow = new PluginRowViewModel(old); notFoundRow.Apply(new UpdateCandidate { Plugin = old, State = UpdateState.PluginNotRecognized });
+            var unknownVersionRow = new PluginRowViewModel(old); unknownVersionRow.Apply(new UpdateCandidate { Plugin = old, State = UpdateState.VersionComparisonUnknown });
+            Assert(notFoundRow.Status == "Запись отсутствует в каталоге" && unknownVersionRow.Status == "Версия не определена", "CatalogNotFound and VersionUnknown stay distinct in UI");
+            var diagnostic = new SourceDiagnosticResult { Name = "totalcmd.net index", IsAvailable = false, ElapsedMilliseconds = 123, Details = "timeout after 20 s" };
+            Assert(diagnostic.Status == "FAIL" && diagnostic.ResponseTime == "123 мс", "source diagnostic exposes status and response time");
+            var secondUnavailable = new PluginRowViewModel(old); secondUnavailable.Apply(new UpdateCandidate { Plugin = old, State = UpdateState.SourceUnavailable,
+                Observations = new List<RemoteVersionObservation> { new RemoteVersionObservation { Source = new CatalogSource { Provider = "totalcmd.net" }, ProviderName = "TotalCmd page", Status = SourceQueryStatus.Unavailable } } });
+            var summary = MainViewModel.BuildCheckSummary(new[] { unavailableRow, secondUnavailable, metadataRow });
+            Assert(summary.Contains("Проверено: 3") && summary.Contains("Обновлений: 1") && summary.Contains("Источники недоступны: totalcmd.net") && summary.IndexOf("totalcmd.net", StringComparison.OrdinalIgnoreCase) == summary.LastIndexOf("totalcmd.net", StringComparison.OrdinalIgnoreCase), "global check summary deduplicates unavailable source hosts");
             Assert(HarvestEvidenceAudit.Validate(new[] { new HarvestEvidence { Id = "sample", Type = "Wlx", Aliases = new List<string> { "sample.wlx" }, PackageUrl = "https://example.test/sample.zip", VerifiedUtc = "2020-01-01" } }, DateTime.UtcNow).Any(x => x.Contains("stale harvest evidence")), "stale evidence warning");
             Assert(HarvestEvidenceAudit.Validate(new[] {
                 new HarvestEvidence { Id = "x", Type = "Wlx", Aliases = new List<string> { "X.wlx" }, PackageUrl = "https://example.test/x.zip", VerifiedUtc = "2026-09-23" },

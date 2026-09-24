@@ -1,8 +1,14 @@
-param([int]$Target = 170)
+param()
 
 $ErrorActionPreference = 'Stop'
 $catalogPath = Join-Path $PSScriptRoot '..\TotalUpdater.Next\Catalog\plugin-catalog.json'
 $evidencePath = Join-Path $PSScriptRoot '..\TotalUpdater.Next\Catalog\catalog-harvest-evidence.json'
+function Save-Evidence([Collections.Generic.List[object]]$items) {
+    $temporary = $evidencePath + '.tmp'
+    [IO.File]::WriteAllText($temporary, ($items | ConvertTo-Json -Depth 5), [Text.UTF8Encoding]::new($false))
+    if (Test-Path -LiteralPath $evidencePath) { [IO.File]::Replace($temporary, $evidencePath, $evidencePath + '.bak'); Remove-Item -LiteralPath ($evidencePath + '.bak') -Force -ErrorAction SilentlyContinue }
+    else { Move-Item -LiteralPath $temporary -Destination $evidencePath -Force }
+}
 $existing = Get-Content -LiteralPath $catalogPath -Raw | ConvertFrom-Json
 $usedIds = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 $usedAliases = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
@@ -24,8 +30,16 @@ try {
     }
     $rows = $rows | Sort-Object @{Expression='Priority';Descending=$true}, @{Expression='Date';Descending=$true}
     $evidence = [Collections.Generic.List[object]]::new()
+    if (Test-Path -LiteralPath $evidencePath) {
+        foreach ($item in @(Get-Content -LiteralPath $evidencePath -Raw | ConvertFrom-Json)) {
+            if ($null -eq $item -or [string]::IsNullOrWhiteSpace($item.id)) { continue }
+            $evidence.Add($item)
+            [void]$usedIds.Add($item.id)
+            foreach ($alias in @($item.aliases)) { [void]$usedAliases.Add($alias) }
+        }
+    }
     foreach ($row in $rows) {
-        if ($usedIds.Contains($row.Id) -or $evidence.Count + $existing.Count -ge $Target) { continue }
+        if ($usedIds.Contains($row.Id)) { continue }
         $url = 'https://totalcmd.net/download.php?id=' + [uri]::EscapeDataString($row.Id)
         try {
             $bytes = (Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 20).Content
@@ -46,10 +60,10 @@ try {
             $evidence.Add([pscustomobject]@{ id=$row.Id; name=$row.Name; type=$row.Type; aliases=$aliases; packageUrl=$url; verifiedUtc=(Get-Date).ToUniversalTime().ToString('yyyy-MM-dd') })
             [void]$usedIds.Add($row.Id)
             foreach ($alias in $aliases) { [void]$usedAliases.Add($alias) }
-            $evidence | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $evidencePath -Encoding utf8
+            Save-Evidence $evidence
             Write-Host ($evidence.Count.ToString() + ': ' + $row.Id + ' => ' + ($aliases -join ','))
         } catch { continue }
     }
-    $evidence | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $evidencePath -Encoding utf8
-    Write-Host ('Harvested=' + $evidence.Count + '; catalog+harvest=' + ($existing.Count + $evidence.Count))
+    Save-Evidence $evidence
+    Write-Host ('Harvested=' + $evidence.Count + '; catalog+harvest=' + ($existing.Count + $evidence.Count) + '; no artificial target')
 } finally { }

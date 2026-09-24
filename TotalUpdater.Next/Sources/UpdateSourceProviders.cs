@@ -227,8 +227,9 @@ namespace TotalUpdater.Next.Sources
                     Encoding.UTF8.GetString, "text/html", "utf-8", cancellationToken).ConfigureAwait(false)).Text;
                 var result = WithProvenance(Parse(source.Id, html), response);
                 Uri packageUrl;
+                var packageEvidence = String.IsNullOrWhiteSpace(source.EphemeralVerifiedPackageUrl) ? source.PackageUrl : source.EphemeralVerifiedPackageUrl;
                 if (result.Status == SourceQueryStatus.Success && result.Release != null &&
-                    Uri.TryCreate(source.EphemeralVerifiedPackageUrl, UriKind.Absolute, out packageUrl) &&
+                    Uri.TryCreate(packageEvidence, UriKind.Absolute, out packageUrl) &&
                     packageUrl.Scheme == Uri.UriSchemeHttps)
                     result.Release.Packages.Add(new RemotePackage { Url = packageUrl, FileName = System.IO.Path.GetFileName(packageUrl.AbsolutePath),
                         Architecture = GitHubReleaseSourceProvider.DetectArchitecture(packageUrl.AbsolutePath) });

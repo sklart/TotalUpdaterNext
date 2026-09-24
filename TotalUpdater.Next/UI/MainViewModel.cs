@@ -14,6 +14,7 @@ using TotalUpdater.Next.Core.Installation;
 using TotalUpdater.Next.Infrastructure;
 using TotalUpdater.Next.Infrastructure.Installation;
 using TotalUpdater.Next.Resources;
+using TotalUpdater.Next.Sources;
 using TotalUpdater.Next.TotalCommander;
 
 namespace TotalUpdater.Next.UI
@@ -27,6 +28,7 @@ namespace TotalUpdater.Next.UI
         private readonly CatalogInstallService _catalogInstall;
         private readonly DownloadService _downloads;
         private readonly UserDataPaths _paths;
+        private readonly ISourceDiagnostics _sourceDiagnostics;
         private readonly string _backupRoot;
         private readonly CollectionViewSource _itemsView;
         private TotalCommanderConfiguration _configuration;
@@ -34,26 +36,29 @@ namespace TotalUpdater.Next.UI
         private int _checkGeneration;
         private string _iniPath = ""; private string _statusText = ""; private string _filter = "All";
 
-        public MainViewModel(TotalCommanderConfigurationResolver resolver, PluginDiscoveryService discovery, UpdateService updates, CatalogService catalog, DownloadService downloads, UserDataPaths paths, CatalogInstallService catalogInstall = null)
+        public MainViewModel(TotalCommanderConfigurationResolver resolver, PluginDiscoveryService discovery, UpdateService updates, CatalogService catalog, DownloadService downloads, UserDataPaths paths, CatalogInstallService catalogInstall = null, ISourceDiagnostics sourceDiagnostics = null)
         {
-            _resolver = resolver; _discovery = discovery; _updates = updates; _catalog = catalog; _downloads = downloads; _paths = paths; _catalogInstall = catalogInstall;
+            _resolver = resolver; _discovery = discovery; _updates = updates; _catalog = catalog; _downloads = downloads; _paths = paths; _catalogInstall = catalogInstall; _sourceDiagnostics = sourceDiagnostics;
             _backupRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TotalUpdaterNext", "backups");
             Items = new ObservableCollection<PluginRowViewModel>(); _itemsView = new CollectionViewSource { Source = Items }; _itemsView.GroupDescriptions.Add(new PropertyGroupDescription("Group")); _itemsView.Filter += Filter;
             DiscoverCommand = new RelayCommand(x => Discover()); CheckCommand = new RelayCommand(async x => await CheckAsync()); DownloadCommand = new RelayCommand(async x => await DownloadAsync());
             InstallCommand = new RelayCommand(async x => await InstallAsync()); RollbackCommand = new RelayCommand(x => RollbackLast());
             CheckCatalogCommand = new RelayCommand(async x => await CheckCatalogAsync()); InstallNewCommand = new RelayCommand(async x => await InstallNewAsync());
+            CheckSourceAvailabilityCommand = new RelayCommand(async x => await CheckSourceAvailabilityAsync(), x => _sourceDiagnostics != null);
             BrowseIniCommand = new RelayCommand(x => BrowseIni()); OpenUserCatalogCommand = new RelayCommand(x => OpenUserCatalog()); OpenSiteCommand = new RelayCommand(x => OpenSite(x as PluginRowViewModel), x => x is PluginRowViewModel row && row.Candidate != null && row.Candidate.SourceUrl != null);
             OpenPathCommand = new RelayCommand(x => OpenPath(x as PluginRowViewModel), x => x is PluginRowViewModel row && File.Exists(row.Path)); CopyPathCommand = new RelayCommand(x => System.Windows.Clipboard.SetText((x as PluginRowViewModel).Path), x => x is PluginRowViewModel row && !String.IsNullOrWhiteSpace(row.Path)); InfoCommand = new RelayCommand(x => ShowInfo(x as PluginRowViewModel), x => x is PluginRowViewModel);
             UserCatalogEntries = new ObservableCollection<PluginCatalogEntry>(_catalog.LoadUserCatalog());
             CatalogItems = new ObservableCollection<CatalogRowViewModel>();
+            SourceDiagnostics = new ObservableCollection<SourceDiagnosticResult>();
         }
 
         public ObservableCollection<PluginRowViewModel> Items { get; private set; }
         public ObservableCollection<PluginCatalogEntry> UserCatalogEntries { get; private set; }
         public ObservableCollection<CatalogRowViewModel> CatalogItems { get; private set; }
+        public ObservableCollection<SourceDiagnosticResult> SourceDiagnostics { get; private set; }
         public ICollectionView ItemsView { get { return _itemsView.View; } }
         public RelayCommand DiscoverCommand { get; private set; } public RelayCommand CheckCommand { get; private set; } public RelayCommand DownloadCommand { get; private set; } public RelayCommand InstallCommand { get; private set; } public RelayCommand RollbackCommand { get; private set; } public RelayCommand BrowseIniCommand { get; private set; } public RelayCommand OpenUserCatalogCommand { get; private set; } public RelayCommand OpenSiteCommand { get; private set; } public RelayCommand OpenPathCommand { get; private set; } public RelayCommand CopyPathCommand { get; private set; } public RelayCommand InfoCommand { get; private set; }
-        public RelayCommand CheckCatalogCommand { get; private set; } public RelayCommand InstallNewCommand { get; private set; }
+        public RelayCommand CheckCatalogCommand { get; private set; } public RelayCommand InstallNewCommand { get; private set; } public RelayCommand CheckSourceAvailabilityCommand { get; private set; }
         public string IniPath { get { return _iniPath; } set { _iniPath = value; Changed("IniPath"); } }
         public string InstallDirectory { get { return _configuration == null ? "—" : _configuration.InstallDirectory; } }
         public string DownloadDirectory { get { return _paths.DownloadDirectory; } }
@@ -81,6 +86,20 @@ namespace TotalUpdater.Next.UI
             CatalogItems.Clear();
             var installed = new System.Collections.Generic.HashSet<string>(Items.Where(x => x.Plugin.Identity != null).Select(x => x.Plugin.Identity.Id), StringComparer.OrdinalIgnoreCase);
             foreach (var entry in _catalog.Load()) CatalogItems.Add(new CatalogRowViewModel(entry, installed.Contains(entry.Id)));
+        }
+
+        private async Task CheckSourceAvailabilityAsync()
+        {
+            if (_sourceDiagnostics == null) { StatusText = "Диагностика источников недоступна."; return; }
+            try
+            {
+                StatusText = "Проверка доступности источников…";
+                var results = await _sourceDiagnostics.CheckAsync(CancellationToken.None);
+                SourceDiagnostics.Clear(); foreach (var result in results) SourceDiagnostics.Add(result);
+                var failed = results.Where(x => !x.IsAvailable).Select(x => x.Host).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                StatusText = failed.Count == 0 ? "Источники доступны: " + results.Count + " из " + results.Count : "Источники недоступны: " + String.Join(", ", failed);
+            }
+            catch (Exception ex) { StatusText = "Диагностика источников не выполнена: " + ex.Message; }
         }
 
         private async Task CheckCatalogAsync()
@@ -148,8 +167,19 @@ namespace TotalUpdater.Next.UI
             if (generation == _checkGeneration && !cancellation.IsCancellationRequested)
             {
                 ItemsView.Refresh();
-                StatusText = String.Format(Text.Get("CheckedCount"), target.Count) + " · Обновлений: " + target.Count(x => x.HasUpdate) + " · Ошибок источников: " + target.Count(x => x.HasError) + " · Не распознано: " + target.Count(x => x.Candidate != null && x.Candidate.State == UpdateState.PluginNotRecognized) + " · Неоднозначно: " + target.Count(x => x.Candidate != null && x.Candidate.State == UpdateState.CatalogAmbiguous);
+                StatusText = BuildCheckSummary(target);
             }
+        }
+
+        public static string BuildCheckSummary(System.Collections.Generic.IEnumerable<PluginRowViewModel> rows)
+        {
+            var target = (rows ?? Enumerable.Empty<PluginRowViewModel>()).ToList();
+            var unavailable = target.SelectMany(x => x.Candidate == null ? Enumerable.Empty<RemoteVersionObservation>() : x.Candidate.Observations)
+                .Where(x => x.Status == SourceQueryStatus.Unavailable).Select(x => SourceStatusText.FriendlyName(x.Source, x.ProviderName)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            return String.Format(Text.Get("CheckedCount"), target.Count) + " · Обновлений: " + target.Count(x => x.HasUpdate) +
+                " · Не распознано: " + target.Count(x => x.Candidate != null && x.Candidate.State == UpdateState.PluginNotRecognized) +
+                " · Неоднозначно: " + target.Count(x => x.Candidate != null && x.Candidate.State == UpdateState.CatalogAmbiguous) +
+                (unavailable.Count == 0 ? "" : " · Источники недоступны: " + String.Join(", ", unavailable));
         }
 
         private async Task DownloadAsync()

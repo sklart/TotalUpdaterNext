@@ -26,7 +26,9 @@ namespace TotalUpdater.Next.Tests
                 if (args != null && args.Any(x => x.Equals("--audit-catalog-sources", StringComparison.OrdinalIgnoreCase))) return AuditCatalogSources();
                 if (args != null && args.Any(x => x.Equals("--audit-catalog-packages", StringComparison.OrdinalIgnoreCase))) return AuditCatalogPackages();
                 if (args != null && args.Any(x => x.Equals("--audit-catalog-version-fidelity", StringComparison.OrdinalIgnoreCase))) return AuditCatalogVersionFidelity();
+                if (args != null && args.Any(x => x.Equals("--diagnose-sources", StringComparison.OrdinalIgnoreCase))) return DiagnoseSources();
                 if (args != null && args.Any(x => x.Equals("--validate-harvest-evidence", StringComparison.OrdinalIgnoreCase))) return ValidateHarvestEvidence();
+                if (args != null && args.Any(x => x.Equals("--harvest-full-catalog", StringComparison.OrdinalIgnoreCase))) return RunMaintenanceScript("Harvest-FullSourceCatalog.ps1");
                 if (args != null && args.Any(x => x.Equals("--audit-catalog-aliases", StringComparison.OrdinalIgnoreCase))) return AuditCatalogAliases();
                 if (args != null && args.Any(x => x.Equals("--audit-full-catalog", StringComparison.OrdinalIgnoreCase))) return AuditFullCatalog();
                 if (args != null && args.Any(x => x.Equals("--audit-installed-coverage", StringComparison.OrdinalIgnoreCase))) return AuditInstalledCoverage(args);
@@ -42,6 +44,47 @@ namespace TotalUpdater.Next.Tests
             foreach (var entry in result.Entries) Console.WriteLine(entry.Id + " | " + entry.PluginType + " | " + String.Join(",", entry.Sources.Select(x => x.Provider + " | " + x.AuthorityValue + " | " + x.PurposeValue + " | valid")));
             foreach (var diagnostic in result.Diagnostics) Console.WriteLine(diagnostic.Severity + " | " + diagnostic.EntryId + " | " + diagnostic.Message);
             Console.WriteLine("Entries=" + result.Entries.Count + "; errors=" + result.Diagnostics.Count(x => x.Severity == CatalogDiagnosticSeverity.Error));
+        }
+
+        private static int DiagnoseSources()
+        {
+            using (var http = new HttpService(ApplicationMetadata.Version))
+            {
+                var results = new SourceDiagnostics(http).CheckAsync(System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+                foreach (var item in results) Console.WriteLine(item.Name + " | " + item.Status + " | " + item.ResponseTime + (String.IsNullOrWhiteSpace(item.Details) ? "" : " | " + item.Details));
+                return results.All(x => x.IsAvailable) ? 0 : 1;
+            }
+        }
+
+        private static int RunMaintenanceScript(string scriptName)
+        {
+            var script = FindMaintenanceScript(scriptName);
+            if (script != null)
+            {
+                var start = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "powershell.exe", Arguments = "-NoProfile -File \"" + script + "\"",
+                    UseShellExecute = false
+                };
+                using (var process = System.Diagnostics.Process.Start(start)) { process.WaitForExit(); return process.ExitCode; }
+            }
+            Console.Error.WriteLine("Не найден maintenance-скрипт: tools\\" + scriptName);
+            return 1;
+        }
+
+        internal static string FindMaintenanceScript(string scriptName)
+        {
+            foreach (var start in new[] { Environment.CurrentDirectory, AppDomain.CurrentDomain.BaseDirectory }.Where(x => !String.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                var directory = new DirectoryInfo(start);
+                while (directory != null)
+                {
+                    var script = Path.Combine(directory.FullName, "tools", scriptName);
+                    if (File.Exists(script)) return script;
+                    directory = directory.Parent;
+                }
+            }
+            return null;
         }
         private static int AuditCatalogAliases()
         {
@@ -619,6 +662,23 @@ namespace TotalUpdater.Next.Tests
             var catalog = new CatalogService(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".json"));
             Assert(catalog.FindByAlias("fileinfo.wlx").Id == "fileinfo", "fileinfo alias"); Assert(catalog.FindByAlias("fileinfo64.wlx").Id == "fileinfo", "fileinfo64 alias");
             Assert(catalog.FindByAlias("fileinfo.uwlx").Id == "fileinfo" && catalog.FindByAlias("fileinfo.wlx64").Id == "fileinfo", "catalog recognizes Unicode and x64 companion aliases");
+            var root = NewRoot();
+            try
+            {
+                var file = Path.Combine(root, "unknown.wfx"); File.WriteAllBytes(file, new byte[0]);
+                var user = Path.Combine(root, "registration.json");
+                File.WriteAllText(user, "[{\"id\":\"registration-only\",\"name\":\"Registration only\",\"type\":\"Wfx\",\"aliases\":[],\"registrationAliases\":[\"Cloud\"],\"identityEvidence\":\"OfficialRegistrationName\",\"sources\":[{\"provider\":\"totalcmd.net-index\",\"id\":\"cloud\",\"authority\":\"OfficialTotalCommander\",\"purpose\":\"Metadata\",\"priority\":100}]}]");
+                var configured = WriteIni(root, "wincmd.ini", "[Configuration]\r\nInstallDir=" + root + "\r\n[FileSystemPlugins]\r\nCloud=" + file + "\r\n");
+                var service = new PluginDiscoveryService(new TotalCommanderConfigurationResolver(), new LocalVersionResolver(), new CatalogService(user));
+                var found = service.Discover(new TotalCommanderConfigurationResolver().Resolve(configured)).Single(x => x.Type == PluginType.Wfx);
+                Assert(found.Identity.Id == "registration-only" && found.CatalogMatchKind == CatalogMatchKind.Alias, "WFX registration name resolves OfficialRegistrationName only");
+                found.LocalVersion = FileVersionProbe.Create("1.0", VersionSource.FileVersion, VersionConfidence.Exact);
+                var update = new UpdateService(new CatalogService(user), new IUpdateSourceProvider[] { new FixedRemoteProvider("2.0") }).CheckAsync(found, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+                Assert(update.State == UpdateState.UpdateAvailable && update.PackageAvailability == PackageAvailability.MetadataOnly && update.DownloadUrl == null, "registration-name-only match cannot auto-install");
+                File.WriteAllText(user, "[{\"id\":\"first\",\"name\":\"First\",\"type\":\"Wfx\",\"aliases\":[],\"registrationAliases\":[\"Cloud\"],\"identityEvidence\":\"OfficialRegistrationName\",\"sources\":[{\"provider\":\"totalcmd.net-index\",\"id\":\"first\",\"priority\":100}]},{\"id\":\"second\",\"name\":\"Second\",\"type\":\"Wfx\",\"aliases\":[],\"registrationAliases\":[\"cloud\"],\"identityEvidence\":\"OfficialRegistrationName\",\"sources\":[{\"provider\":\"totalcmd.net-index\",\"id\":\"second\",\"priority\":100}]}]");
+                Assert(new CatalogService(user).LoadWithDiagnostics().Diagnostics.Any(x => x.Severity == CatalogDiagnosticSeverity.Error && x.Message.Contains("Alias конфликтует")), "duplicate WFX registration alias is rejected");
+            }
+            finally { Directory.Delete(root, true); }
         }
         private static void CatalogScaleAndCache()
         {
@@ -627,13 +687,27 @@ namespace TotalUpdater.Next.Tests
             {
                 var catalog = new CatalogService(Path.Combine(root, "user.json")); var loaded = catalog.LoadWithDiagnostics();
                 Assert(loaded.Diagnostics.Count(x => x.Severity == CatalogDiagnosticSeverity.Error) == 0, "embedded catalog has no validation errors");
-                Assert(loaded.Entries.Count >= 50, "catalog has at least 50 entries");
-                Assert(loaded.Entries.Count(x => x.PluginType == PluginType.Wcx) >= 15 && loaded.Entries.Count(x => x.PluginType == PluginType.Wlx) >= 15 && loaded.Entries.Count(x => x.PluginType == PluginType.Wfx) >= 10 && loaded.Entries.Count(x => x.PluginType == PluginType.Wdx) >= 10, "catalog type distribution");
+                Assert(loaded.Entries.Count >= 300, "full source catalog has at least 300 records");
+                Assert(loaded.Entries.Count(x => x.PluginType == PluginType.Wcx) >= 20 && loaded.Entries.Count(x => x.PluginType == PluginType.Wlx) >= 20 && loaded.Entries.Count(x => x.PluginType == PluginType.Wfx) >= 20 && loaded.Entries.Count(x => x.PluginType == PluginType.Wdx) >= 20, "full catalog type distribution");
+                var ghsilerEntries = loaded.Entries.Where(x => x.Id.StartsWith("ghisler-", StringComparison.OrdinalIgnoreCase) && x.Sources.Any(s => s.Provider.Equals("ghisler-plugins", StringComparison.OrdinalIgnoreCase))).ToList();
+                Assert(loaded.Entries.Any(x => x.Sources.Any(s => s.Provider.Equals("totalcmd.net-index", StringComparison.OrdinalIgnoreCase))) &&
+                    ghsilerEntries.Select(x => x.PluginType).Distinct().Count() == 4 && ghsilerEntries.All(x => x.Sources.Where(s => s.Provider.Equals("ghisler-plugins", StringComparison.OrdinalIgnoreCase)).All(s => !String.IsNullOrWhiteSpace(s.PackageUrl))),
+                    "full catalog imports typed TotalCmd.net and Ghisler source records with package URLs");
+                Assert(ghsilerEntries.Where(x => x.IdentityEvidence == IdentityEvidence.MetadataOnly).All(x => x.Aliases.Count == 0) &&
+                    ghsilerEntries.Where(x => x.IdentityEvidence == IdentityEvidence.VerifiedPackage).All(x => x.Aliases.Count > 0 && x.Sources.Any(s => s.Provider.Equals("ghisler-plugins", StringComparison.OrdinalIgnoreCase) && s.PurposeValue == SourcePurpose.MetadataAndDownload)),
+                    "Ghisler aliases are present only after ZIP evidence verification");
+                Assert(File.Exists(FindMaintenanceScript("Harvest-FullSourceCatalog.ps1")), "maintenance full-catalog command resolves its harvest script");
                 var cache = new SourceResponseCache(); var provider = new CachedTestProvider(); var service = new UpdateService(catalog, new IUpdateSourceProvider[] { provider });
                 var first = new InstalledPlugin { Identity = new PluginIdentity { Id = "glimpse-wlx" }, LocalVersion = FileVersionProbe.Create("0.1", VersionSource.FileVersion, VersionConfidence.Exact) };
                 var second = new InstalledPlugin { Identity = new PluginIdentity { Id = "glimpse-wcx" }, LocalVersion = FileVersionProbe.Create("0.1", VersionSource.FileVersion, VersionConfidence.Exact) };
                 System.Threading.Tasks.Task.WaitAll(service.CheckAsync(first, System.Threading.CancellationToken.None, cache), service.CheckAsync(second, System.Threading.CancellationToken.None, cache));
                 Assert(provider.Fetches == 1 && provider.Filters == 2, "same GitHub source reuses raw response and filters each entry");
+
+                var ghsilerCatalogPath = Path.Combine(root, "ghisler-package.json");
+                File.WriteAllText(ghsilerCatalogPath, "[{\"id\":\"ghisler-verified\",\"name\":\"Ghisler verified\",\"type\":\"Wlx\",\"aliases\":[\"verified.wlx\"],\"identityEvidence\":\"VerifiedPackage\",\"sources\":[{\"provider\":\"ghisler-plugins\",\"id\":\"Verified\",\"packageUrl\":\"https://example.test/verified.zip\",\"authority\":\"OfficialTotalCommander\",\"purpose\":\"MetadataAndDownload\",\"priority\":200}]}]");
+                var verified = new UpdateService(new CatalogService(ghsilerCatalogPath), new IUpdateSourceProvider[] { new FixedRemoteProvider("2.0", "https://example.test/verified.zip") }).CheckAsync(
+                    new InstalledPlugin { Identity = new PluginIdentity { Id = "ghisler-verified" }, Architecture = PluginArchitecture.X86, LocalVersion = FileVersionProbe.Create("1.0", VersionSource.FileVersion, VersionConfidence.Exact) }, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+                Assert(verified.DownloadUrl != null && verified.PackageAvailability == PackageAvailability.Verified, "persisted harvested Ghisler package evidence enables only its exact URL");
             }
             finally { Directory.Delete(root, true); }
         }
@@ -816,12 +890,13 @@ namespace TotalUpdater.Next.Tests
         private sealed class FixedRemoteProvider : IUpdateSourceProvider
         {
             private readonly VersionValue _version;
-            public FixedRemoteProvider(string version) { _version = VersionValue.Parse(version); }
+            private readonly Uri _packageUrl;
+            public FixedRemoteProvider(string version, string packageUrl = "https://example.test/download") { _version = VersionValue.Parse(version); _packageUrl = new Uri(packageUrl); }
             public string Name { get { return "test"; } }
             public bool CanHandle(CatalogSource source) { return true; }
             public System.Threading.Tasks.Task<SourceQueryResult> QueryAsync(CatalogSource source, System.Threading.CancellationToken cancellationToken)
             {
-                return System.Threading.Tasks.Task.FromResult(new SourceQueryResult { Status = SourceQueryStatus.Success, Release = new RemoteRelease { VersionText = _version.Raw, Version = _version, SourceUrl = new Uri("https://example.test/source"), Packages = new System.Collections.Generic.List<RemotePackage> { new RemotePackage { Architecture = RemotePackageArchitecture.Combined, Url = new Uri("https://example.test/download") } } } });
+                return System.Threading.Tasks.Task.FromResult(new SourceQueryResult { Status = SourceQueryStatus.Success, Release = new RemoteRelease { VersionText = _version.Raw, Version = _version, SourceUrl = new Uri("https://example.test/source"), Packages = new System.Collections.Generic.List<RemotePackage> { new RemotePackage { Architecture = RemotePackageArchitecture.Combined, Url = _packageUrl } } } });
             }
         }
         private sealed class ScriptedProvider : IUpdateSourceProvider
