@@ -36,6 +36,12 @@ namespace TotalUpdater.Next.Tests
             Console.WriteLine("Missing source: " + entries.Count(x => x.Sources == null || x.Sources.Count == 0)); Console.WriteLine("Alias collisions: " + collisions);
             return catalog.Diagnostics.Count(x => x.Severity == CatalogDiagnosticSeverity.Error) == 0 && collisions == 0 ? 0 : 1;
         }
+        private static int AuditWcxRegistration()
+        {
+            var catalog = new CatalogService(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".json")).Load(); var report = WcxRegistrationAudit.Audit(catalog);
+            Console.WriteLine("WCX total=" + report.WcxTotal + "; VerifiedRegistration=" + report.VerifiedRegistration + "; MissingPackage=" + report.MissingPackage + "; MissingPluginst=" + report.MissingPluginst + "; MissingDefaultExtension=" + report.MissingDefaultExtension + "; ProbeFailed=" + report.ProbeFailed + "; ArchitectureMismatch=" + report.ArchitectureMismatch + "; HashMismatch=" + report.HashMismatch + "; AmbiguousBinary=" + report.AmbiguousBinary);
+            return 0;
+        }
         private static int ValidateHarvestEvidence()
         {
             var path = HarvestEvidencePath();
@@ -98,6 +104,8 @@ namespace TotalUpdater.Next.Tests
             Assert(HarvestEvidenceAudit.Validate(new[] { new HarvestEvidence { Id = "bad-type", Type = "Unknown", Aliases = new List<string> { "bad.wlx" },
                 PackageUrl = "https://example.test/bad.zip", VerifiedUtc = "2026-09-23" } }, new DateTime(2026, 9, 23)).Any(x => x.Contains("invalid type")),
                 "harvest invalid type validation");
+            var wcxAudit = WcxRegistrationAudit.Audit(new[] { new PluginCatalogEntry { Id = "verified", Name = "Verified", Type = "Wcx", IdentityEvidenceName = "VerifiedPackage", WcxRegistration = new WcxRegistrationEvidence { Extensions = new List<string> { "7z" }, PackerCaps = 1, PackageSha256 = new string('a', 64), BinarySha256 = new string('b', 64), VerifiedUtc = DateTime.UtcNow, Source = "test" } }, new PluginCatalogEntry { Id = "missing", Name = "Missing", Type = "Wcx", Sources = new List<CatalogSource>() } });
+            Assert(wcxAudit.WcxTotal == 2 && wcxAudit.VerifiedRegistration == 1 && wcxAudit.MissingPackage == 1, "WCX registration audit distinguishes verified and missing package evidence");
             var remoteEntry = RemoteCatalogLookup.BuildVerifiedEntry(new[] { new RemoteIndexCandidate { Id = "Sample", Name = "Sample", Type = PluginType.Wlx,
                 Official = true, PackageUrl = "https://plugins.ghisler.com/lsplugins/sample.zip" } }, "sample.wlx");
             Assert(remoteEntry.Sources.Single().EphemeralVerifiedPackageUrl.EndsWith("sample.zip") && remoteEntry.Sources.Single().PurposeValue == SourcePurpose.MetadataAndDownload,
