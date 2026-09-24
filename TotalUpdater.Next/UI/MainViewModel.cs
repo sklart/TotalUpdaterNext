@@ -75,6 +75,8 @@ namespace TotalUpdater.Next.UI
         public string CacheSize { get { return (_persistentCache.GetSizeBytes() / 1024L) + " KB"; } }
         public int ExclusionCount { get { return Settings.ExcludedCatalogIds.Count + Settings.ExcludedUnknownPaths.Count; } }
         public bool ScanUnregisteredDirectories { get { return Settings.DiscoveryMode == DiscoveryMode.RegisteredAndDirectories; } set { Settings.DiscoveryMode = value ? DiscoveryMode.RegisteredAndDirectories : DiscoveryMode.RegisteredOnly; Changed("ScanUnregisteredDirectories"); } }
+        public string ProxyModeName { get { return Settings.ProxyMode.ToString(); } set { ProxyMode mode; if (Enum.TryParse(value, true, out mode)) Settings.ProxyMode = mode; Changed("ProxyModeName"); } }
+        public string PostDownloadActionName { get { return Settings.PostDownloadAction.ToString(); } set { PostDownloadAction action; if (Enum.TryParse(value, true, out action)) Settings.PostDownloadAction = action; Changed("PostDownloadActionName"); } }
         public string StorageMode { get { return Text.Get(_paths.IsPortable ? "StoragePortable" : "StorageInstalled"); } }
         public string UserCatalogPath { get { return _paths.UserCatalogPath; } }
         public string ApplicationVersion { get { return ApplicationMetadata.Version; } }
@@ -243,8 +245,9 @@ namespace TotalUpdater.Next.UI
                         row.Candidate.PackageAvailability = PackageAvailability.Verified;
                     }
                     DownloadedPackagePolicy.Record(row.Candidate, path); row.Candidate.Details = String.Format(Text.Get("Downloaded"), Path.GetFileName(path)); row.Apply(row.Candidate); done++;
-                    if (Settings.PostDownloadAction == PostDownloadAction.OfferInstall && String.Equals(Path.GetExtension(path), ".zip", StringComparison.OrdinalIgnoreCase))
-                        System.Windows.MessageBox.Show(System.Windows.Application.Current.MainWindow, "ZIP загружен: " + Path.GetFileName(path) + Environment.NewLine + "Для установки выберите один плагин и нажмите «Установить отмеченный».", "Загрузка завершена", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information); }
+                    if (Settings.PostDownloadAction == PostDownloadAction.OfferInstall && target.Count == 1 && String.Equals(Path.GetExtension(path), ".zip", StringComparison.OrdinalIgnoreCase) &&
+                        System.Windows.MessageBox.Show(System.Windows.Application.Current.MainWindow, "ZIP загружен: " + Path.GetFileName(path) + Environment.NewLine + "Установить сейчас?", "Загрузка завершена", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Question) == System.Windows.MessageBoxResult.Yes)
+                        await InstallAsync(); }
                 catch (Exception ex) { row.Candidate.Details = ex.Message; StatusText = "Скачивание не выполнено: " + ex.Message; }
             }
             StatusText = String.Format(Text.Get("DownloadedCount"), done);
