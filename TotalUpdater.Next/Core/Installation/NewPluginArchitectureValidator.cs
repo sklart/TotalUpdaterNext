@@ -28,7 +28,7 @@ namespace TotalUpdater.Next.Core.Installation
             var primary = PackageInspector.SafeRelativePath(package.File ?? "");
             var directory = Path.GetDirectoryName(primary) ?? "";
             var stem = Path.GetFileNameWithoutExtension(primary);
-            var extension = type == PluginType.Wfx ? ".wfx" : type == PluginType.Wlx ? ".wlx" : type == PluginType.Wdx ? ".wdx" : null;
+            var extension = type == PluginType.Wcx ? ".wcx" : type == PluginType.Wfx ? ".wfx" : type == PluginType.Wlx ? ".wlx" : type == PluginType.Wdx ? ".wdx" : null;
             if (extension == null) return PluginArchitecture.Unknown;
             var result = PluginArchitecture.Unknown;
             foreach (var item in package.Files)

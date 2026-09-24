@@ -24,8 +24,8 @@ namespace TotalUpdater.Next.Core.Installation
                 configuration == null || String.IsNullOrWhiteSpace(configuration.IniPath) || !File.Exists(configuration.IniPath))
                 throw new InvalidOperationException("Нужны каталог, проверенный источник и существующий wincmd.ini.");
             var type = entry.PluginType;
-            if (type != PluginType.Wfx && type != PluginType.Wlx && type != PluginType.Wdx)
-                throw new InvalidOperationException("Новая установка разрешена только для WFX/WLX/WDX; WCX остаётся update-only.");
+            if (type != PluginType.Wcx && type != PluginType.Wfx && type != PluginType.Wlx && type != PluginType.Wdx)
+                throw new InvalidOperationException("Новая установка разрешена только для WCX/WFX/WLX/WDX.");
             if (installed != null && installed.Any(x => x.Identity != null && String.Equals(x.Identity.Id, entry.Id, StringComparison.OrdinalIgnoreCase)))
                 throw new InvalidOperationException("Плагин уже установлен; используйте обновление.");
             if (candidate.AuthorityConflict || !candidate.Version.IsKnown || candidate.DownloadUrl == null ||
@@ -50,11 +50,27 @@ namespace TotalUpdater.Next.Core.Installation
             var pluginFile = PackageInspector.SafeRelativePath(package.File ?? "");
             if (!package.Files.Any(x => String.Equals(x.RelativePath, pluginFile, StringComparison.OrdinalIgnoreCase)))
                 throw new InvalidDataException("Файл плагина из pluginst.inf отсутствует в ZIP.");
-            var ext = type == PluginType.Wfx ? ".wfx" : type == PluginType.Wlx ? ".wlx" : ".wdx";
+            var ext = type == PluginType.Wcx ? ".wcx" : type == PluginType.Wfx ? ".wfx" : type == PluginType.Wlx ? ".wlx" : ".wdx";
             if (!NormalizeBinaryName(pluginFile).EndsWith(ext, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("Тип бинарника не совпадает с pluginst.inf.");
             if (entry.Aliases == null || !entry.Aliases.Any(alias => String.Equals(NormalizeBinaryName(alias), NormalizeBinaryName(Path.GetFileName(pluginFile)), StringComparison.OrdinalIgnoreCase)))
                 throw new InvalidDataException("Бинарник ZIP не соответствует alias записи каталога.");
             NewPluginArchitectureValidator.Validate(configuration.InstallDirectory, package, type);
+            var wcxExtensions = new List<string>();
+            if (type == PluginType.Wcx)
+            {
+                if (!entry.AllowsAutomaticInstall || !entry.HasVerifiedWcxRegistration)
+                    throw new InvalidOperationException("Пакет проверен, но параметры регистрации WCX не подтверждены. Автоматическая установка недоступна.");
+                var evidence = entry.WcxRegistration;
+                var binary = package.Files.SingleOrDefault(x => String.Equals(x.RelativePath, pluginFile, StringComparison.OrdinalIgnoreCase));
+                if (binary == null || !String.Equals(evidence.PackageSha256, package.PackageSha256, StringComparison.OrdinalIgnoreCase) || !String.Equals(evidence.BinarySha256, binary.Sha256, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("WCX registration evidence outdated: hash пакета или бинарника не соответствует подтверждённым данным.");
+                IList<string> normalizedExtensions;
+                if (!WcxRegistration.TryNormalizeExtensions(package.DefaultExtension, out normalizedExtensions))
+                    throw new InvalidDataException("Некорректный WCX defaultextension.");
+                wcxExtensions = normalizedExtensions.ToList();
+                if (!WcxRegistration.SameExtensions(wcxExtensions, evidence.Extensions))
+                    throw new InvalidDataException("WCX defaultextension отсутствует или не соответствует подтверждённым registration metadata.");
+            }
             var baseValue = configuration.Document.GetSection("Configuration")?.GetValue("PluginBaseDir");
             var baseDir = String.IsNullOrWhiteSpace(baseValue) ? Path.Combine(configuration.InstallDirectory, "plugins") : _paths.ExpandPath(baseValue, configuration);
             var target = Path.GetFullPath(Path.Combine(baseDir, type.ToString().ToLowerInvariant(), package.DefaultDir));
@@ -79,15 +95,31 @@ namespace TotalUpdater.Next.Core.Installation
                 if (plan.Files.Any(x => String.Equals(x.Destination, companion, StringComparison.OrdinalIgnoreCase))) plan.RequiredBinaryPaths.Add(companion);
             }
             if (!plan.RequiredBinaryPaths.Contains(plan.PrimaryPath, StringComparer.OrdinalIgnoreCase)) plan.RequiredBinaryPaths.Add(plan.PrimaryPath);
-            var section = type == PluginType.Wfx ? "FileSystemPlugins" : type == PluginType.Wlx ? "ListerPlugins" : "ContentPlugins";
+            var section = type == PluginType.Wcx ? "PackerPlugins" : type == PluginType.Wfx ? "FileSystemPlugins" : type == PluginType.Wlx ? "ListerPlugins" : "ContentPlugins";
             var patches = new Dictionary<string, NewPluginConfigPatch>(StringComparer.OrdinalIgnoreCase);
             var registrationPath = ResolveSectionPath(configuration, section);
             var existing = _reader.Read(registrationPath).GetSection(section);
             var hasX64 = plan.RequiredBinaryPaths.Any(x => x.EndsWith(ext + "64", StringComparison.OrdinalIgnoreCase));
             var markerPath = hasX64 ? ResolveSectionPath(configuration, section + "64") : null;
             var markerEntries = hasX64 ? _reader.Read(markerPath).GetSection(section + "64")?.Entries : null;
-            string key;
-            if (type == PluginType.Wfx)
+            string key = null;
+            if (type == PluginType.Wcx)
+            {
+                foreach (var extension in wcxExtensions)
+                {
+                    var current = existing?.GetValue(extension);
+                    if (current != null)
+                    {
+                        string caps; string registeredPath;
+                        if (!TryParsePackerRegistration(current, out caps, out registeredPath)) throw new InvalidOperationException("Malformed registration: " + extension);
+                        if (!String.Equals(Path.GetFullPath(registeredPath), Path.GetFullPath(plan.PrimaryPath), StringComparison.OrdinalIgnoreCase))
+                            throw new InvalidOperationException("RegistrationConflict: extension занято другим WCX: " + extension);
+                        continue;
+                    }
+                    AddPatch(patches, registrationPath, section, extension, entry.WcxRegistration.PackerCaps.ToString(System.Globalization.CultureInfo.InvariantCulture) + "," + plan.PrimaryPath);
+                }
+            }
+            else if (type == PluginType.Wfx)
             {
                 key = stem;
                 if (String.IsNullOrWhiteSpace(key) || key.IndexOfAny(new[] { '=', '\r', '\n', '[', ']' }) >= 0)
@@ -102,8 +134,11 @@ namespace TotalUpdater.Next.Core.Installation
                 var next = 0; while (occupied.Contains(next)) next++;
                 key = next.ToString(System.Globalization.CultureInfo.InvariantCulture);
             }
-            AddPatch(patches, registrationPath, section, key, plan.PrimaryPath);
-            if (hasX64) AddPatch(patches, markerPath, section + "64", key, "1");
+            if (type != PluginType.Wcx)
+            {
+                AddPatch(patches, registrationPath, section, key, plan.PrimaryPath);
+                if (hasX64) AddPatch(patches, markerPath, section + "64", key, "1");
+            }
             plan.ConfigurationFiles.AddRange(patches.Values);
             return plan;
         }
@@ -148,6 +183,12 @@ namespace TotalUpdater.Next.Core.Installation
             if (extension.StartsWith(".w", StringComparison.OrdinalIgnoreCase) && extension.EndsWith("64", StringComparison.OrdinalIgnoreCase))
                 return Path.GetFileNameWithoutExtension(name) + extension.Substring(0, extension.Length - 2);
             return name;
+        }
+        private static bool TryParsePackerRegistration(string value, out string caps, out string path)
+        {
+            caps = null; path = null; var comma = value == null ? -1 : value.IndexOf(',');
+            if (comma <= 0 || comma != value.LastIndexOf(',') || !Int32.TryParse(value.Substring(0, comma).Trim(), out var parsed) || parsed <= 0) return false;
+            caps = parsed.ToString(System.Globalization.CultureInfo.InvariantCulture); path = value.Substring(comma + 1).Trim(); return !String.IsNullOrWhiteSpace(path) && !path.Contains("\r") && !path.Contains("\n");
         }
     }
 }

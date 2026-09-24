@@ -1,4 +1,4 @@
-# Total Updater Next — Phase 10 / 0.10.5
+# Total Updater Next — Phase 11 / 0.11.0 — WCX New Installation
 
 WPF-программа для Windows 7 SP1+ под .NET Framework 4.8. Это независимая новая реализация: старый Total Updater и его бинарные ресурсы не используются.
 
@@ -23,7 +23,7 @@ dotnet run --project .\TotalUpdater.Next.Tests\TotalUpdater.Next.Tests.csproj
 
 ## Single EXE
 
-Release-архив [`../release/TotalUpdater-0.10.5-win7plus.zip`](../release/TotalUpdater-0.10.5-win7plus.zip) содержит только `TotalUpdater.exe`. Стандартный каталог находится внутри EXE как embedded resource; внешний JSON не требуется на первом запуске.
+Release-архив [`../release/TotalUpdater-0.11.0-win7plus.zip`](../release/TotalUpdater-0.11.0-win7plus.zip) содержит только `TotalUpdater.exe`. Стандартный каталог находится внутри EXE как embedded resource; внешний JSON не требуется на первом запуске.
 
 Maintenance-команды тестового приложения: `--audit-catalog-aliases` проверяет collisions и расширения, `--audit-installed-coverage --ini=<путь>` показывает Exact/Alias/RemoteExact/Ambiguous/NotFound и процент покрытия; `--offline` отключает сетевой fallback. Remote lookup ничего не устанавливает и не переписывает каталог пользователя.
 

@@ -48,17 +48,18 @@ namespace TotalUpdater.Next.Tests
                 BackupRoot = Path.Combine(Root, "backups");
                 Ini = Path.Combine(Tc, "wincmd.ini");
                 File.WriteAllText(Ini, iniText ?? "[Configuration]\r\n; untouched\r\n", Encoding.UTF8);
-                var ext = type == PluginType.Wfx ? ".wfx" : type == PluginType.Wlx ? ".wlx" : ".wdx";
+                var ext = type == PluginType.Wcx ? ".wcx" : type == PluginType.Wfx ? ".wfx" : type == PluginType.Wlx ? ".wlx" : ".wdx";
                 var zip = Path.Combine(Root, "sample.zip");
                 using (var archive = ZipFile.Open(zip, ZipArchiveMode.Create))
                 {
-                    Write(archive, "pluginst.inf", "[plugininstall]\n" + "description=Sample plugin\n" + "type=" + type.ToString().ToLowerInvariant() + "\nfile=sample" + (unicodeOnly ? ".u" + ext.Substring(1) : ext + (x64Only ? "64" : "")) + "\nversion=2.0\ndefaultdir=sample\n");
+                    Write(archive, "pluginst.inf", "[plugininstall]\n" + "description=Sample plugin\n" + "type=" + type.ToString().ToLowerInvariant() + "\nfile=sample" + (unicodeOnly ? ".u" + ext.Substring(1) : ext + (x64Only ? "64" : "")) + "\nversion=2.0\ndefaultdir=sample\n" + (type == PluginType.Wcx ? "defaultextension=7z,zip\n" : ""));
                     if (!x64Only && !unicodeOnly) Write(archive, "sample" + ext, "new");
                     if (unicodeOnly) Write(archive, "sample.u" + ext.Substring(1), "new unicode");
                     if (x64 || x64Only) Write(archive, "sample" + ext + "64", "new64");
                 }
                 Package = new PackageInspector().Inspect(zip);
                 Entry = new PluginCatalogEntry { Id = "sample-" + type.ToString().ToLowerInvariant(), Name = "Sample", Type = type.ToString(), Aliases = new List<string> { "sample" + ext } };
+                if (type == PluginType.Wcx) { var binary = Package.Files.Single(x => x.RelativePath.Equals("sample" + ext, StringComparison.OrdinalIgnoreCase)); Entry.IdentityEvidenceName = "VerifiedPackage"; Entry.WcxRegistration = new WcxRegistrationEvidence { Extensions = new List<string> { "7z", "zip" }, PackerCaps = 735, PackageSha256 = Package.PackageSha256, BinarySha256 = binary.Sha256, Architecture = "x86", VerifiedUtc = DateTime.UtcNow, Source = "test" }; }
                 Candidate = new CatalogInstallCandidate { Entry = Entry, Version = VersionValue.Parse("2.0"), DownloadUrl = new Uri("https://example.test/sample.zip") };
                 Reload();
             }
@@ -74,14 +75,14 @@ namespace TotalUpdater.Next.Tests
             }
             public InstalledPlugin Rediscover()
             {
-                var section = Type == PluginType.Wfx ? "FileSystemPlugins" : Type == PluginType.Wlx ? "ListerPlugins" : "ContentPlugins";
+                var section = Type == PluginType.Wcx ? "PackerPlugins" : Type == PluginType.Wfx ? "FileSystemPlugins" : Type == PluginType.Wlx ? "ListerPlugins" : "ContentPlugins";
                 var document = new IniDocumentReader().Read(Ini);
                 var entry = document.GetSection(section)?.Entries.FirstOrDefault(x => x.Key != "RedirectSection");
                 var primary = Plan.PrimaryPath;
                 var binaries = Plan.RequiredBinaryPaths.Select(path => new PluginBinary { Path = path, Exists = File.Exists(path),
                     Architecture = path.EndsWith("64", StringComparison.OrdinalIgnoreCase) ? PluginArchitecture.X64 : PluginArchitecture.X86,
                     LocalVersion = FileVersionProbe.Create("2.0", VersionSource.FileVersion, VersionConfidence.Exact) }).ToList();
-                return entry == null || !String.Equals(entry.Value, primary, StringComparison.OrdinalIgnoreCase) ? null :
+                return entry == null || (Type == PluginType.Wcx ? !entry.Value.EndsWith("," + primary, StringComparison.OrdinalIgnoreCase) : !String.Equals(entry.Value, primary, StringComparison.OrdinalIgnoreCase)) ? null :
                     new InstalledPlugin { Identity = new PluginIdentity { Id = Entry.Id }, Type = Type, PrimaryPath = primary,
                         FileExists = File.Exists(primary), Binaries = binaries,
                         LocalVersion = FileVersionProbe.Create("2.0", VersionSource.FileVersion, VersionConfidence.Exact) };
@@ -101,6 +102,9 @@ namespace TotalUpdater.Next.Tests
         private static bool EncodingFails(Action action) { try { action(); return false; } catch (EncodingConflictException) { return true; } }
         public static void Run(Action<bool, string> check)
         {
+            IList<string> extensions;
+            check(WcxRegistration.TryNormalizeExtensions(" .7z, zip ,7Z ", out extensions) && extensions.Count == 2 && extensions[0] == "7z" && extensions[1] == "zip", "WCX extension normalization and duplicate removal");
+            check(!WcxRegistration.TryNormalizeExtensions("7z,bad=value", out extensions) && !WcxRegistration.TryNormalizeExtensions("", out extensions), "WCX invalid or empty extensions blocked");
             using (var f = new Fixture(PluginType.Wlx))
             {
                 check(NewPluginArchitectureValidator.DetectTotalCommander(f.Tc) == PluginArchitecture.X86 &&
@@ -190,11 +194,21 @@ namespace TotalUpdater.Next.Tests
                 f.Package.DefaultDir = "..\\escape";
                 check(Fails(() => f.Build()), "new plugin rejects unsafe defaultdir");
             }
-            using (var f = new Fixture(PluginType.Wlx))
+            using (var f = new Fixture(PluginType.Wcx))
             {
-                f.Entry.Type = "Wcx";
-                check(Fails(() => f.Build()), "new WCX registration disabled");
+                var plan = f.Build(); var changes = plan.ConfigurationFiles.Single().Changes;
+                check(changes.Count == 2 && changes.All(x => x.Section == "PackerPlugins" && x.Value == "735," + plan.PrimaryPath) && changes.Select(x => x.Key).OrderBy(x => x).SequenceEqual(new[] { "7z", "zip" }), "WCX multi-extension registration uses verified caps");
+                var original = File.ReadAllBytes(f.Ini); var manifest = new NewPluginTransactionalInstaller(isTotalCommanderRunning: () => false).Install(plan, f.Rediscover);
+                check(manifest.State == InstallStateMachine.Completed && new IniDocumentReader().Read(f.Ini).GetSection("PackerPlugins").GetValue("7z") == "735," + plan.PrimaryPath, "WCX transactional install writes PackerPlugins");
+                new NewPluginRollbackService().Rollback(manifest, f.BackupRoot); check(original.SequenceEqual(File.ReadAllBytes(f.Ini)) && !File.Exists(plan.PrimaryPath), "WCX rollback restores registrations and files");
             }
+            using (var f = new Fixture(PluginType.Wcx))
+            {
+                f.Entry.WcxRegistration.PackerCaps = 0; check(Fails(() => f.Build()), "WCX missing packerCaps blocked");
+                f.Entry.WcxRegistration.PackerCaps = 735; f.Entry.WcxRegistration.BinarySha256 = new string('0', 64); check(Fails(() => f.Build()), "WCX stale hash-bound evidence blocked");
+            }
+            using (var f = new Fixture(PluginType.Wcx, false, "[PackerPlugins]\n7z=123,other.wcx\n"))
+                check(Fails(() => f.Build()), "WCX occupied extension conflict blocked");
             using (var f = new Fixture(PluginType.Wlx))
             {
                 f.Entry.Aliases.Clear(); f.Entry.Aliases.Add("other.wlx");

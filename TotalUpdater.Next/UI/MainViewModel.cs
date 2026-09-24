@@ -146,8 +146,10 @@ namespace TotalUpdater.Next.UI
             var selected = CatalogItems.Where(x => x.IsChecked).ToList();
             if (selected.Count != 1 || selected[0].Installed || _catalogInstall == null)
             { StatusText = "Выберите один неустановленный плагин каталога."; return; }
-            if (selected[0].Entry.PluginType != PluginType.Wfx && selected[0].Entry.PluginType != PluginType.Wlx && selected[0].Entry.PluginType != PluginType.Wdx)
-            { StatusText = "Новая установка разрешена только для WFX/WLX/WDX; WCX остаётся update-only."; return; }
+            if (selected[0].Entry.PluginType != PluginType.Wcx && selected[0].Entry.PluginType != PluginType.Wfx && selected[0].Entry.PluginType != PluginType.Wlx && selected[0].Entry.PluginType != PluginType.Wdx)
+            { StatusText = "Новая установка разрешена только для WCX/WFX/WLX/WDX."; return; }
+            if (selected[0].Entry.PluginType == PluginType.Wcx && !selected[0].Entry.HasVerifiedWcxRegistration)
+            { StatusText = "Пакет проверен, но параметры регистрации WCX не подтверждены. Автоматическая установка недоступна."; return; }
             try
             {
                 StatusText = "Проверка источников: " + selected[0].Name;
@@ -163,8 +165,10 @@ namespace TotalUpdater.Next.UI
             var selected = CatalogItems.Where(x => x.IsChecked).ToList();
             if (selected.Count != 1 || selected[0].Installed || selected[0].Candidate?.DownloadUrl == null || _configuration == null)
             { StatusText = "Выберите один проверенный неустановленный плагин с доступным ZIP."; return; }
-            if (selected[0].Entry.PluginType != PluginType.Wfx && selected[0].Entry.PluginType != PluginType.Wlx && selected[0].Entry.PluginType != PluginType.Wdx)
-            { StatusText = "Новая установка разрешена только для WFX/WLX/WDX."; return; }
+            if (selected[0].Entry.PluginType != PluginType.Wcx && selected[0].Entry.PluginType != PluginType.Wfx && selected[0].Entry.PluginType != PluginType.Wlx && selected[0].Entry.PluginType != PluginType.Wdx)
+            { StatusText = "Новая установка разрешена только для WCX/WFX/WLX/WDX."; return; }
+            if (selected[0].Entry.PluginType == PluginType.Wcx && !selected[0].Entry.HasVerifiedWcxRegistration)
+            { StatusText = "Пакет проверен, но параметры регистрации WCX не подтверждены. Автоматическая установка недоступна."; return; }
             var row = selected[0]; PackageInspection inspected = null;
             try
             {
@@ -175,11 +179,12 @@ namespace TotalUpdater.Next.UI
                 var plan = new NewPluginInstallPlanBuilder(_resolver).Build(row.Entry, row.Candidate, inspected, _configuration, Items.Select(x => x.Plugin), _backupRoot);
                 NewPluginTransactionalInstaller.Preflight(plan);
                 var changes = String.Join(Environment.NewLine, plan.ConfigurationFiles.SelectMany(x => x.Changes.Select(change => x.Path + " [" + change.Section + "] " + change.Key + "=" + change.Value)));
+                var wcxEvidence = row.Entry.PluginType == PluginType.Wcx ? Environment.NewLine + "Capability flags: " + row.Entry.WcxRegistration.PackerCaps + Environment.NewLine + "Источник evidence: " + row.Entry.WcxRegistration.Source + Environment.NewLine + "Verified: " + row.Entry.WcxRegistration.VerifiedUtc.ToUniversalTime().ToString("u") + Environment.NewLine + "Package SHA-256: " + row.Entry.WcxRegistration.PackageSha256 : "";
                 var prompt = row.Name + " · " + plan.Version + " · " + plan.PluginType + Environment.NewLine +
                     "Каталог: " + plan.TargetDirectory + Environment.NewLine +
                     "Файлы: " + String.Join(", ", plan.Files.Select(x => x.Source.RelativePath)) + Environment.NewLine +
                     "Регистрация:" + Environment.NewLine + changes + Environment.NewLine +
-                    "Backup: " + plan.BackupDirectory + Environment.NewLine + "Установить новый плагин?";
+                    "Backup: " + plan.BackupDirectory + wcxEvidence + Environment.NewLine + "Установить новый плагин?";
                 if (System.Windows.MessageBox.Show(System.Windows.Application.Current.MainWindow, prompt, "Подтверждение новой установки", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning) != System.Windows.MessageBoxResult.Yes)
                 { StatusText = "Установка отменена; ZIP сохранён: " + packagePath; return; }
                 var manifest = new NewPluginTransactionalInstaller().Install(plan, () => Rediscover(plan.PluginId, plan.PluginType.ToString(), plan.PrimaryPath));

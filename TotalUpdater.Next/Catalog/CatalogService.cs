@@ -124,6 +124,12 @@ namespace TotalUpdater.Next.Catalog
             IdentityEvidence evidence; if (!Enum.TryParse(entry.IdentityEvidenceName ?? "MetadataOnly", true, out evidence)) { error = "Неизвестный identityEvidence."; return false; }
             if ((evidence == IdentityEvidence.VerifiedBinary || evidence == IdentityEvidence.VerifiedPackage) && entry.Aliases.Count == 0) { error = "Подтверждённый identity требует aliases."; return false; }
             if (entry.RegistrationAliases.Count > 0 && (entry.PluginType != PluginType.Wfx || evidence != IdentityEvidence.OfficialRegistrationName)) { error = "registrationAliases разрешены только для WFX с OfficialRegistrationName."; return false; }
+            if (entry.WcxRegistration != null)
+            {
+                if (entry.PluginType != PluginType.Wcx) { error = "wcxRegistration разрешён только для WCX."; return false; }
+                if (!entry.WcxRegistration.IsComplete) { error = "Некорректный или неполный WCX registration evidence."; return false; }
+                if (entry.WcxRegistration.Extensions.Any(x => String.IsNullOrWhiteSpace(x) || x.Trim().TrimStart('.').IndexOfAny(new[] { '=', '\r', '\n', '[', ']', ',' }) >= 0)) { error = "Некорректные WCX extensions."; return false; }
+            }
             if (!LocalVersionStrategyRegistry.Default.Contains(entry.LocalVersionStrategy)) { error = "Неизвестная localVersionStrategy."; return false; }
             LocalAheadPolicy aheadPolicy;
             if (!Enum.TryParse(entry.LocalAheadPolicyName ?? "Unknown", true, out aheadPolicy)) { error = "Неизвестная localAheadPolicy."; return false; }

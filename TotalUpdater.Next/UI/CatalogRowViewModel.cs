@@ -16,7 +16,7 @@ namespace TotalUpdater.Next.UI
         public string InstallStatus { get { return Installed ? "Установлен" : "Не установлен"; } }
         public string AvailableVersion { get { return Candidate == null || !Candidate.Version.IsKnown ? "—" : Candidate.Version.Raw; } }
         public string Source { get { return Candidate == null ? "—" : Candidate.SourceName; } }
-        public string Status { get { return Candidate == null ? "Не проверен" : Candidate.DownloadUrl == null ? Candidate.Details : "Доступен ZIP для установки"; } }
+        public string Status { get { if (Entry.PluginType == Core.PluginType.Wcx && !Entry.HasVerifiedWcxRegistration) return "Требуется проверка регистрации"; return Candidate == null ? "Не проверен" : Candidate.DownloadUrl == null ? Candidate.Details : Entry.PluginType == Core.PluginType.Wcx ? "Можно установить" : "Доступен ZIP для установки"; } }
         public CatalogInstallCandidate Candidate { get; private set; }
         public void Apply(CatalogInstallCandidate candidate)
         {

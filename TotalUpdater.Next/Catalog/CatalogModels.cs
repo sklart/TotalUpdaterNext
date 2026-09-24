@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.Serialization;
 using TotalUpdater.Next.Core;
 
@@ -12,6 +14,7 @@ namespace TotalUpdater.Next.Catalog
         [DataMember(Name = "type")] public string Type { get; set; } = "";        [DataMember(Name = "version")] public string Version { get; set; } = "";
         [DataMember(Name = "aliases")] public List<string> Aliases { get; set; } = new List<string>();
         [DataMember(Name = "registrationAliases")] public List<string> RegistrationAliases { get; set; } = new List<string>();
+        [DataMember(Name = "wcxRegistration")] public WcxRegistrationEvidence WcxRegistration { get; set; }
         [DataMember(Name = "identityEvidence")] public string IdentityEvidenceName { get; set; } = "MetadataOnly";
         [DataMember(Name = "verifiedAt")] public string VerifiedAt { get; set; } = "";
         [DataMember(Name = "localVersionStrategy")] public string LocalVersionStrategy { get; set; } = "";
@@ -32,6 +35,21 @@ namespace TotalUpdater.Next.Catalog
         }
         public IdentityEvidence IdentityEvidence { get { IdentityEvidence value; return System.Enum.TryParse(IdentityEvidenceName ?? "MetadataOnly", true, out value) ? value : IdentityEvidence.MetadataOnly; } }
         public bool AllowsAutomaticInstall { get { return IdentityEvidence == IdentityEvidence.VerifiedBinary || IdentityEvidence == IdentityEvidence.VerifiedPackage; } }
+        public bool HasVerifiedWcxRegistration { get { return PluginType == PluginType.Wcx && WcxRegistration != null && WcxRegistration.IsComplete; } }
+    }
+
+    [DataContract]
+    public sealed class WcxRegistrationEvidence
+    {
+        [DataMember(Name = "extensions")] public List<string> Extensions { get; set; } = new List<string>();
+        [DataMember(Name = "packerCaps")] public int PackerCaps { get; set; }
+        [DataMember(Name = "packageSha256")] public string PackageSha256 { get; set; }
+        [DataMember(Name = "binarySha256")] public string BinarySha256 { get; set; }
+        [DataMember(Name = "architecture")] public string Architecture { get; set; }
+        [DataMember(Name = "verifiedUtc")] public DateTime VerifiedUtc { get; set; }
+        [DataMember(Name = "source")] public string Source { get; set; }
+        public bool IsComplete { get { return PackerCaps > 0 && Extensions != null && Extensions.Count > 0 && IsSha(PackageSha256) && IsSha(BinarySha256) && VerifiedUtc != default(DateTime) && !String.IsNullOrWhiteSpace(Source); } }
+        private static bool IsSha(string value) { return !String.IsNullOrWhiteSpace(value) && value.Length == 64 && value.All(c => Uri.IsHexDigit(c)); }
     }
 
     public enum LocalAheadPolicy { Unknown, Development, SourceMayLag }
