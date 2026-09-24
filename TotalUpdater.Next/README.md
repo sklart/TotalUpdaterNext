@@ -1,4 +1,4 @@
-# Total Updater Next — Phase 9
+# Total Updater Next — Phase 10 / 0.10.4
 
 WPF-программа для Windows 7 SP1+ под .NET Framework 4.8. Это независимая новая реализация: старый Total Updater и его бинарные ресурсы не используются.
 
@@ -12,7 +12,7 @@ WPF-программа для Windows 7 SP1+ под .NET Framework 4.8. Это �
 * HTTP-провайдеры Ghisler и Totalcmd.net, скачивание в отдельный каталог;
 * безопасная установка ZIP для уже установленных WCX/WLX/WFX/WDX с backup, проверкой после записи, повторяемым crash recovery и откатом выбранного плагина;
 * установка новых WFX/WLX/WDX из каталога с транзакционной регистрацией в фактическом INI и manifest v4;
-* пять вкладок: «Обновления», «Каталог», «Настройки», «Локальная БД», «О программе».
+* шесть вкладок: «Обновления», «Каталог», «Настройки», «Локальная БД», «Источники», «О программе».
 
 ## Сборка и тесты
 
@@ -23,7 +23,7 @@ dotnet run --project .\TotalUpdater.Next.Tests\TotalUpdater.Next.Tests.csproj
 
 ## Single EXE
 
-Release-архив [`../release/TotalUpdater-0.9.3-win7plus.zip`](../release/TotalUpdater-0.9.3-win7plus.zip) содержит только `TotalUpdater.exe`. Стандартный каталог находится внутри EXE как embedded resource; внешний JSON не требуется на первом запуске.
+Release-архив [`../release/TotalUpdater-0.10.4-win7plus.zip`](../release/TotalUpdater-0.10.4-win7plus.zip) содержит только `TotalUpdater.exe`. Стандартный каталог находится внутри EXE как embedded resource; внешний JSON не требуется на первом запуске.
 
 Maintenance-команды тестового приложения: `--audit-catalog-aliases` проверяет collisions и расширения, `--audit-installed-coverage --ini=<путь>` показывает Exact/Alias/RemoteExact/Ambiguous/NotFound и процент покрытия; `--offline` отключает сетевой fallback. Remote lookup ничего не устанавливает и не переписывает каталог пользователя.
 

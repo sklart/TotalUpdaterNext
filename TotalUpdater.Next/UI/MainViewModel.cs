@@ -38,13 +38,13 @@ namespace TotalUpdater.Next.UI
         private TotalCommanderConfiguration _configuration;
         private CancellationTokenSource _checkCancellation;
         private int _checkGeneration;
-        private string _iniPath = ""; private string _statusText = ""; private string _filter = "All";
+        private string _iniPath = ""; private string _statusText = ""; private string _filter = "All"; private SettingsExclusion _selectedExclusion;
 
         public MainViewModel(TotalCommanderConfigurationResolver resolver, PluginDiscoveryService discovery, UpdateService updates, CatalogService catalog, DownloadService downloads, UserDataPaths paths, CatalogInstallService catalogInstall = null, ISourceDiagnostics sourceDiagnostics = null, SettingsService settingsService = null, SettingsValidationResult loadedSettings = null, Action<AppSettings> networkReconfigure = null)
         {
             _resolver = resolver; _discovery = discovery; _updates = updates; _catalog = catalog; _downloads = downloads; _paths = paths; _catalogInstall = catalogInstall; _sourceDiagnostics = sourceDiagnostics; _settingsService = settingsService; _persistentCache = new PersistentSourceCache(); _networkReconfigure = networkReconfigure; Settings = loadedSettings == null ? new AppSettings() : loadedSettings.Settings;
             _backupRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TotalUpdaterNext", "backups");
-            Items = new ObservableCollection<PluginRowViewModel>(); _itemsView = new CollectionViewSource { Source = Items }; _itemsView.GroupDescriptions.Add(new PropertyGroupDescription("Group")); _itemsView.Filter += Filter;
+            Items = new ObservableCollection<PluginRowViewModel>(); ExclusionItems = new ObservableCollection<SettingsExclusion>(); RefreshExclusions(); _itemsView = new CollectionViewSource { Source = Items }; _itemsView.GroupDescriptions.Add(new PropertyGroupDescription("Group")); _itemsView.Filter += Filter;
             DiscoverCommand = new RelayCommand(x => Discover()); CheckCommand = new RelayCommand(async x => await CheckAsync()); DownloadCommand = new RelayCommand(async x => await DownloadAsync());
             InstallCommand = new RelayCommand(async x => await InstallAsync()); RollbackCommand = new RelayCommand(x => RollbackLast());
             CheckCatalogCommand = new RelayCommand(async x => await CheckCatalogAsync()); InstallNewCommand = new RelayCommand(async x => await InstallNewAsync());
@@ -52,7 +52,7 @@ namespace TotalUpdater.Next.UI
             ApplySettingsCommand = new RelayCommand(x => ApplySettings()); DefaultSettingsCommand = new RelayCommand(x => ResetSettings()); ClearCacheCommand = new RelayCommand(x => ClearCache());
             ExcludeCommand = new RelayCommand(x => Exclude(x as PluginRowViewModel), x => x is PluginRowViewModel); RestoreExcludedCommand = new RelayCommand(x => RestoreExcluded(x as PluginRowViewModel), x => x is PluginRowViewModel);
             AcceptVersionCommand = new RelayCommand(x => AcceptVersion(x as PluginRowViewModel), x => x is PluginRowViewModel);
-            ManageExclusionsCommand = new RelayCommand(x => ManageExclusions());
+            ManageExclusionsCommand = new RelayCommand(x => ManageExclusions()); RestoreSelectedExclusionCommand = new RelayCommand(x => RestoreSelectedExclusion(SelectedExclusion), x => SelectedExclusion != null); RestoreAllExclusionsCommand = new RelayCommand(x => RestoreAllExclusions());
             BrowseIniCommand = new RelayCommand(x => BrowseIni()); OpenUserCatalogCommand = new RelayCommand(x => OpenUserCatalog()); OpenSiteCommand = new RelayCommand(x => OpenSite(x as PluginRowViewModel), x => x is PluginRowViewModel row && row.Candidate != null && row.Candidate.SourceUrl != null);
             OpenPathCommand = new RelayCommand(x => OpenPath(x as PluginRowViewModel), x => x is PluginRowViewModel row && File.Exists(row.Path)); CopyPathCommand = new RelayCommand(x => System.Windows.Clipboard.SetText((x as PluginRowViewModel).Path), x => x is PluginRowViewModel row && !String.IsNullOrWhiteSpace(row.Path)); InfoCommand = new RelayCommand(x => ShowInfo(x as PluginRowViewModel), x => x is PluginRowViewModel);
             UserCatalogEntries = new ObservableCollection<PluginCatalogEntry>(_catalog.LoadUserCatalog());
@@ -62,18 +62,20 @@ namespace TotalUpdater.Next.UI
         }
 
         public ObservableCollection<PluginRowViewModel> Items { get; private set; }
+        public ObservableCollection<SettingsExclusion> ExclusionItems { get; private set; }
         public ObservableCollection<PluginCatalogEntry> UserCatalogEntries { get; private set; }
         public ObservableCollection<CatalogRowViewModel> CatalogItems { get; private set; }
         public ObservableCollection<SourceDiagnosticResult> SourceDiagnostics { get; private set; }
         public AppSettings Settings { get; private set; }
         public ICollectionView ItemsView { get { return _itemsView.View; } }
         public RelayCommand DiscoverCommand { get; private set; } public RelayCommand CheckCommand { get; private set; } public RelayCommand DownloadCommand { get; private set; } public RelayCommand InstallCommand { get; private set; } public RelayCommand RollbackCommand { get; private set; } public RelayCommand BrowseIniCommand { get; private set; } public RelayCommand OpenUserCatalogCommand { get; private set; } public RelayCommand OpenSiteCommand { get; private set; } public RelayCommand OpenPathCommand { get; private set; } public RelayCommand CopyPathCommand { get; private set; } public RelayCommand InfoCommand { get; private set; }
-        public RelayCommand CheckCatalogCommand { get; private set; } public RelayCommand InstallNewCommand { get; private set; } public RelayCommand CheckSourceAvailabilityCommand { get; private set; } public RelayCommand ApplySettingsCommand { get; private set; } public RelayCommand DefaultSettingsCommand { get; private set; } public RelayCommand ClearCacheCommand { get; private set; } public RelayCommand ExcludeCommand { get; private set; } public RelayCommand RestoreExcludedCommand { get; private set; } public RelayCommand AcceptVersionCommand { get; private set; } public RelayCommand ManageExclusionsCommand { get; private set; }
+        public RelayCommand CheckCatalogCommand { get; private set; } public RelayCommand InstallNewCommand { get; private set; } public RelayCommand CheckSourceAvailabilityCommand { get; private set; } public RelayCommand ApplySettingsCommand { get; private set; } public RelayCommand DefaultSettingsCommand { get; private set; } public RelayCommand ClearCacheCommand { get; private set; } public RelayCommand ExcludeCommand { get; private set; } public RelayCommand RestoreExcludedCommand { get; private set; } public RelayCommand AcceptVersionCommand { get; private set; } public RelayCommand ManageExclusionsCommand { get; private set; } public RelayCommand RestoreSelectedExclusionCommand { get; private set; } public RelayCommand RestoreAllExclusionsCommand { get; private set; }
         public string IniPath { get { return _iniPath; } set { _iniPath = value; Changed("IniPath"); } }
         public string InstallDirectory { get { return _configuration == null ? "—" : _configuration.InstallDirectory; } }
         public string DownloadDirectory { get { return String.IsNullOrWhiteSpace(Settings.DownloadDirectory) ? _paths.DownloadDirectory : Environment.ExpandEnvironmentVariables(Settings.DownloadDirectory).Replace("%COMMANDER_PATH%", _configuration == null ? "" : _configuration.InstallDirectory); } }
         public string CacheSize { get { return (_persistentCache.GetSizeBytes() / 1024L) + " KB"; } }
         public int ExclusionCount { get { return Settings.ExcludedCatalogIds.Count + Settings.ExcludedUnknownPaths.Count; } }
+        public SettingsExclusion SelectedExclusion { get { return _selectedExclusion; } set { _selectedExclusion = value; Changed("SelectedExclusion"); } }
         public bool ScanUnregisteredDirectories { get { return Settings.DiscoveryMode == DiscoveryMode.RegisteredAndDirectories; } set { Settings.DiscoveryMode = value ? DiscoveryMode.RegisteredAndDirectories : DiscoveryMode.RegisteredOnly; Changed("ScanUnregisteredDirectories"); } }
         public string ProxyModeName { get { return Settings.ProxyMode.ToString(); } set { ProxyMode mode; if (Enum.TryParse(value, true, out mode)) Settings.ProxyMode = mode; Changed("ProxyModeName"); } }
         public string PostDownloadActionName { get { return Settings.PostDownloadAction.ToString(); } set { PostDownloadAction action; if (Enum.TryParse(value, true, out action)) Settings.PostDownloadAction = action; Changed("PostDownloadActionName"); } }
@@ -88,23 +90,21 @@ namespace TotalUpdater.Next.UI
         private void ApplySettings()
         {
             if (_settingsService == null) { StatusText = "Сохранение настроек недоступно."; return; }
-            var validated = new SettingsValidator().Validate(Settings); Settings = validated.Settings; _settingsService.Save(Settings); if (_networkReconfigure != null) _networkReconfigure(Settings); Changed("Settings"); Changed("DownloadDirectory"); Changed("CacheSize"); Changed("ExclusionCount"); Discover(); StatusText = validated.Warnings.Count == 0 ? "Настройки применены." : String.Join(" ", validated.Warnings);
+            var validated = new SettingsValidator().Validate(Settings); Settings = validated.Settings; _settingsService.Save(Settings); if (_networkReconfigure != null) _networkReconfigure(Settings); RefreshExclusions(); Changed("Settings"); Changed("DownloadDirectory"); Changed("CacheSize"); Changed("ExclusionCount"); Discover(); StatusText = validated.Warnings.Count == 0 ? "Настройки применены." : String.Join(" ", validated.Warnings);
         }
         private void ResetSettings()
         {
             var defaults = new AppSettings();
             foreach (var property in typeof(AppSettings).GetProperties().Where(x => x.CanRead && x.CanWrite)) property.SetValue(Settings, property.GetValue(defaults, null), null);
-            Changed("Settings"); Changed("ScanUnregisteredDirectories"); Changed("DownloadDirectory"); Changed("CacheSize"); Changed("ExclusionCount"); StatusText = "Восстановлены значения по умолчанию. Нажмите «Применить».";
+            RefreshExclusions(); Changed("Settings"); Changed("ScanUnregisteredDirectories"); Changed("DownloadDirectory"); Changed("CacheSize"); Changed("ExclusionCount"); StatusText = "Восстановлены значения по умолчанию. Нажмите «Применить».";
         }
         private void ClearCache() { _persistentCache.Clear(); Changed("CacheSize"); StatusText = "Кэш metadata очищен."; }
         private void AcceptVersion(PluginRowViewModel row) { if (row == null || row.Candidate == null || !row.Candidate.AvailableVersion.IsKnown) { StatusText = "Сначала проверьте доступную версию."; return; } new AcceptedVersionService(Settings).Accept(row.Plugin, row.Candidate.AvailableVersion); ApplySettings(); StatusText = "Установленная версия отмечена как актуальная: " + row.Name; }
-        private void ManageExclusions()
-        {
-            var all = Settings.ExcludedCatalogIds.Concat(Settings.ExcludedUnknownPaths).ToList(); var text = all.Count == 0 ? "Исключений нет." : String.Join(Environment.NewLine, all);
-            if (all.Count > 0 && System.Windows.MessageBox.Show(System.Windows.Application.Current.MainWindow, text + Environment.NewLine + Environment.NewLine + "Вернуть все в проверку?", "Управление исключениями", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Information) == System.Windows.MessageBoxResult.Yes) { Settings.ExcludedCatalogIds.Clear(); Settings.ExcludedUnknownPaths.Clear(); ApplySettings(); }
-            else if (all.Count == 0) System.Windows.MessageBox.Show(System.Windows.Application.Current.MainWindow, text, "Управление исключениями", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
-        }
-        private string ExclusionKey(PluginRowViewModel row) { return row.Plugin.CatalogMatchKind == CatalogMatchKind.NotFound ? row.Plugin.Type + "|" + Path.GetFullPath(row.Path).ToLowerInvariant() : row.Plugin.Identity.Id; }
+        private void ManageExclusions() { RefreshExclusions(); StatusText = ExclusionItems.Count == 0 ? "Исключений нет." : "Выберите исключение в списке настроек или верните все."; }
+        private void RefreshExclusions() { if (ExclusionItems == null) return; ExclusionItems.Clear(); foreach (var item in SettingsExclusions.List(Settings)) ExclusionItems.Add(item); }
+        private void RestoreSelectedExclusion(SettingsExclusion exclusion) { if (exclusion == null) return; SettingsExclusions.Restore(Settings, exclusion); ApplySettings(); StatusText = "Возвращено в проверку: " + exclusion.Key; }
+        private void RestoreAllExclusions() { if (ExclusionItems.Count == 0) return; SettingsExclusions.RestoreAll(Settings); ApplySettings(); StatusText = "Все исключения возвращены в проверку."; }
+        private string ExclusionKey(PluginRowViewModel row) { return row.Plugin.CatalogMatchKind == CatalogMatchKind.NotFound ? row.Plugin.Type + "::" + Path.GetFullPath(row.Path).ToLowerInvariant() : row.Plugin.Identity.Id; }
         private void Exclude(PluginRowViewModel row) { if (row == null) return; var key = ExclusionKey(row); var list = row.Plugin.CatalogMatchKind == CatalogMatchKind.NotFound ? Settings.ExcludedUnknownPaths : Settings.ExcludedCatalogIds; if (!list.Contains(key, StringComparer.OrdinalIgnoreCase)) list.Add(key); ApplySettings(); StatusText = "Исключено из проверки: " + row.Name; }
         private void RestoreExcluded(PluginRowViewModel row) { if (row == null) return; var key = ExclusionKey(row); Settings.ExcludedCatalogIds = Settings.ExcludedCatalogIds.Where(x => !x.Equals(key, StringComparison.OrdinalIgnoreCase)).ToList(); Settings.ExcludedUnknownPaths = Settings.ExcludedUnknownPaths.Where(x => !x.Equals(key, StringComparison.OrdinalIgnoreCase)).ToList(); ApplySettings(); StatusText = "Возвращено в проверку: " + row.Name; }
         private bool IsExcluded(PluginRowViewModel row) { var key = ExclusionKey(row); return Settings.ExcludedCatalogIds.Contains(key, StringComparer.OrdinalIgnoreCase) || Settings.ExcludedUnknownPaths.Contains(key, StringComparer.OrdinalIgnoreCase); }
@@ -245,13 +245,14 @@ namespace TotalUpdater.Next.UI
                         row.Candidate.PackageAvailability = PackageAvailability.Verified;
                     }
                     DownloadedPackagePolicy.Record(row.Candidate, path); row.Candidate.Details = String.Format(Text.Get("Downloaded"), Path.GetFileName(path)); row.Apply(row.Candidate); done++;
-                    if (Settings.PostDownloadAction == PostDownloadAction.OfferInstall && target.Count == 1 && String.Equals(Path.GetExtension(path), ".zip", StringComparison.OrdinalIgnoreCase) &&
+                    if (ShouldOfferInstall(Settings, target.Count, path) &&
                         System.Windows.MessageBox.Show(System.Windows.Application.Current.MainWindow, "ZIP загружен: " + Path.GetFileName(path) + Environment.NewLine + "Установить сейчас?", "Загрузка завершена", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Question) == System.Windows.MessageBoxResult.Yes)
                         await InstallAsync(); }
                 catch (Exception ex) { row.Candidate.Details = ex.Message; StatusText = "Скачивание не выполнено: " + ex.Message; }
             }
             StatusText = String.Format(Text.Get("DownloadedCount"), done);
         }
+        public static bool ShouldOfferInstall(AppSettings settings, int selectedCount, string packagePath) { return settings != null && settings.PostDownloadAction == PostDownloadAction.OfferInstall && selectedCount == 1 && String.Equals(Path.GetExtension(packagePath), ".zip", StringComparison.OrdinalIgnoreCase); }
 
         private async Task InstallAsync()
         {

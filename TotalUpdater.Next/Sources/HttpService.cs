@@ -35,6 +35,7 @@ namespace TotalUpdater.Next.Sources
         public void Reconfigure(AppSettings settings) { var next = CreateClient(settings ?? new AppSettings(), UserAgent.Substring(UserAgent.IndexOf('/') + 1)); var old = _client; _settings = settings ?? new AppSettings(); _client = next; if (old != null) _retiredClients.Add(old); }
         public TimeSpan FirstRequestTimeout { get { return TimeSpan.FromSeconds(_settings.FirstRequestTimeoutSeconds); } }
         public TimeSpan RetryTimeout { get { return TimeSpan.FromSeconds(_settings.RetryTimeoutSeconds); } }
+        public ProxyMode CurrentProxyMode { get { return _settings.ProxyMode; } }
         public async Task<string> GetStringAsync(string url, CancellationToken token, TimeSpan? timeout = null)
         {
             RequireHttpUrl(url);
