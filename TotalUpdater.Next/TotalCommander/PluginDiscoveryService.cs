@@ -5,6 +5,7 @@ using System.Linq;
 using TotalUpdater.Next.Catalog;
 using TotalUpdater.Next.Core;
 using TotalUpdater.Next.Core.Versions;
+using TotalUpdater.Next.Settings;
 
 namespace TotalUpdater.Next.TotalCommander
 {
@@ -22,10 +23,11 @@ namespace TotalUpdater.Next.TotalCommander
         private readonly LocalVersionResolver _versions;
         private readonly CatalogService _catalog;
         private readonly RedirectedSectionResolver _sections;
+        private readonly AppSettings _settings;
 
-        public PluginDiscoveryService(TotalCommanderConfigurationResolver configurationResolver, LocalVersionResolver versions, CatalogService catalog, RedirectedSectionResolver sections = null)
+        public PluginDiscoveryService(TotalCommanderConfigurationResolver configurationResolver, LocalVersionResolver versions, CatalogService catalog, RedirectedSectionResolver sections = null, AppSettings settings = null)
         {
-            _configurationResolver = configurationResolver; _versions = versions; _catalog = catalog; _sections = sections ?? new RedirectedSectionResolver(new IniDocumentReader(), configurationResolver);
+            _configurationResolver = configurationResolver; _versions = versions; _catalog = catalog; _sections = sections ?? new RedirectedSectionResolver(new IniDocumentReader(), configurationResolver); _settings = settings;
         }
 
         public IList<InstalledPlugin> Discover(TotalCommanderConfiguration configuration)
@@ -63,7 +65,20 @@ namespace TotalUpdater.Next.TotalCommander
                 }
             }
             foreach (var family in families.Values) result.Add(CreateInstalledPlugin(family, configuration));
+            if (_settings != null && _settings.DiscoveryMode == DiscoveryMode.RegisteredAndDirectories && _settings.ShowUnregisteredPlugins) AddUnregistered(configuration, result);
             return result.OrderBy(x => x.Type).ThenBy(x => x.DisplayName, StringComparer.CurrentCultureIgnoreCase).ToList();
+        }
+
+        private void AddUnregistered(TotalCommanderConfiguration configuration, ICollection<InstalledPlugin> result)
+        {
+            var root = Path.Combine(configuration.InstallDirectory ?? "", "plugins"); if (!Directory.Exists(root)) return;
+            foreach (var path in Directory.GetFiles(root, "*.*", SearchOption.AllDirectories))
+            {
+                PluginType type; var ext = Path.GetExtension(path).ToLowerInvariant(); if (ext == ".wcx" || ext == ".uwcx" || ext == ".wcx64") type = PluginType.Wcx; else if (ext == ".wlx" || ext == ".uwlx" || ext == ".wlx64") type = PluginType.Wlx; else if (ext == ".wfx" || ext == ".uwfx" || ext == ".wfx64") type = PluginType.Wfx; else if (ext == ".wdx" || ext == ".uwdx" || ext == ".wdx64") type = PluginType.Wdx; else continue;
+                if (result.Any(x => String.Equals(x.PrimaryPath, path, StringComparison.OrdinalIgnoreCase))) continue;
+                var entry = _catalog.FindByAlias(Path.GetFileName(path)); var identity = entry == null ? new PluginIdentity { Id = "family:" + type + "|" + path.ToLowerInvariant(), Name = Path.GetFileNameWithoutExtension(path), Type = type } : new PluginIdentity { Id = entry.Id, Name = entry.Name, Type = type, LocalVersionStrategy = entry.LocalVersionStrategy };
+                result.Add(new InstalledPlugin { Identity = identity, Type = type, DisplayName = identity.Name, PrimaryPath = path, Binaries = new List<PluginBinary> { new PluginBinary { Path = path, Exists = true, LocalVersion = _versions.Resolve(path, identity) } }, RelatedFiles = new List<string> { path }, FileExists = true, LocalVersion = _versions.Resolve(path, identity), IsRegistered = false, CatalogMatchKind = entry == null ? CatalogMatchKind.NotFound : CatalogMatchKind.Alias });
+            }
         }
 
         private ISet<string> ReadArchitectureMarkers(TotalCommanderConfiguration configuration)

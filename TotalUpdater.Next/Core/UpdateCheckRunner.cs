@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using TotalUpdater.Next.Sources;
+using TotalUpdater.Next.Settings;
 
 namespace TotalUpdater.Next.Core
 {
@@ -14,10 +15,11 @@ namespace TotalUpdater.Next.Core
     {
         public const int MaximumParallelism = 4;
         private readonly UpdateService _updates;
-        public UpdateCheckRunner(UpdateService updates) { _updates = updates; }
+        private readonly AppSettings _settings;
+        public UpdateCheckRunner(UpdateService updates, AppSettings settings = null) { _updates = updates; _settings = settings; }
         public async Task<UpdateCheckRunResult> RunAsync(IEnumerable<InstalledPlugin> plugins, Action<InstalledPlugin, UpdateCandidate> completed, Action<int, int> progress, CancellationToken token)
         {
-            var target = (plugins ?? Enumerable.Empty<InstalledPlugin>()).ToList(); var result = new UpdateCheckRunResult(); var cache = new SourceResponseCache();
+            var target = (plugins ?? Enumerable.Empty<InstalledPlugin>()).ToList(); var result = new UpdateCheckRunResult(); var cache = new SourceResponseCache(null, _settings);
             using (var gate = new SemaphoreSlim(MaximumParallelism))
             {
                 var tasks = target.Select(async plugin =>

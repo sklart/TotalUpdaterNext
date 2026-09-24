@@ -7,6 +7,7 @@ using TotalUpdater.Next.Catalog;
 using TotalUpdater.Next.Core.Versions;
 using TotalUpdater.Next.Sources;
 using TotalUpdater.Next.TotalCommander;
+using TotalUpdater.Next.Settings;
 
 namespace TotalUpdater.Next.Core
 {
@@ -18,7 +19,8 @@ namespace TotalUpdater.Next.Core
         private readonly IList<IUpdateSourceProvider> _providers;
         private readonly IRemoteCatalogLookup _remoteLookup;
         private readonly SourceAuthorityResolver _authority = new SourceAuthorityResolver();
-        public UpdateService(CatalogService catalog, IEnumerable<IUpdateSourceProvider> providers, IRemoteCatalogLookup remoteLookup = null) { _catalog = catalog; _providers = providers.ToList(); _remoteLookup = remoteLookup; }
+        private readonly AcceptedVersionService _accepted;
+        public UpdateService(CatalogService catalog, IEnumerable<IUpdateSourceProvider> providers, IRemoteCatalogLookup remoteLookup = null, AcceptedVersionService accepted = null) { _catalog = catalog; _providers = providers.ToList(); _remoteLookup = remoteLookup; _accepted = accepted; }
 
         public Task<UpdateCandidate> CheckAsync(InstalledPlugin plugin, CancellationToken cancellationToken)
         {
@@ -65,6 +67,7 @@ namespace TotalUpdater.Next.Core
             var state = comparison == VersionComparison.Less ? UpdateState.UpdateAvailable : comparison == VersionComparison.Greater ?
                 (entry.LocalAheadPolicy == LocalAheadPolicy.SourceMayLag ? UpdateState.SourceOutdated : entry.LocalAheadPolicy == LocalAheadPolicy.Development ? UpdateState.DevelopmentVersion : UpdateState.LocalAheadUnknown) : comparison == VersionComparison.Equal ? UpdateState.UpToDate : UpdateState.VersionComparisonUnknown;
             var candidate = Candidate(plugin, state, canonical.Release, canonical.ProviderName, canonical.Details); ApplyProvenance(candidate, observations, resolution);
+            if (state == UpdateState.UpdateAvailable && _accepted != null && _accepted.IsAccepted(plugin, canonical.Release.Version)) { candidate.State = UpdateState.UpToDate; candidate.Details = "Установленная версия отмечена как актуальная."; return candidate; }
             if (state == UpdateState.UpdateAvailable && resolution.HasConflict)
             { candidate.PackageAvailability = PackageAvailability.Ambiguous; candidate.Details = "Конфликт источников одного уровня доверия; загрузка отключена."; }
             else if (state == UpdateState.UpdateAvailable)

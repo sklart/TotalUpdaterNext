@@ -44,6 +44,7 @@ namespace TotalUpdater.Next.Core
         public PluginArchitecture Architecture { get; set; }
         public bool FileExists { get; set; }
         public bool HasVersionConflict { get; set; }
+        public bool IsRegistered { get; set; } = true;
         public CatalogMatchKind CatalogMatchKind { get; set; } = CatalogMatchKind.NotFound;
     }
 

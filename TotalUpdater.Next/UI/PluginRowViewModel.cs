@@ -54,7 +54,7 @@ namespace TotalUpdater.Next.UI
             DownloadedPackagePolicy.CarryForward(_candidate, candidate);
             if (Plugin.HasVersionConflict) candidate.State = UpdateState.LocalVersionConflict;
             _candidate = candidate; AvailableVersion = candidate.AvailableVersion.IsKnown ? candidate.AvailableVersion.Raw : "—";
-            Status = ToStatus(candidate);
+            Status = Plugin.IsRegistered ? ToStatus(candidate) : "Не зарегистрирован в Total Commander";
         }
 
         private static string ToStatus(UpdateCandidate candidate)

@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
 using System.Security.Cryptography;
@@ -85,6 +86,18 @@ namespace TotalUpdater.Next.Sources
                 return true;
             }
             catch { return false; }
+        }
+
+        public long GetSizeBytes()
+        {
+            try { return Directory.Exists(_directory) ? Directory.GetFiles(_directory, "*.json").Sum(x => new FileInfo(x).Length) : 0; }
+            catch { return 0; }
+        }
+
+        public void Clear()
+        {
+            try { if (Directory.Exists(_directory)) foreach (var file in Directory.GetFiles(_directory, "*.json")) File.Delete(file); }
+            catch { }
         }
 
         internal string GetPathForTest(string key) { return Path.Combine(_directory, HashKey(key) + ".json"); }

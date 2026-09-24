@@ -11,6 +11,7 @@ using TotalUpdater.Next.Infrastructure;
 using TotalUpdater.Next.Sources;
 using TotalUpdater.Next.TotalCommander;
 using TotalUpdater.Next.UI;
+using TotalUpdater.Next.Settings;
 
 namespace TotalUpdater.Next.Tests
 {
@@ -33,7 +34,7 @@ namespace TotalUpdater.Next.Tests
                 if (args != null && args.Any(x => x.Equals("--audit-full-catalog", StringComparison.OrdinalIgnoreCase))) return AuditFullCatalog();
                 if (args != null && args.Any(x => x.Equals("--audit-installed-coverage", StringComparison.OrdinalIgnoreCase))) return AuditInstalledCoverage(args);
                 if (args != null && args.Any(x => x.Equals("--audit-installed-version-drift", StringComparison.OrdinalIgnoreCase))) return AuditInstalledVersionDrift(args);
-                Versions(); Paths(); DiscoveryRealIniFormats(); ArchitectureAwareDiscovery(); FamilyIdentityAndConflict(); CatalogV2AndProviders(); CatalogScaleAndCache(); AuthorityResolution(); DownloadProvenance(); AuthorityRuntimeFinalization(); LazySourcesAndCache(); SourceInputHardening(); ScalableCheckRunner(); FileInfoPeVersionStrategy(); StrategyPriorityAndFallback(); ConfigurationDetection(); ConfigurationPrecedenceFinalization(); RedirectSections(); IniEncodingsAndPathExpansion(); CatalogAliases(); CatalogCoverageMatching(); SourceFidelityRegressions(); PersistentSourceCacheContracts(); ApplicationMetadataAndUserAgent(); InstallationTests.Run(Assert); RecoveryTests.Run(Assert); NewPluginInstallationTests.Run(Assert);
+                Versions(); Paths(); DiscoveryRealIniFormats(); ArchitectureAwareDiscovery(); FamilyIdentityAndConflict(); CatalogV2AndProviders(); CatalogScaleAndCache(); AuthorityResolution(); DownloadProvenance(); AuthorityRuntimeFinalization(); LazySourcesAndCache(); SourceInputHardening(); ScalableCheckRunner(); FileInfoPeVersionStrategy(); StrategyPriorityAndFallback(); ConfigurationDetection(); ConfigurationPrecedenceFinalization(); RedirectSections(); IniEncodingsAndPathExpansion(); CatalogAliases(); CatalogCoverageMatching(); SourceFidelityRegressions(); PersistentSourceCacheContracts(); SettingsContracts(); ApplicationMetadataAndUserAgent(); InstallationTests.Run(Assert); RecoveryTests.Run(Assert); NewPluginInstallationTests.Run(Assert);
                 Console.WriteLine("PASS " + _count + " tests"); return 0;
             }
             catch (Exception ex) { Console.Error.WriteLine("FAIL: " + ex); return 1; }
@@ -1011,6 +1012,18 @@ namespace TotalUpdater.Next.Tests
             public string Expand(string value) { return System.Text.RegularExpressions.Regex.Replace(value, "%([^%]+)%", m => { string item; return Values.TryGetValue(m.Groups[1].Value, out item) ? item : m.Value; }); }
             public string AppData { get { return Get("APPDATA") ?? Path.GetTempPath(); } }
             public string WindowsDirectory { get { return Get("WINDIR") ?? Path.GetTempPath(); } }
+        }
+        private static void SettingsContracts()
+        {
+            var root = Path.Combine(Path.GetTempPath(), "tu-settings-" + Guid.NewGuid().ToString("N")); var path = Path.Combine(root, "TotalUpdater.ini"); var service = new SettingsService(path);
+            Assert(service.Load().Settings.CheckPlugins && service.Load().Settings.FirstRequestTimeoutSeconds == 20, "settings defaults");
+            var settings = new AppSettings { IncludePrerelease = true, DownloadDirectory = "%TEMP%\\downloads", FirstRequestTimeoutSeconds = 15, RetryTimeoutSeconds = 45, LastFilter = "Updates", WindowWidth = 1111, WindowHeight = 777, ExcludedCatalogIds = new List<string> { "sample" } }; service.Save(settings); var loaded = service.Load().Settings;
+            Assert(loaded.IncludePrerelease && loaded.DownloadDirectory.Contains("%TEMP%") && loaded.FirstRequestTimeoutSeconds == 15 && loaded.RetryTimeoutSeconds == 45 && loaded.LastFilter == "Updates" && loaded.WindowWidth == 1111 && loaded.ExcludedCatalogIds.Single() == "sample", "settings atomic save/load utf8");
+            File.WriteAllText(path, "bad\0ini"); var broken = service.Load(); Assert(broken.Settings.CheckPlugins && broken.Warnings.Count > 0, "corrupted settings fallback");
+            var invalid = new SettingsValidator().Validate(new AppSettings { FirstRequestTimeoutSeconds = 1, RetryTimeoutSeconds = 121 }); Assert(invalid.Settings.FirstRequestTimeoutSeconds == 20 && invalid.Settings.RetryTimeoutSeconds == 30, "settings timeout validation");
+            var binary = Path.Combine(root, "sample.wlx"); File.WriteAllText(binary, "one"); var plugin = new InstalledPlugin { Identity = new PluginIdentity { Id = "sample" }, PrimaryPath = binary }; var accepted = new AcceptedVersionService(settings); accepted.Accept(plugin, VersionValue.Parse("2.0"));
+            Assert(accepted.IsAccepted(plugin, VersionValue.Parse("2.0")) && accepted.IsAccepted(plugin, VersionValue.Parse("1.9")) && !accepted.IsAccepted(plugin, VersionValue.Parse("2.1")), "accepted version applies only through accepted remote version"); File.WriteAllText(binary, "two"); Assert(!accepted.IsAccepted(plugin, VersionValue.Parse("2.0")), "accepted version invalidated by local sha");
+            Directory.Delete(root, true);
         }
         private static void Assert(bool condition, string name) { if (!condition) throw new InvalidOperationException(name); _count++; }
     }

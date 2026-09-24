@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
+using TotalUpdater.Next.Settings;
 
 namespace TotalUpdater.Next.Sources
 {
@@ -14,7 +15,8 @@ namespace TotalUpdater.Next.Sources
         private readonly ConcurrentDictionary<string, Lazy<Task<SharedSourceResponse>>> _sharedMetadata = new ConcurrentDictionary<string, Lazy<Task<SharedSourceResponse>>>(StringComparer.Ordinal);
         private readonly SourceHealthMonitor _health = new SourceHealthMonitor();
         private readonly PersistentSourceCache _persistent;
-        public SourceResponseCache(PersistentSourceCache persistent = null) { _persistent = persistent ?? new PersistentSourceCache(); }
+        private readonly bool _persistentEnabled;
+        public SourceResponseCache(PersistentSourceCache persistent = null, AppSettings settings = null) { _persistent = persistent ?? new PersistentSourceCache(); _persistentEnabled = settings == null || settings.UsePersistentMetadataCache; }
         public SourceHealthMonitor Health { get { return _health; } }
 
         public async Task<string> GetOrAdd(string key, Func<Task<string>> factory)
@@ -64,7 +66,7 @@ namespace TotalUpdater.Next.Sources
             try
             {
                 var bytes = await firstAttempt().ConfigureAwait(false);
-                _persistent.Save(key, sourceUrl, bytes, contentType, encodingName);
+                if (_persistentEnabled) _persistent.Save(key, sourceUrl, bytes, contentType, encodingName);
                 _health.RecordSuccess(host);
                 return new SharedSourceResponse { Text = decode(bytes) };
             }
@@ -74,7 +76,7 @@ namespace TotalUpdater.Next.Sources
                 try
                 {
                     var bytes = await retryAttempt().ConfigureAwait(false);
-                    _persistent.Save(key, sourceUrl, bytes, contentType, encodingName);
+                    if (_persistentEnabled) _persistent.Save(key, sourceUrl, bytes, contentType, encodingName);
                     _health.RecordSuccess(host);
                     return new SharedSourceResponse { Text = decode(bytes) };
                 }
@@ -97,7 +99,7 @@ namespace TotalUpdater.Next.Sources
         private SharedSourceResponse ReadPersistentOrThrow(string key, Func<byte[], string> decode, string host, Exception liveFailure = null)
         {
             CachedSourceResponse cached;
-            if (_persistent.TryRead(key, out cached))
+            if (_persistentEnabled && _persistent.TryRead(key, out cached))
                 return new SharedSourceResponse { Text = decode(cached.Bytes), IsCached = true, CachedAt = cached.FetchedUtc, IsStale = cached.IsStale(DateTime.UtcNow) };
             throw new InvalidOperationException("shared source unavailable for this check: " + host, liveFailure);
         }

@@ -1,21 +1,34 @@
 using System;
 using System.Net.Http;
+using System.Net;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using TotalUpdater.Next.Settings;
 
 namespace TotalUpdater.Next.Sources
 {
     public sealed class HttpService : IDisposable
     {
         private readonly HttpClient _client;
+        private readonly AppSettings _settings;
         public string UserAgent { get; private set; }
-        public HttpService(string applicationVersion)
+        public HttpService(string applicationVersion, AppSettings settings = null)
         {
-            _client = new HttpClient { Timeout = System.Threading.Timeout.InfiniteTimeSpan };
+            _settings = settings ?? new AppSettings();
+            var handler = new HttpClientHandler();
+            if (_settings.ProxyMode == ProxyMode.Direct) handler.UseProxy = false;
+            else if (_settings.ProxyMode == ProxyMode.Custom)
+            {
+                handler.Proxy = new WebProxy(_settings.ProxyAddress, _settings.ProxyPort);
+                if (!String.IsNullOrWhiteSpace(_settings.ProxyUsername)) handler.Proxy.Credentials = new NetworkCredential(_settings.ProxyUsername, "");
+            }
+            _client = new HttpClient(handler) { Timeout = System.Threading.Timeout.InfiniteTimeSpan };
             UserAgent = "TotalUpdaterNext/" + applicationVersion;
             _client.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
         }
+        public TimeSpan FirstRequestTimeout { get { return TimeSpan.FromSeconds(_settings.FirstRequestTimeoutSeconds); } }
+        public TimeSpan RetryTimeout { get { return TimeSpan.FromSeconds(_settings.RetryTimeoutSeconds); } }
         public async Task<string> GetStringAsync(string url, CancellationToken token, TimeSpan? timeout = null)
         {
             RequireHttpUrl(url);

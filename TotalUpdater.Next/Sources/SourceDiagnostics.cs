@@ -45,7 +45,7 @@ namespace TotalUpdater.Next.Sources
             var timer = Stopwatch.StartNew();
             try
             {
-                await _http.GetBytesAsync(url, cancellationToken, TimeSpan.FromSeconds(20)).ConfigureAwait(false);
+                await _http.GetBytesAsync(url, cancellationToken, _http.FirstRequestTimeout).ConfigureAwait(false);
                 return new SourceDiagnosticResult { Name = name, Host = host, Url = url, IsAvailable = true, ElapsedMilliseconds = timer.ElapsedMilliseconds };
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
@@ -59,7 +59,7 @@ namespace TotalUpdater.Next.Sources
         {
             switch (SourceHealthMonitor.Classify(error))
             {
-                case SourceHealth.Timeout: return "timeout after 20 s";
+                case SourceHealth.Timeout: return "timeout";
                 case SourceHealth.DnsFailure: return "DNS failure";
                 case SourceHealth.HttpError: return "HTTP error";
                 default: return "connection failure";
