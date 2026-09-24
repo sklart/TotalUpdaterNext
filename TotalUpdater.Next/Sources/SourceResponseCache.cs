@@ -42,23 +42,28 @@ namespace TotalUpdater.Next.Sources
             catch { Lazy<Task<byte[]>> ignored; _binaryResponses.TryRemove(key, out ignored); throw; }
         }
 
-        public async Task<SharedSourceResponse> GetSharedMetadataAsync(string host, string key, string sourceUrl, Func<Task<byte[]>> factory, Func<byte[], string> decode, string contentType, string encodingName, CancellationToken cancellationToken = default(CancellationToken))
+        public Task<SharedSourceResponse> GetSharedMetadataAsync(string host, string key, string sourceUrl, Func<Task<byte[]>> factory, Func<byte[], string> decode, string contentType, string encodingName, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            return GetSharedMetadataAsync(host, key, sourceUrl, factory, factory, decode, contentType, encodingName, cancellationToken);
+        }
+
+        public async Task<SharedSourceResponse> GetSharedMetadataAsync(string host, string key, string sourceUrl, Func<Task<byte[]>> firstAttempt, Func<Task<byte[]>> retryAttempt, Func<byte[], string> decode, string contentType, string encodingName, CancellationToken cancellationToken = default(CancellationToken))
         {
             if (_health.IsUnavailable(host))
             {
                 if (_health.IsTransient(host)) return ReadPersistentOrThrow(key, decode, host);
                 throw new InvalidOperationException("shared source unavailable for this check: " + host);
             }
-            var lazy = _sharedMetadata.GetOrAdd(key, _ => new Lazy<Task<SharedSourceResponse>>(() => FetchSharedMetadataAsync(host, key, sourceUrl, factory, decode, contentType, encodingName, cancellationToken), LazyThreadSafetyMode.ExecutionAndPublication));
+            var lazy = _sharedMetadata.GetOrAdd(key, _ => new Lazy<Task<SharedSourceResponse>>(() => FetchSharedMetadataAsync(host, key, sourceUrl, firstAttempt, retryAttempt, decode, contentType, encodingName, cancellationToken), LazyThreadSafetyMode.ExecutionAndPublication));
             try { return await lazy.Value.ConfigureAwait(false); }
             catch { Lazy<Task<SharedSourceResponse>> ignored; _sharedMetadata.TryRemove(key, out ignored); throw; }
         }
 
-        private async Task<SharedSourceResponse> FetchSharedMetadataAsync(string host, string key, string sourceUrl, Func<Task<byte[]>> factory, Func<byte[], string> decode, string contentType, string encodingName, CancellationToken cancellationToken)
+        private async Task<SharedSourceResponse> FetchSharedMetadataAsync(string host, string key, string sourceUrl, Func<Task<byte[]>> firstAttempt, Func<Task<byte[]>> retryAttempt, Func<byte[], string> decode, string contentType, string encodingName, CancellationToken cancellationToken)
         {
             try
             {
-                var bytes = await factory().ConfigureAwait(false);
+                var bytes = await firstAttempt().ConfigureAwait(false);
                 _persistent.Save(key, sourceUrl, bytes, contentType, encodingName);
                 _health.RecordSuccess(host);
                 return new SharedSourceResponse { Text = decode(bytes) };
@@ -68,7 +73,7 @@ namespace TotalUpdater.Next.Sources
                 if (!IsTransientFailure(firstFailure, cancellationToken)) { _health.RecordFailure(host, firstFailure); throw; }
                 try
                 {
-                    var bytes = await factory().ConfigureAwait(false);
+                    var bytes = await retryAttempt().ConfigureAwait(false);
                     _persistent.Save(key, sourceUrl, bytes, contentType, encodingName);
                     _health.RecordSuccess(host);
                     return new SharedSourceResponse { Text = decode(bytes) };

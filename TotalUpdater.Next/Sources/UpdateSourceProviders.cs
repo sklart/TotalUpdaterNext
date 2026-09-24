@@ -165,7 +165,9 @@ namespace TotalUpdater.Next.Sources
             try
             {
                 if (cache == null) return Parse(source.Id, await Http.GetTotalCmdIndexAsync(cancellationToken).ConfigureAwait(false));
-                var response = await cache.GetSharedMetadataAsync("totalcmd.net", "totalcmd.net:index", Url, () => Http.GetTotalCmdIndexBytesAsync(cancellationToken), HttpService.DecodeTotalCmdIndex, "text/plain", "windows-1251", cancellationToken).ConfigureAwait(false);
+                var response = await cache.GetSharedMetadataAsync("totalcmd.net", "totalcmd.net:index", Url,
+                    () => Http.GetTotalCmdIndexBytesAsync(cancellationToken, TimeSpan.FromSeconds(20)), () => Http.GetTotalCmdIndexBytesAsync(cancellationToken, TimeSpan.FromSeconds(30)),
+                    HttpService.DecodeTotalCmdIndex, "text/plain", "windows-1251", cancellationToken).ConfigureAwait(false);
                 return WithProvenance(Parse(source.Id, response.Text), response);
             }
             catch (OperationCanceledException) { throw; }
@@ -220,7 +222,9 @@ namespace TotalUpdater.Next.Sources
             try
             {
                 SharedSourceResponse response = null;
-                var html = cache == null ? await Http.GetStringAsync(Url, cancellationToken).ConfigureAwait(false) : (response = await cache.GetSharedMetadataAsync("ghisler.com", "ghisler:plugins", Url, () => Http.GetBytesAsync(Url, cancellationToken), Encoding.UTF8.GetString, "text/html", "utf-8", cancellationToken).ConfigureAwait(false)).Text;
+                var html = cache == null ? await Http.GetStringAsync(Url, cancellationToken).ConfigureAwait(false) : (response = await cache.GetSharedMetadataAsync("ghisler.com", "ghisler:plugins", Url,
+                    () => Http.GetBytesAsync(Url, cancellationToken, TimeSpan.FromSeconds(20)), () => Http.GetBytesAsync(Url, cancellationToken, TimeSpan.FromSeconds(30)),
+                    Encoding.UTF8.GetString, "text/html", "utf-8", cancellationToken).ConfigureAwait(false)).Text;
                 var result = WithProvenance(Parse(source.Id, html), response);
                 Uri packageUrl;
                 if (result.Status == SourceQueryStatus.Success && result.Release != null &&

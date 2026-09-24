@@ -115,10 +115,11 @@ namespace TotalUpdater.Next.Tests
                 CachedSourceResponse stored;
                 Assert(!live.IsCached && persistent.TryRead(key, out stored) && stored.SourceUrl == url && stored.Sha256.Length == 64 && stored.Bytes.SequenceEqual(bytes), "live success writes persistent raw response cache");
 
-                var retryCalls = 0;
+                var firstAttempts = 0; var retryAttempts = 0;
                 var retry = new SourceResponseCache(new PersistentSourceCache(Path.Combine(root, "retry"))).GetSharedMetadataAsync("totalcmd.net", key, url,
-                    () => ++retryCalls == 1 ? Task.FromException<byte[]>(new TimeoutException("timeout")) : Task.FromResult(bytes), Encoding.UTF8.GetString, "text/plain", "utf-8").GetAwaiter().GetResult();
-                Assert(retryCalls == 2 && !retry.IsCached, "timeout retries once and accepts live success");
+                    () => { firstAttempts++; return Task.FromException<byte[]>(new TimeoutException("timeout")); }, () => { retryAttempts++; return Task.FromResult(bytes); },
+                    Encoding.UTF8.GetString, "text/plain", "utf-8").GetAwaiter().GetResult();
+                Assert(firstAttempts == 1 && retryAttempts == 1 && !retry.IsCached, "timeout uses exactly one distinct retry attempt and accepts live success");
 
                 var fallbackPersistent = new PersistentSourceCache(Path.Combine(root, "fallback"));
                 fallbackPersistent.Save(key, url, bytes, "text/plain", "utf-8"); var fallbackCalls = 0;
@@ -136,6 +137,12 @@ namespace TotalUpdater.Next.Tests
                 Task.WaitAll(Enumerable.Range(0, 40).Select(_ => shared.GetSharedMetadataAsync("totalcmd.net", key, url,
                     () => { Interlocked.Increment(ref sharedCalls); return Task.FromException<byte[]>(new TimeoutException()); }, Encoding.UTF8.GetString, "text/plain", "utf-8")).ToArray());
                 Assert(sharedCalls == 2, "forty plugins make no more than two live shared-index attempts");
+
+                var isolated = new SourceResponseCache(new PersistentSourceCache(Path.Combine(root, "isolated")));
+                try { isolated.GetSharedMetadataAsync("totalcmd.net", key, url, () => Task.FromException<byte[]>(new TimeoutException()), Encoding.UTF8.GetString, "text/plain", "utf-8").GetAwaiter().GetResult(); }
+                catch (InvalidOperationException) { }
+                var otherHost = isolated.GetSharedMetadataAsync("ghisler.com", "ghisler:plugins", "https://www.ghisler.com/plugins.htm", () => Task.FromResult(bytes), Encoding.UTF8.GetString, "text/html", "utf-8").GetAwaiter().GetResult();
+                Assert(!otherHost.IsCached && isolated.Health.IsUnavailable("totalcmd.net") && !isolated.Health.IsUnavailable("ghisler.com"), "one failed host does not block another shared source");
 
                 var stalePersistent = new PersistentSourceCache(Path.Combine(root, "stale")); stalePersistent.Save(key, url, bytes, fetchedUtc: DateTime.UtcNow.AddDays(-181));
                 var stale = new SourceResponseCache(stalePersistent).GetSharedMetadataAsync("totalcmd.net", key, url,

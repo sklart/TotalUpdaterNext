@@ -12,29 +12,31 @@ namespace TotalUpdater.Next.Sources
         public string UserAgent { get; private set; }
         public HttpService(string applicationVersion)
         {
-            _client = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
+            _client = new HttpClient { Timeout = System.Threading.Timeout.InfiniteTimeSpan };
             UserAgent = "TotalUpdaterNext/" + applicationVersion;
             _client.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
         }
-        public async Task<string> GetStringAsync(string url, CancellationToken token)
+        public async Task<string> GetStringAsync(string url, CancellationToken token, TimeSpan? timeout = null)
         {
             RequireHttpUrl(url);
             token.ThrowIfCancellationRequested();
-            using (var response = await _client.GetAsync(url, token).ConfigureAwait(false))
+            using (var request = CreateTimeoutToken(token, timeout))
+            using (var response = await _client.GetAsync(url, request.Token).ConfigureAwait(false))
             {
                 response.EnsureSuccessStatusCode();
-                token.ThrowIfCancellationRequested();
+                request.Token.ThrowIfCancellationRequested();
                 return await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             }
         }
-        public async Task<byte[]> GetBytesAsync(string url, CancellationToken token)
+        public async Task<byte[]> GetBytesAsync(string url, CancellationToken token, TimeSpan? timeout = null)
         {
             RequireHttpUrl(url);
             token.ThrowIfCancellationRequested();
-            using (var response = await _client.GetAsync(url, token).ConfigureAwait(false))
+            using (var request = CreateTimeoutToken(token, timeout))
+            using (var response = await _client.GetAsync(url, request.Token).ConfigureAwait(false))
             {
                 response.EnsureSuccessStatusCode();
-                token.ThrowIfCancellationRequested();
+                request.Token.ThrowIfCancellationRequested();
                 return await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
             }
         }
@@ -42,7 +44,7 @@ namespace TotalUpdater.Next.Sources
         {
             return DecodeTotalCmdIndex(await GetTotalCmdIndexBytesAsync(token).ConfigureAwait(false));
         }
-        public Task<byte[]> GetTotalCmdIndexBytesAsync(CancellationToken token) { return GetBytesAsync("https://totalcmd.net/get_plugins_list.php", token); }
+        public Task<byte[]> GetTotalCmdIndexBytesAsync(CancellationToken token, TimeSpan? timeout = null) { return GetBytesAsync("https://totalcmd.net/get_plugins_list.php", token, timeout); }
         public static string DecodeTotalCmdIndex(byte[] bytes)
         {
             if (bytes == null) return "";
@@ -56,6 +58,12 @@ namespace TotalUpdater.Next.Sources
             return Encoding.GetEncoding(1251).GetString(bytes);
         }
         public Task<HttpResponseMessage> GetAsync(string url, HttpCompletionOption completion, CancellationToken token) { RequireHttpUrl(url); return _client.GetAsync(url, completion, token); }
+        private static CancellationTokenSource CreateTimeoutToken(CancellationToken token, TimeSpan? timeout)
+        {
+            var linked = CancellationTokenSource.CreateLinkedTokenSource(token);
+            linked.CancelAfter(timeout ?? TimeSpan.FromSeconds(20));
+            return linked;
+        }
         private static void RequireHttpUrl(string value)
         {
             Uri uri;
