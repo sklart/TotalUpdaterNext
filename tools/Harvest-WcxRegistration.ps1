@@ -1,21 +1,6 @@
-param(
-    [string]$PackageDirectory = "",
-    [string]$ProbeExe = ""
-)
-
-$ErrorActionPreference = 'Stop'
-$root = Split-Path -Parent $PSScriptRoot
-$testExe = Join-Path $root 'TotalUpdater.Next.Tests\bin\Release\net48\TotalUpdater.Next.Tests.exe'
-if (-not (Test-Path -LiteralPath $testExe)) { throw "Build TotalUpdater.Next.Tests Release before harvesting WCX registration." }
-
-# This maintenance entry point intentionally does not download arbitrary URLs or
-# write catalog evidence on its own. A caller must first place verified ZIPs in
-# PackageDirectory; unverified packages never receive caps/evidence.
-& $testExe --audit-wcx-registration
-if ([string]::IsNullOrWhiteSpace($PackageDirectory)) {
-    Write-Host 'No PackageDirectory supplied: audit only; no WCX registration evidence was created.'
-    exit 0
-}
-if (-not (Test-Path -LiteralPath $PackageDirectory -PathType Container)) { throw "PackageDirectory does not exist: $PackageDirectory" }
-if ([string]::IsNullOrWhiteSpace($ProbeExe) -or -not (Test-Path -LiteralPath $ProbeExe -PathType Leaf)) { throw 'ProbeExe must be the built TotalUpdater.exe for isolated --wcx-probe execution.' }
-Write-Host 'Local verified-package harvest requires explicit review of ZIP identity and will not mutate catalog automatically.'
+param([Parameter(Mandatory=$true)][string]$PackageDirectory,[Parameter(Mandatory=$true)][string]$ProbeExe,[string]$ReportPath="")
+$ErrorActionPreference='Stop'; $root=Split-Path -Parent $PSScriptRoot; $catalog=@(Get-Content (Join-Path $root 'TotalUpdater.Next\Catalog\plugin-catalog.json') -Raw|ConvertFrom-Json|Where-Object type -eq Wcx)
+if(!(Test-Path $PackageDirectory -PathType Container)){throw 'PackageDirectory does not exist'}; if(!(Test-Path $ProbeExe -PathType Leaf)){throw 'ProbeExe does not exist'}; if(!$ReportPath){$ReportPath=Join-Path $PackageDirectory 'wcx-registration-harvest.json'}
+$results=[Collections.Generic.List[object]]::new()
+foreach($zip in Get-ChildItem $PackageDirectory -Filter *.zip -File){$id=[IO.Path]::GetFileNameWithoutExtension($zip.Name);$entry=@($catalog|Where-Object id -eq $id);if($entry.Count-ne 1){$results.Add([pscustomobject]@{id=$id;status='MissingPackage'});continue};$stage=Join-Path $env:TEMP ('TotalUpdaterNext\WcxHarvest\'+[guid]::NewGuid().ToString('N'));try{Expand-Archive $zip.FullName $stage -Force;$inf=Join-Path $stage pluginst.inf;if(!(Test-Path $inf)){throw 'MissingPluginst'};$raw=Get-Content $inf -Raw;$file=([regex]::Match($raw,'(?im)^\s*file\s*=\s*(.+)$')).Groups[1].Value.Trim();$extensions=@(([regex]::Match($raw,'(?im)^\s*defaultextension\s*=\s*(.+)$')).Groups[1].Value.Split(',')|ForEach-Object{$_.Trim().TrimStart('.')}|Where-Object{$_ -and $_ -notmatch '[=\[\],\r\n]'}|Select-Object -Unique);$binary=@(Get-ChildItem $stage -Recurse -File|Where-Object Name -ieq $file);if(!$file -or $extensions.Count-eq 0 -or $binary.Count-ne 1){throw 'MissingDefaultExtensionOrAmbiguousBinary'};$output=& $ProbeExe --wcx-probe $binary[0].FullName;if($LASTEXITCODE-ne 0 -or $output -notmatch '^True\|(\d+)\|(x86|x64)\|'){throw 'ProbeFailed'};$p=$output-split '\|';$results.Add([pscustomobject]@{id=$id;status='VerifiedRegistration';packageSha256=(Get-FileHash $zip.FullName -Algorithm SHA256).Hash.ToLowerInvariant();binarySha256=(Get-FileHash $binary[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant();architecture=$p[2];packerCaps=[int]$p[1];extensions=$extensions;verifiedUtc=(Get-Date).ToUniversalTime().ToString('o');source=$zip.FullName})}catch{$results.Add([pscustomobject]@{id=$id;status=$_.Exception.Message})}finally{if(Test-Path $stage){Remove-Item $stage -Recurse -Force}}}
+[IO.File]::WriteAllText($ReportPath,($results|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false));$results|Group-Object status|ForEach-Object{Write-Host ($_.Name+'='+$_.Count)}
