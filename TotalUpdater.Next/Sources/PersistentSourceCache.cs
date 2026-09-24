@@ -16,7 +16,7 @@ namespace TotalUpdater.Next.Sources
         public byte[] Bytes { get; set; }
         public string ContentType { get; set; }
         public string EncodingName { get; set; }
-        public bool IsStale(DateTime utcNow) { return FetchedUtc.ToUniversalTime() < utcNow.ToUniversalTime().AddDays(-180); }
+        public bool IsStale(DateTime utcNow, int maxAgeDays = 180) { return FetchedUtc.ToUniversalTime() < utcNow.ToUniversalTime().AddDays(-maxAgeDays); }
     }
 
     [DataContract]

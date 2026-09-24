@@ -16,7 +16,8 @@ namespace TotalUpdater.Next.Sources
         private readonly SourceHealthMonitor _health = new SourceHealthMonitor();
         private readonly PersistentSourceCache _persistent;
         private readonly bool _persistentEnabled;
-        public SourceResponseCache(PersistentSourceCache persistent = null, AppSettings settings = null) { _persistent = persistent ?? new PersistentSourceCache(); _persistentEnabled = settings == null || settings.UsePersistentMetadataCache; }
+        private readonly int _cacheMaxAgeDays;
+        public SourceResponseCache(PersistentSourceCache persistent = null, AppSettings settings = null) { _persistent = persistent ?? new PersistentSourceCache(); _persistentEnabled = settings == null || settings.UsePersistentMetadataCache; _cacheMaxAgeDays = settings == null ? 180 : settings.CacheMaxAgeDays; }
         public SourceHealthMonitor Health { get { return _health; } }
 
         public async Task<string> GetOrAdd(string key, Func<Task<string>> factory)
@@ -100,7 +101,7 @@ namespace TotalUpdater.Next.Sources
         {
             CachedSourceResponse cached;
             if (_persistentEnabled && _persistent.TryRead(key, out cached))
-                return new SharedSourceResponse { Text = decode(cached.Bytes), IsCached = true, CachedAt = cached.FetchedUtc, IsStale = cached.IsStale(DateTime.UtcNow) };
+                return new SharedSourceResponse { Text = decode(cached.Bytes), IsCached = true, CachedAt = cached.FetchedUtc, IsStale = cached.IsStale(DateTime.UtcNow, _cacheMaxAgeDays) };
             throw new InvalidOperationException("shared source unavailable for this check: " + host, liveFailure);
         }
     }

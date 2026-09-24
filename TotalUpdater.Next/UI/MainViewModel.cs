@@ -32,6 +32,7 @@ namespace TotalUpdater.Next.UI
         private readonly ISourceDiagnostics _sourceDiagnostics;
         private readonly SettingsService _settingsService;
         private readonly PersistentSourceCache _persistentCache;
+        private readonly Action<AppSettings> _networkReconfigure;
         private readonly string _backupRoot;
         private readonly CollectionViewSource _itemsView;
         private TotalCommanderConfiguration _configuration;
@@ -39,9 +40,9 @@ namespace TotalUpdater.Next.UI
         private int _checkGeneration;
         private string _iniPath = ""; private string _statusText = ""; private string _filter = "All";
 
-        public MainViewModel(TotalCommanderConfigurationResolver resolver, PluginDiscoveryService discovery, UpdateService updates, CatalogService catalog, DownloadService downloads, UserDataPaths paths, CatalogInstallService catalogInstall = null, ISourceDiagnostics sourceDiagnostics = null, SettingsService settingsService = null, SettingsValidationResult loadedSettings = null)
+        public MainViewModel(TotalCommanderConfigurationResolver resolver, PluginDiscoveryService discovery, UpdateService updates, CatalogService catalog, DownloadService downloads, UserDataPaths paths, CatalogInstallService catalogInstall = null, ISourceDiagnostics sourceDiagnostics = null, SettingsService settingsService = null, SettingsValidationResult loadedSettings = null, Action<AppSettings> networkReconfigure = null)
         {
-            _resolver = resolver; _discovery = discovery; _updates = updates; _catalog = catalog; _downloads = downloads; _paths = paths; _catalogInstall = catalogInstall; _sourceDiagnostics = sourceDiagnostics; _settingsService = settingsService; _persistentCache = new PersistentSourceCache(); Settings = loadedSettings == null ? new AppSettings() : loadedSettings.Settings;
+            _resolver = resolver; _discovery = discovery; _updates = updates; _catalog = catalog; _downloads = downloads; _paths = paths; _catalogInstall = catalogInstall; _sourceDiagnostics = sourceDiagnostics; _settingsService = settingsService; _persistentCache = new PersistentSourceCache(); _networkReconfigure = networkReconfigure; Settings = loadedSettings == null ? new AppSettings() : loadedSettings.Settings;
             _backupRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TotalUpdaterNext", "backups");
             Items = new ObservableCollection<PluginRowViewModel>(); _itemsView = new CollectionViewSource { Source = Items }; _itemsView.GroupDescriptions.Add(new PropertyGroupDescription("Group")); _itemsView.Filter += Filter;
             DiscoverCommand = new RelayCommand(x => Discover()); CheckCommand = new RelayCommand(async x => await CheckAsync()); DownloadCommand = new RelayCommand(async x => await DownloadAsync());
@@ -84,9 +85,14 @@ namespace TotalUpdater.Next.UI
         private void ApplySettings()
         {
             if (_settingsService == null) { StatusText = "Сохранение настроек недоступно."; return; }
-            var validated = new SettingsValidator().Validate(Settings); Settings = validated.Settings; _settingsService.Save(Settings); Changed("Settings"); Changed("DownloadDirectory"); Changed("CacheSize"); Changed("ExclusionCount"); Discover(); StatusText = validated.Warnings.Count == 0 ? "Настройки применены." : String.Join(" ", validated.Warnings);
+            var validated = new SettingsValidator().Validate(Settings); Settings = validated.Settings; _settingsService.Save(Settings); if (_networkReconfigure != null) _networkReconfigure(Settings); Changed("Settings"); Changed("DownloadDirectory"); Changed("CacheSize"); Changed("ExclusionCount"); Discover(); StatusText = validated.Warnings.Count == 0 ? "Настройки применены." : String.Join(" ", validated.Warnings);
         }
-        private void ResetSettings() { Settings = new AppSettings(); Changed("Settings"); Changed("DownloadDirectory"); Changed("CacheSize"); Changed("ExclusionCount"); StatusText = "Восстановлены значения по умолчанию. Нажмите «Применить»."; }
+        private void ResetSettings()
+        {
+            var defaults = new AppSettings();
+            foreach (var property in typeof(AppSettings).GetProperties().Where(x => x.CanRead && x.CanWrite)) property.SetValue(Settings, property.GetValue(defaults, null), null);
+            Changed("Settings"); Changed("ScanUnregisteredDirectories"); Changed("DownloadDirectory"); Changed("CacheSize"); Changed("ExclusionCount"); StatusText = "Восстановлены значения по умолчанию. Нажмите «Применить».";
+        }
         private void ClearCache() { _persistentCache.Clear(); Changed("CacheSize"); StatusText = "Кэш metadata очищен."; }
         private void AcceptVersion(PluginRowViewModel row) { if (row == null || row.Candidate == null || !row.Candidate.AvailableVersion.IsKnown) { StatusText = "Сначала проверьте доступную версию."; return; } new AcceptedVersionService(Settings).Accept(row.Plugin, row.Candidate.AvailableVersion); ApplySettings(); StatusText = "Установленная версия отмечена как актуальная: " + row.Name; }
         private string ExclusionKey(PluginRowViewModel row) { return row.Plugin.CatalogMatchKind == CatalogMatchKind.NotFound ? row.Plugin.Type + "|" + Path.GetFullPath(row.Path).ToLowerInvariant() : row.Plugin.Identity.Id; }
@@ -229,7 +235,9 @@ namespace TotalUpdater.Next.UI
                             row.Candidate.Details = "Пакет не содержит бинарник текущего плагина; установка запрещена."; row.Apply(row.Candidate); continue; }
                         row.Candidate.PackageAvailability = PackageAvailability.Verified;
                     }
-                    DownloadedPackagePolicy.Record(row.Candidate, path); row.Candidate.Details = String.Format(Text.Get("Downloaded"), Path.GetFileName(path)); row.Apply(row.Candidate); done++; }
+                    DownloadedPackagePolicy.Record(row.Candidate, path); row.Candidate.Details = String.Format(Text.Get("Downloaded"), Path.GetFileName(path)); row.Apply(row.Candidate); done++;
+                    if (Settings.PostDownloadAction == PostDownloadAction.OfferInstall && String.Equals(Path.GetExtension(path), ".zip", StringComparison.OrdinalIgnoreCase))
+                        System.Windows.MessageBox.Show(System.Windows.Application.Current.MainWindow, "ZIP загружен: " + Path.GetFileName(path) + Environment.NewLine + "Для установки выберите один плагин и нажмите «Установить отмеченный».", "Загрузка завершена", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information); }
                 catch (Exception ex) { row.Candidate.Details = ex.Message; StatusText = "Скачивание не выполнено: " + ex.Message; }
             }
             StatusText = String.Format(Text.Get("DownloadedCount"), done);

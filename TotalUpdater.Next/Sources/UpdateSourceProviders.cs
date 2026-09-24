@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using TotalUpdater.Next.Catalog;
 using TotalUpdater.Next.Core.Versions;
+using TotalUpdater.Next.Settings;
 
 namespace TotalUpdater.Next.Sources
 {
@@ -253,7 +254,8 @@ namespace TotalUpdater.Next.Sources
     public sealed class GitHubReleaseSourceProvider : ICachedUpdateSourceProvider
     {
         private readonly HttpService _http;
-        public GitHubReleaseSourceProvider(HttpService http) { _http = http; }
+        private readonly AppSettings _settings;
+        public GitHubReleaseSourceProvider(HttpService http, AppSettings settings = null) { _http = http; _settings = settings; }
         public string Name { get { return "GitHub Releases"; } }
         public bool CanHandle(CatalogSource source) { return source != null && source.Provider.Equals("github", StringComparison.OrdinalIgnoreCase); }
         public async Task<SourceQueryResult> QueryAsync(CatalogSource source, CancellationToken cancellationToken)
@@ -266,16 +268,16 @@ namespace TotalUpdater.Next.Sources
             {
                 var url = "https://api.github.com/repos/" + source.Repository + "/releases";
                 var json = cache == null ? await _http.GetStringAsync(url, cancellationToken).ConfigureAwait(false) : await cache.GetOrAdd("github:" + source.Repository, () => _http.GetStringAsync(url, cancellationToken)).ConfigureAwait(false);
-                return Parse(json, source);
+                return Parse(json, source, _settings != null && _settings.IncludePrerelease);
             }
             catch (OperationCanceledException) { throw; }
             catch (Exception ex) { return Result(SourceQueryStatus.Unavailable, null, ex.Message); }
         }
-        public static SourceQueryResult Parse(string json, CatalogSource source)
+        public static SourceQueryResult Parse(string json, CatalogSource source, bool includePrereleaseSetting = false)
         {
             try
             {
-                var releases = Deserialize(json); var release = releases.FirstOrDefault(x => !x.Draft && (source.IncludePrerelease || !x.Prerelease));
+                var releases = Deserialize(json); var release = releases.FirstOrDefault(x => !x.Draft && (source.IncludePrerelease || includePrereleaseSetting || !x.Prerelease));
                 if (release == null) return Result(SourceQueryStatus.NotFound, null, "Подходящий GitHub release не найден.");
                 var version = VersionValue.Parse((release.TagName ?? "").TrimStart('v', 'V'));
                 if (!version.IsKnown || !IsHttpUrl(release.HtmlUrl)) return Result(SourceQueryStatus.InvalidResponse, null, "Некорректный GitHub release.");

@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using TotalUpdater.Next.Core;
 using TotalUpdater.Next.Core.Versions;
+using TotalUpdater.Next.Settings;
 
 namespace TotalUpdater.Next.TotalCommander
 {
@@ -25,13 +26,13 @@ namespace TotalUpdater.Next.TotalCommander
         private readonly IList<IPluginSpecificVersionStrategy> _strategies;
         private readonly IList<IVersionProbe> _genericProbes;
 
-        public LocalVersionResolver()
-            : this(LocalVersionStrategyRegistry.Default.CreateStrategies(), new IVersionProbe[] { new FileVersionProbe(), new ProductVersionProbe(), new TextVersionProbe() }) { }
+        public LocalVersionResolver(AppSettings settings = null)
+            : this(LocalVersionStrategyRegistry.Default.CreateStrategies(), new IVersionProbe[] { new FileVersionProbe(), new ProductVersionProbe(), new TextVersionProbe() }, settings) { }
 
-        public LocalVersionResolver(IEnumerable<IPluginSpecificVersionStrategy> strategies, IEnumerable<IVersionProbe> genericProbes)
+        public LocalVersionResolver(IEnumerable<IPluginSpecificVersionStrategy> strategies, IEnumerable<IVersionProbe> genericProbes, AppSettings settings = null)
         {
             _strategies = (strategies ?? Enumerable.Empty<IPluginSpecificVersionStrategy>()).ToList();
-            _genericProbes = (genericProbes ?? Enumerable.Empty<IVersionProbe>()).ToList();
+            _genericProbes = (genericProbes ?? Enumerable.Empty<IVersionProbe>()).Where(x => settings == null || settings.UseExtendedVersionDetection || !(x is TextVersionProbe)).ToList();
         }
 
         public LocalVersion Resolve(string path) { return Resolve(path, new PluginIdentity()); }
