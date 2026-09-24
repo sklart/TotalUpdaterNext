@@ -2,6 +2,7 @@ using System;
 using System.Net.Http;
 using System.Net;
 using System.Text;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using TotalUpdater.Next.Settings;
@@ -12,6 +13,7 @@ namespace TotalUpdater.Next.Sources
     {
         private HttpClient _client;
         private AppSettings _settings;
+        private readonly IList<HttpClient> _retiredClients = new List<HttpClient>();
         public string UserAgent { get; private set; }
         public HttpService(string applicationVersion, AppSettings settings = null)
         {
@@ -30,7 +32,7 @@ namespace TotalUpdater.Next.Sources
             }
             var client = new HttpClient(handler) { Timeout = System.Threading.Timeout.InfiniteTimeSpan }; client.DefaultRequestHeaders.UserAgent.ParseAdd("TotalUpdaterNext/" + applicationVersion); return client;
         }
-        public void Reconfigure(AppSettings settings) { var next = CreateClient(settings ?? new AppSettings(), UserAgent.Substring(UserAgent.IndexOf('/') + 1)); var old = _client; _settings = settings ?? new AppSettings(); _client = next; old.Dispose(); }
+        public void Reconfigure(AppSettings settings) { var next = CreateClient(settings ?? new AppSettings(), UserAgent.Substring(UserAgent.IndexOf('/') + 1)); var old = _client; _settings = settings ?? new AppSettings(); _client = next; if (old != null) _retiredClients.Add(old); }
         public TimeSpan FirstRequestTimeout { get { return TimeSpan.FromSeconds(_settings.FirstRequestTimeoutSeconds); } }
         public TimeSpan RetryTimeout { get { return TimeSpan.FromSeconds(_settings.RetryTimeoutSeconds); } }
         public async Task<string> GetStringAsync(string url, CancellationToken token, TimeSpan? timeout = null)
@@ -87,6 +89,6 @@ namespace TotalUpdater.Next.Sources
             if (!Uri.TryCreate(value, UriKind.Absolute, out uri) || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
                 throw new ArgumentException("Разрешены только HTTP/HTTPS URL.", nameof(value));
         }
-        public void Dispose() { _client.Dispose(); }
+        public void Dispose() { _client.Dispose(); foreach (var client in _retiredClients) client.Dispose(); }
     }
 }
