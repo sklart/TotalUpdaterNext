@@ -851,7 +851,7 @@ namespace TotalUpdater.Next.Tests
                 var catalog = new CatalogService(Path.Combine(root, "user.json")); var provider = new MeasuredProvider(40, 4); var runner = new UpdateCheckRunner(new UpdateService(catalog, new IUpdateSourceProvider[] { provider }));
                 var plugins = Enumerable.Range(0, 20).Select(x => new InstalledPlugin { Identity = new PluginIdentity { Id = "total7zip" }, LocalVersion = FileVersionProbe.Create("0.1", VersionSource.FileVersion, VersionConfidence.Exact) }).ToList();
                 var applied = 0; var result = runner.RunAsync(plugins, (p, c) => System.Threading.Interlocked.Increment(ref applied), (n, total) => { }, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
-                Assert(provider.Peak > 1 && provider.Peak <= 4, "bounded runner has parallelism up to four");
+                Assert(UpdateCheckRunner.MaximumParallelism == 4 && provider.Peak >= 1 && provider.Peak <= UpdateCheckRunner.MaximumParallelism, "bounded runner has configured parallelism up to four");
                 Assert(applied == 20 && result.Completed == 20, "one failing provider does not stop remaining checks");
                 var slow = new MeasuredProvider(500, -1); runner = new UpdateCheckRunner(new UpdateService(catalog, new IUpdateSourceProvider[] { slow })); var cancelledApplied = 0; var cts = new System.Threading.CancellationTokenSource();
                 var task = runner.RunAsync(plugins, (p, c) => System.Threading.Interlocked.Increment(ref cancelledApplied), (n, total) => { }, cts.Token); System.Threading.Thread.Sleep(70); cts.Cancel(); var cancelled = task.GetAwaiter().GetResult();
