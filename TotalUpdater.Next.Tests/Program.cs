@@ -35,6 +35,7 @@ namespace TotalUpdater.Next.Tests
                 if (args != null && args.Any(x => x.Equals("--audit-full-catalog", StringComparison.OrdinalIgnoreCase))) return AuditFullCatalog();
                 if (args != null && args.Any(x => x.Equals("--audit-wcx-registration", StringComparison.OrdinalIgnoreCase))) return AuditWcxRegistration(args);
                 if (args != null && args.Any(x => x.Equals("--validate-wcx-registration-evidence", StringComparison.OrdinalIgnoreCase))) return ValidateWcxRegistrationEvidence();
+                if (args != null && args.Any(x => x.Equals("--verify-wcx-install-e2e", StringComparison.OrdinalIgnoreCase))) return VerifyWcxInstallE2E(args);
                 if (args != null && args.Any(x => x.Equals("--harvest-wcx-registration", StringComparison.OrdinalIgnoreCase))) return HarvestWcxRegistration(args);
                 if (args != null && args.Any(x => x.Equals("--merge-wcx-registration-evidence", StringComparison.OrdinalIgnoreCase))) return MergeWcxRegistrationEvidence(args);
                 if (args != null && args.Any(x => x.Equals("--audit-installed-coverage", StringComparison.OrdinalIgnoreCase))) return AuditInstalledCoverage(args);

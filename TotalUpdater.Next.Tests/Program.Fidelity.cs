@@ -13,6 +13,7 @@ using TotalUpdater.Next.Core;
 using TotalUpdater.Next.Core.Installation;
 using TotalUpdater.Next.Core.Versions;
 using TotalUpdater.Next.Infrastructure;
+using TotalUpdater.Next.Infrastructure.Installation;
 using TotalUpdater.Next.Sources;
 using TotalUpdater.Next.TotalCommander;
 using TotalUpdater.Next.UI;
@@ -58,6 +59,63 @@ namespace TotalUpdater.Next.Tests
             foreach (var diagnostic in diagnostics) Console.WriteLine(diagnostic);
             Console.WriteLine("WCX registration evidence: entries=" + catalog.Count(x => x.WcxRegistration != null) + "; errors=" + diagnostics.Count);
             return diagnostics.Count == 0 ? 0 : 1;
+        }
+        // Maintenance-only live verification. It never uses a discovered/user INI: every
+        // install is performed into a fresh temporary TC layout and rolled back immediately.
+        private static int VerifyWcxInstallE2E(string[] args)
+        {
+            var rawIds = CommandValue(args, "--ids");
+            var ids = (rawIds ?? "").Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim()).Where(x => x.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (ids.Count == 0) { Console.Error.WriteLine("Использование: --verify-wcx-install-e2e --ids <id1,id2,...>"); return 1; }
+            var root = Path.Combine(Path.GetTempPath(), "TotalUpdaterNext", "wcx-e2e", Guid.NewGuid().ToString("N"));
+            var failures = 0;
+            Directory.CreateDirectory(root);
+            try
+            {
+                var catalog = new CatalogService(Path.Combine(root, "user-catalog.json")).Load();
+                using (var http = new HttpService(ApplicationMetadata.Version))
+                {
+                    var candidates = new CatalogInstallService(UpdateSourceProviderFactory.Create(http));
+                    var downloads = new DownloadService(http);
+                    foreach (var id in ids)
+                    {
+                        PackageInspection package = null;
+                        try
+                        {
+                            var entry = catalog.FirstOrDefault(x => String.Equals(x.Id, id, StringComparison.OrdinalIgnoreCase));
+                            if (entry == null || entry.PluginType != PluginType.Wcx || !entry.HasVerifiedWcxRegistration) throw new InvalidOperationException("Нет verified WCX evidence.");
+                            var candidate = candidates.CheckAsync(entry, CancellationToken.None).GetAwaiter().GetResult();
+                            if (candidate.DownloadUrl == null || !String.Equals(candidate.DownloadUrl.AbsoluteUri, entry.WcxRegistration.PackageUrl, StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("Live download source не совпадает с hash-bound evidence.");
+                            var packagePath = downloads.DownloadAsync(candidate.DownloadUrl, Path.Combine(root, "downloads"), CancellationToken.None).GetAwaiter().GetResult();
+                            package = new PackageInspector().Inspect(packagePath);
+                            if (!String.Equals(package.PackageSha256, entry.WcxRegistration.PackageSha256, StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("Live package SHA-256 не совпадает с evidence.");
+                            var tc = Path.Combine(root, id, "tc"); Directory.CreateDirectory(tc); File.WriteAllBytes(Path.Combine(tc, "TOTALCMD.EXE"), new byte[] { 0 });
+                            var ini = Path.Combine(tc, "wincmd.ini"); File.WriteAllText(ini, "[PackerPlugins]" + Environment.NewLine);
+                            var configuration = new TotalCommanderConfiguration { IniPath = ini, InstallDirectory = tc, Document = new IniDocumentReader().Read(ini) };
+                            var plan = new NewPluginInstallPlanBuilder().Build(entry, candidate, package, configuration, new InstalledPlugin[0], Path.Combine(root, id, "backups"));
+                            var originalIni = File.ReadAllBytes(ini);
+                            var manifest = new NewPluginTransactionalInstaller(isTotalCommanderRunning: () => false).Install(plan, () => E2ERediscover(entry, plan, ini));
+                            var registered = new IniDocumentReader().Read(ini).GetSection("PackerPlugins");
+                            if (manifest.State != InstallStateMachine.Completed || !plan.ConfigurationFiles.SelectMany(x => x.Changes).All(x => registered.GetValue(x.Key) == x.Value)) throw new InvalidOperationException("PackerPlugins registration не подтверждена.");
+                            new NewPluginRollbackService().Rollback(manifest, Path.Combine(root, id, "backups"));
+                            if (!originalIni.SequenceEqual(File.ReadAllBytes(ini)) || File.Exists(plan.PrimaryPath)) throw new InvalidOperationException("Rollback не восстановил тестовую TC-конфигурацию.");
+                            Console.WriteLine("PASS " + id + " package/evidence/plan/PackerPlugins/install/rediscovery/rollback");
+                        }
+                        catch (Exception ex) { failures++; Console.WriteLine("FAIL " + id + " " + ex.Message); }
+                        finally { if (package != null && Directory.Exists(package.StagingDirectory)) { try { Directory.Delete(package.StagingDirectory, true); } catch { } } }
+                    }
+                }
+            }
+            finally { if (Directory.Exists(root)) { try { Directory.Delete(root, true); } catch { } } }
+            return failures == 0 ? 0 : 1;
+        }
+        private static InstalledPlugin E2ERediscover(PluginCatalogEntry entry, NewPluginInstallPlan plan, string ini)
+        {
+            var section = new IniDocumentReader().Read(ini).GetSection("PackerPlugins");
+            if (section == null || !plan.ConfigurationFiles.SelectMany(x => x.Changes).All(x => String.Equals(section.GetValue(x.Key), x.Value, StringComparison.OrdinalIgnoreCase))) return null;
+            return new InstalledPlugin { Identity = new PluginIdentity { Id = entry.Id }, Type = PluginType.Wcx, PrimaryPath = plan.PrimaryPath, FileExists = File.Exists(plan.PrimaryPath),
+                Binaries = plan.RequiredBinaryPaths.Select(x => new PluginBinary { Path = x, Exists = File.Exists(x), Architecture = x.EndsWith("64", StringComparison.OrdinalIgnoreCase) ? PluginArchitecture.X64 : PluginArchitecture.X86, LocalVersion = FileVersionProbe.Create(plan.Version, VersionSource.FileVersion, VersionConfidence.Exact) }).ToList(),
+                LocalVersion = FileVersionProbe.Create(plan.Version, VersionSource.FileVersion, VersionConfidence.Exact) };
         }
         private static int MergeWcxRegistrationEvidence(string[] args)
         {
