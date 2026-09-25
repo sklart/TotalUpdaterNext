@@ -1,4 +1,6 @@
 <Solution>
   <Project Path="TotalUpdater.Next.Tests/TotalUpdater.Next.Tests.csproj" />
   <Project Path="TotalUpdater.Next/TotalUpdater.Next.csproj" />
+  <Project Path="WcxProbe.x86/WcxProbe.x86.csproj" />
+  <Project Path="WcxProbe.x64/WcxProbe.x64.csproj" />
 </Solution>

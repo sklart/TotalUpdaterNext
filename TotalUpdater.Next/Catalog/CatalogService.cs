@@ -127,7 +127,7 @@ namespace TotalUpdater.Next.Catalog
             if (entry.WcxRegistration != null)
             {
                 if (entry.PluginType != PluginType.Wcx) { error = "wcxRegistration разрешён только для WCX."; return false; }
-                if (!entry.WcxRegistration.IsComplete) { error = "Некорректный или неполный WCX registration evidence."; return false; }
+                if (!entry.WcxRegistration.IsComplete || entry.WcxRegistration.PackerCaps < 0) { error = "Некорректный или неполный WCX registration evidence."; return false; }
                 if (entry.WcxRegistration.Extensions.Any(x => String.IsNullOrWhiteSpace(x) || x.Trim().TrimStart('.').IndexOfAny(new[] { '=', '\r', '\n', '[', ']', ',' }) >= 0)) { error = "Некорректные WCX extensions."; return false; }
             }
             if (!LocalVersionStrategyRegistry.Default.Contains(entry.LocalVersionStrategy)) { error = "Неизвестная localVersionStrategy."; return false; }

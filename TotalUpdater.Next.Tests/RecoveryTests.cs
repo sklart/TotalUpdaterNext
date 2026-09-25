@@ -16,7 +16,7 @@ namespace TotalUpdater.Next.Tests
     {
         public static void Run(Action<bool, string> check)
         {
-            var root = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tu-recovery-tests-" + Guid.NewGuid().ToString("N"));
+            var root = Path.Combine(Path.GetTempPath(), "TotalUpdaterNext", "tests", "recovery-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(root);
             var stages = new List<string>();
             try

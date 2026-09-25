@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using TotalUpdater.Next.Catalog;
 using TotalUpdater.Next.Core;
+using TotalUpdater.Next.Core.Installation;
 using TotalUpdater.Next.Core.Versions;
 using TotalUpdater.Next.Infrastructure;
 using TotalUpdater.Next.Sources;
@@ -38,9 +39,55 @@ namespace TotalUpdater.Next.Tests
         }
         private static int AuditWcxRegistration()
         {
-            var catalog = new CatalogService(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".json")).Load(); var report = WcxRegistrationAudit.Audit(catalog);
-            Console.WriteLine("WCX total=" + report.WcxTotal + "; VerifiedRegistration=" + report.VerifiedRegistration + "; MissingPackage=" + report.MissingPackage + "; MissingPluginst=" + report.MissingPluginst + "; MissingDefaultExtension=" + report.MissingDefaultExtension + "; ProbeFailed=" + report.ProbeFailed + "; ArchitectureMismatch=" + report.ArchitectureMismatch + "; HashMismatch=" + report.HashMismatch + "; AmbiguousBinary=" + report.AmbiguousBinary);
+            var catalog = new CatalogService(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".json")).Load();
+            var findings = WcxRegistrationHarvest.Read(Path.Combine(Environment.CurrentDirectory, "TotalUpdater.Next", "Catalog", "wcx-registration-harvest.json"));
+            var report = WcxRegistrationAudit.Audit(catalog, findings);
+            Console.WriteLine("WCX total=" + report.WcxTotal + "; Downloadable=" + report.Downloadable + "; VerifiedRegistration=" + report.VerifiedRegistration + "; MissingPackage=" + report.MissingPackage + "; MissingPluginst=" + report.MissingPluginst + "; MissingDefaultExtension=" + report.MissingDefaultExtension + "; AmbiguousBinary=" + report.AmbiguousBinary + "; ProbeFailed=" + report.ProbeFailed + "; ProbeTimeout=" + report.ProbeTimeout + "; ProbeArchitectureMismatch=" + report.ProbeArchitectureMismatch + "; CapsMismatch=" + report.CapsMismatch + "; PackageIdentityMismatch=" + report.PackageIdentityMismatch + "; HashMismatch=" + report.HashMismatch + "; NotHarvested=" + report.NotHarvested);
             return 0;
+        }
+        private static int HarvestWcxRegistration(string[] args)
+        {
+            var id = CommandValue(args, "--id");
+            var output = CommandValue(args, "--output");
+            if (String.IsNullOrWhiteSpace(id) || String.IsNullOrWhiteSpace(output))
+            {
+                Console.Error.WriteLine("Использование: --harvest-wcx-registration --id <catalog-id> --output <evidence.json>");
+                return 1;
+            }
+            // Deliberately one explicit catalog ID per invocation.  It keeps
+            // download/probe consent narrow; batch orchestration can call this
+            // maintenance command repeatedly and aggregate the JSON findings.
+            var catalog = new CatalogService(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".json"));
+            var entry = catalog.FindById(id);
+            if (entry == null || entry.PluginType != PluginType.Wcx) { Console.Error.WriteLine("WCX запись каталога не найдена: " + id); return 1; }
+            var root = Path.Combine(Path.GetTempPath(), "TotalUpdaterNext", "wcx-harvest", Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(root);
+            try
+            {
+                using (var http = new HttpService(ApplicationMetadata.Version))
+                {
+                    var providers = UpdateSourceProviderFactory.Create(http);
+                    var candidates = new CatalogInstallService(providers);
+                    var downloads = new DownloadService(http);
+                    var harvester = new WcxRegistrationHarvester(
+                        (candidateEntry, token) => candidates.CheckAsync(candidateEntry, token),
+                        (url, token) => downloads.DownloadAsync(url, root, token));
+                    var finding = harvester.HarvestAsync(entry, CancellationToken.None).GetAwaiter().GetResult();
+                    WcxRegistrationHarvest.Write(output, new[] { finding });
+                    Console.WriteLine(entry.Id + " | " + finding.Status + " | " + output);
+                    return String.Equals(finding.Status, WcxRegistrationHarvest.VerifiedRegistration, StringComparison.Ordinal) ? 0 : 2;
+                }
+            }
+            finally
+            {
+                if (Directory.Exists(root)) { try { Directory.Delete(root, true); } catch { } }
+            }
+        }
+        private static string CommandValue(string[] args, string name)
+        {
+            if (args == null) return null;
+            for (var index = 0; index + 1 < args.Length; index++) if (String.Equals(args[index], name, StringComparison.OrdinalIgnoreCase)) return args[index + 1];
+            return null;
         }
         private static int ValidateHarvestEvidence()
         {
@@ -104,8 +151,21 @@ namespace TotalUpdater.Next.Tests
             Assert(HarvestEvidenceAudit.Validate(new[] { new HarvestEvidence { Id = "bad-type", Type = "Unknown", Aliases = new List<string> { "bad.wlx" },
                 PackageUrl = "https://example.test/bad.zip", VerifiedUtc = "2026-09-23" } }, new DateTime(2026, 9, 23)).Any(x => x.Contains("invalid type")),
                 "harvest invalid type validation");
-            var wcxAudit = WcxRegistrationAudit.Audit(new[] { new PluginCatalogEntry { Id = "verified", Name = "Verified", Type = "Wcx", IdentityEvidenceName = "VerifiedPackage", WcxRegistration = new WcxRegistrationEvidence { Extensions = new List<string> { "7z" }, PackerCaps = 1, PackageSha256 = new string('a', 64), BinarySha256 = new string('b', 64), VerifiedUtc = DateTime.UtcNow, Source = "test" } }, new PluginCatalogEntry { Id = "missing", Name = "Missing", Type = "Wcx", Sources = new List<CatalogSource>() } });
+            var wcxAudit = WcxRegistrationAudit.Audit(new[] { new PluginCatalogEntry { Id = "verified", Name = "Verified", Type = "Wcx", IdentityEvidenceName = "VerifiedPackage", WcxRegistration = new WcxRegistrationEvidence { Extensions = new List<string> { "7z" }, PackerCaps = 0, PackageSha256 = new string('a', 64), X86BinarySha256 = new string('b', 64), VerifiedUtc = DateTime.UtcNow, Source = "test" } }, new PluginCatalogEntry { Id = "missing", Name = "Missing", Type = "Wcx", Sources = new List<CatalogSource>() } }, new[] { new WcxRegistrationHarvestFinding { Id = "verified", Status = WcxRegistrationHarvest.VerifiedRegistration }, new WcxRegistrationHarvestFinding { Id = "missing", Status = WcxRegistrationHarvest.MissingPackage } });
             Assert(wcxAudit.WcxTotal == 2 && wcxAudit.VerifiedRegistration == 1 && wcxAudit.MissingPackage == 1, "WCX registration audit distinguishes verified and missing package evidence");
+            var mergeFinding = new WcxRegistrationHarvestFinding { Id = "verified", Status = WcxRegistrationHarvest.VerifiedRegistration, Evidence = new WcxRegistrationEvidence { PackageSha256 = new string('a', 64), X86BinarySha256 = new string('b', 64), PackerCaps = 0, Extensions = new List<string> { "7z" }, VerifiedUtc = DateTime.UtcNow, Source = "fixture" } };
+            Assert(WcxRegistrationHarvest.IsValidVerifiedFinding(mergeFinding), "WCX merge fixture accepts valid caps-zero evidence");
+            mergeFinding.Evidence.Extensions.Add("7Z"); Assert(!WcxRegistrationHarvest.IsValidVerifiedFinding(mergeFinding), "WCX merge fixture rejects duplicate extensions");
+            var mergeEntry = new PluginCatalogEntry { Id = "merge-wcx", Name = "Merge WCX", Type = "Wcx", Version = "1.0", Aliases = new List<string> { "merge.wcx" }, Sources = new List<CatalogSource> { new CatalogSource { Provider = "fixture", Url = "https://example.test/merge.zip" } } };
+            var originalName = mergeEntry.Name; var originalVersion = mergeEntry.Version; var originalAliases = String.Join("|", mergeEntry.Aliases); var originalSource = mergeEntry.Sources[0].Url;
+            var validMerge = new WcxRegistrationHarvestFinding { Id = "merge-wcx", Status = WcxRegistrationHarvest.VerifiedRegistration, Evidence = new WcxRegistrationEvidence { PackageSha256 = new string('c', 64), X86BinarySha256 = new string('d', 64), PackerCaps = 0, Extensions = new List<string> { "zip" }, VerifiedUtc = DateTime.UtcNow, Source = "fixture" } };
+            string mergeError;
+            Assert(WcxRegistrationEvidenceMerger.TryApply(new List<PluginCatalogEntry> { mergeEntry }, new[] { validMerge }, out mergeError) && mergeEntry.WcxRegistration != validMerge.Evidence && mergeEntry.Name == originalName && mergeEntry.Version == originalVersion && String.Join("|", mergeEntry.Aliases) == originalAliases && mergeEntry.Sources[0].Url == originalSource, "WCX merge updates only registration evidence");
+            Assert(!WcxRegistrationEvidenceMerger.TryApply(new List<PluginCatalogEntry> { mergeEntry }, new[] { validMerge, validMerge }, out mergeError), "WCX merge rejects duplicate verified findings atomically");
+            var evidencePath = Path.Combine(NewRoot(), "renamed-evidence.json");
+            WcxRegistrationHarvest.Write(evidencePath, new[] { validMerge });
+            var roundTrip = WcxRegistrationHarvest.Read(evidencePath).Single();
+            Assert(roundTrip.Id == "merge-wcx" && roundTrip.Evidence.PackerCaps == 0 && roundTrip.Evidence.X86BinarySha256 == validMerge.Evidence.X86BinarySha256 && roundTrip.Evidence.VerifiedUtc != default(DateTime), "WCX evidence JSON round-trip preserves caps-zero hashes and verification UTC");
             var remoteEntry = RemoteCatalogLookup.BuildVerifiedEntry(new[] { new RemoteIndexCandidate { Id = "Sample", Name = "Sample", Type = PluginType.Wlx,
                 Official = true, PackageUrl = "https://plugins.ghisler.com/lsplugins/sample.zip" } }, "sample.wlx");
             Assert(remoteEntry.Sources.Single().EphemeralVerifiedPackageUrl.EndsWith("sample.zip") && remoteEntry.Sources.Single().PurposeValue == SourcePurpose.MetadataAndDownload,

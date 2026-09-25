@@ -62,7 +62,7 @@ namespace TotalUpdater.Next.Infrastructure.Installation
                             record.State = InstallStateMachine.PendingFile; BackupService.Save(manifest);
                             throw new ConfigConflictException("ConfigConflict: INI изменён перед replace: " + patch.Path);
                         }
-                        File.Replace(temporary, patch.Path, null);
+                        AtomicFile.Replace(temporary, patch.Path);
                     }
                     finally { if (File.Exists(temporary)) File.Delete(temporary); }
                     record.State = InstallStateMachine.InstalledFile; BackupService.Save(manifest);

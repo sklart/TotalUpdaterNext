@@ -44,12 +44,12 @@ namespace TotalUpdater.Next.Catalog
         [DataMember(Name = "extensions")] public List<string> Extensions { get; set; } = new List<string>();
         [DataMember(Name = "packerCaps")] public int PackerCaps { get; set; }
         [DataMember(Name = "packageSha256")] public string PackageSha256 { get; set; }
-        [DataMember(Name = "binarySha256")] public string BinarySha256 { get; set; }
-        [DataMember(Name = "architecture")] public string Architecture { get; set; }
+        [DataMember(Name = "x86BinarySha256")] public string X86BinarySha256 { get; set; }
+        [DataMember(Name = "x64BinarySha256")] public string X64BinarySha256 { get; set; }
         [DataMember(Name = "verifiedUtc")] public DateTime VerifiedUtc { get; set; }
         [DataMember(Name = "source")] public string Source { get; set; }
-        public bool IsComplete { get { return PackerCaps > 0 && Extensions != null && Extensions.Count > 0 && IsSha(PackageSha256) && IsSha(BinarySha256) && VerifiedUtc != default(DateTime) && !String.IsNullOrWhiteSpace(Source); } }
-        private static bool IsSha(string value) { return !String.IsNullOrWhiteSpace(value) && value.Length == 64 && value.All(c => Uri.IsHexDigit(c)); }
+        public bool IsComplete { get { return PackerCaps >= 0 && Extensions != null && Extensions.Count > 0 && IsSha(PackageSha256) && (IsSha(X86BinarySha256) || IsSha(X64BinarySha256)) && VerifiedUtc != default(DateTime) && !String.IsNullOrWhiteSpace(Source); } }
+        public static bool IsSha(string value) { return !String.IsNullOrWhiteSpace(value) && value.Length == 64 && value.All(c => Uri.IsHexDigit(c)); }
     }
 
     public enum LocalAheadPolicy { Unknown, Development, SourceMayLag }

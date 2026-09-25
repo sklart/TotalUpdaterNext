@@ -61,8 +61,7 @@ namespace TotalUpdater.Next.Core.Installation
                 if (!entry.AllowsAutomaticInstall || !entry.HasVerifiedWcxRegistration)
                     throw new InvalidOperationException("Пакет проверен, но параметры регистрации WCX не подтверждены. Автоматическая установка недоступна.");
                 var evidence = entry.WcxRegistration;
-                var binary = package.Files.SingleOrDefault(x => String.Equals(x.RelativePath, pluginFile, StringComparison.OrdinalIgnoreCase));
-                if (binary == null || !String.Equals(evidence.PackageSha256, package.PackageSha256, StringComparison.OrdinalIgnoreCase) || !String.Equals(evidence.BinarySha256, binary.Sha256, StringComparison.OrdinalIgnoreCase))
+                if (!String.Equals(evidence.PackageSha256, package.PackageSha256, StringComparison.OrdinalIgnoreCase) || !WcxEvidenceMatchesInstalledArchitecture(evidence, package, pluginFile, configuration.InstallDirectory))
                     throw new InvalidOperationException("WCX registration evidence outdated: hash пакета или бинарника не соответствует подтверждённым данным.");
                 IList<string> normalizedExtensions;
                 if (!WcxRegistration.TryNormalizeExtensions(package.DefaultExtension, out normalizedExtensions))
@@ -187,8 +186,17 @@ namespace TotalUpdater.Next.Core.Installation
         private static bool TryParsePackerRegistration(string value, out string caps, out string path)
         {
             caps = null; path = null; var comma = value == null ? -1 : value.IndexOf(',');
-            if (comma <= 0 || comma != value.LastIndexOf(',') || !Int32.TryParse(value.Substring(0, comma).Trim(), out var parsed) || parsed <= 0) return false;
+            if (comma <= 0 || comma != value.LastIndexOf(',') || !Int32.TryParse(value.Substring(0, comma).Trim(), out var parsed) || parsed < 0) return false;
             caps = parsed.ToString(System.Globalization.CultureInfo.InvariantCulture); path = value.Substring(comma + 1).Trim(); return !String.IsNullOrWhiteSpace(path) && !path.Contains("\r") && !path.Contains("\n");
+        }
+        private static bool WcxEvidenceMatchesInstalledArchitecture(WcxRegistrationEvidence evidence, PackageInspection package, string pluginFile, string tcDirectory)
+        {
+            var tc = NewPluginArchitectureValidator.DetectTotalCommander(tcDirectory); var directory = Path.GetDirectoryName(pluginFile) ?? ""; var stem = Path.GetFileNameWithoutExtension(pluginFile);
+            var x86 = package.Files.FirstOrDefault(x => String.Equals(Path.GetDirectoryName(x.RelativePath) ?? "", directory, StringComparison.OrdinalIgnoreCase) && (String.Equals(Path.GetFileName(x.RelativePath), stem + ".wcx", StringComparison.OrdinalIgnoreCase) || String.Equals(Path.GetFileName(x.RelativePath), stem + ".uwcx", StringComparison.OrdinalIgnoreCase)));
+            var x64 = package.Files.FirstOrDefault(x => String.Equals(Path.GetDirectoryName(x.RelativePath) ?? "", directory, StringComparison.OrdinalIgnoreCase) && String.Equals(Path.GetFileName(x.RelativePath), stem + ".wcx64", StringComparison.OrdinalIgnoreCase));
+            var x86Matches = (tc & PluginArchitecture.X86) == 0 || (x86 != null && String.Equals(evidence.X86BinarySha256, x86.Sha256, StringComparison.OrdinalIgnoreCase));
+            var x64Matches = (tc & PluginArchitecture.X64) == 0 || (x64 != null && String.Equals(evidence.X64BinarySha256, x64.Sha256, StringComparison.OrdinalIgnoreCase));
+            return x86Matches && x64Matches;
         }
     }
 }

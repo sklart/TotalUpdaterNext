@@ -26,7 +26,7 @@ namespace TotalUpdater.Next
             if (!Double.IsNaN(loadedSettings.Settings.WindowLeft) && !Double.IsNaN(loadedSettings.Settings.WindowTop)) { Left = loadedSettings.Settings.WindowLeft; Top = loadedSettings.Settings.WindowTop; WindowStartupLocation = WindowStartupLocation.Manual; }
             var catalog = new CatalogService(paths.UserCatalogPath); var resolver = new TotalCommanderConfigurationResolver();
             var discovery = new PluginDiscoveryService(resolver, new LocalVersionResolver(loadedSettings.Settings), catalog, null, loadedSettings.Settings);
-            var providers = new IUpdateSourceProvider[] { new TotalCmdNetSourceProvider(_http), new TotalCmdNetIndexProvider(_http), new GhislerSourceProvider(_http), new GhislerPluginsSourceProvider(_http), new GitHubReleaseSourceProvider(_http, loadedSettings.Settings), new GenericHtmlSourceProvider(_http) };
+            var providers = UpdateSourceProviderFactory.Create(_http, loadedSettings.Settings);
             DataContext = new MainViewModel(resolver, discovery, new UpdateService(catalog, providers, new RemoteCatalogLookup(_http), new AcceptedVersionService(loadedSettings.Settings)), catalog, new DownloadService(_http), paths, new TotalUpdater.Next.Core.Installation.CatalogInstallService(providers), new SourceDiagnostics(_http), _settingsService, loadedSettings, s => _http.Reconfigure(s));
             Loaded += (s, e) => ((MainViewModel)DataContext).Initialize(); Closing += (s, e) => SaveWindowState(); Closed += (s, e) => _http.Dispose();
         }

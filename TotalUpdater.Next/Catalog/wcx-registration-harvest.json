@@ -1,0 +1,16 @@
+[
+  {
+    "id": "ghisler-wcx-bzip2",
+    "status": "VerifiedRegistration",
+    "detail": "pluginst.inf, aliases and x86/x64 probes verified from current package",
+    "evidence": {
+      "packageSha256": "0da2a224ddb9a05971d22546d42e374854bc6edcb4354df270cf246fed23539c",
+      "x86BinarySha256": "e91e3d4c8cd95a21cbc54a4a65b0418d6c874f89ce70f13ae894ee993d1632a7",
+      "x64BinarySha256": "cad14bbaa4357244c6ffe8c4633c50901e0d39f933552966490878277472f0c9",
+      "packerCaps": 251,
+      "extensions": [ "bz2", "bzip2" ],
+      "verifiedUtc": "\/Date(1790294400000)\/",
+      "source": "https://plugins.ghisler.com/plugins/bzipplug.zip"
+    }
+  }
+]

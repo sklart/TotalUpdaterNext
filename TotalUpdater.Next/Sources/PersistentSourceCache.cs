@@ -5,6 +5,7 @@ using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
 using System.Security.Cryptography;
 using System.Text;
+using System.Runtime.InteropServices;
 
 namespace TotalUpdater.Next.Sources
 {
@@ -32,6 +33,9 @@ namespace TotalUpdater.Next.Sources
 
     public sealed class PersistentSourceCache
     {
+        private const int MoveFileReplaceExisting = 0x1;
+        private const int MoveFileWriteThrough = 0x8;
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)] private static extern bool MoveFileEx(string existingFileName, string newFileName, int flags);
         private readonly string _directory;
         public PersistentSourceCache(string directory = null)
         {
@@ -55,9 +59,7 @@ namespace TotalUpdater.Next.Sources
                 using (var stream = File.Create(temporary)) new DataContractJsonSerializer(typeof(PersistentSourceCacheEnvelope)).WriteObject(stream, envelope);
                 if (File.Exists(target))
                 {
-                    if (File.Exists(backup)) File.Delete(backup);
-                    File.Replace(temporary, target, backup);
-                    if (File.Exists(backup)) File.Delete(backup);
+                    if (!MoveFileEx(temporary, target, MoveFileReplaceExisting | MoveFileWriteThrough)) throw new IOException("Не удалось атомарно заменить persistent cache: " + Marshal.GetLastWin32Error());
                 }
                 else File.Move(temporary, target);
             }

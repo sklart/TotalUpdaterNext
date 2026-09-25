@@ -30,7 +30,7 @@ namespace TotalUpdater.Next.Infrastructure.Installation
                     {
                         File.Copy(record.BackupPath, temporary, false);
                         EnsureConfigSafe(manifest, record);
-                        File.Replace(temporary, record.ConfigFile, null);
+                        AtomicFile.Replace(temporary, record.ConfigFile);
                     }
                     finally { if (File.Exists(temporary)) File.Delete(temporary); }
                 }
@@ -66,7 +66,7 @@ namespace TotalUpdater.Next.Infrastructure.Installation
                 if (Equal(PackageInspector.Hash(record.ConfigFile), record.InstalledSha256))
                 {
                     var temporary = record.ConfigFile + ".tu-restore-" + Guid.NewGuid().ToString("N");
-                    try { File.Copy(record.BackupPath, temporary, false); EnsureConfigSafe(manifest, record); File.Replace(temporary, record.ConfigFile, null); }
+                    try { File.Copy(record.BackupPath, temporary, false); EnsureConfigSafe(manifest, record); AtomicFile.Replace(temporary, record.ConfigFile); }
                     finally { if (File.Exists(temporary)) File.Delete(temporary); }
                 }
                 record.State = InstallStateMachine.RestoredFile; BackupService.Save(manifest);

@@ -40,7 +40,7 @@ namespace TotalUpdater.Next.Infrastructure.Installation
                         File.Copy(file.Source.StagedPath, temporary, false);
                         _beforeOperation?.Invoke(manifest, record);
                         CheckTargetUnchanged(file, record);
-                        if (file.ReplacesExisting) File.Replace(temporary, file.Destination, null);
+                        if (file.ReplacesExisting) AtomicFile.Replace(temporary, file.Destination);
                         else
                         {
                             try { File.Move(temporary, file.Destination); }

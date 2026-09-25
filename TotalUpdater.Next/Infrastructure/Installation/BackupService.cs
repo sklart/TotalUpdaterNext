@@ -99,7 +99,7 @@ namespace TotalUpdater.Next.Infrastructure.Installation
             var temporary = path + ".tmp";
             using (var output = new FileStream(temporary, FileMode.Create, FileAccess.Write, FileShare.None))
                 new DataContractJsonSerializer(typeof(InstallManifest)).WriteObject(output, manifest);
-            if (File.Exists(path)) File.Replace(temporary, path, null);
+            if (File.Exists(path)) AtomicFile.Replace(temporary, path);
             else File.Move(temporary, path);
         }
 

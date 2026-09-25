@@ -78,7 +78,7 @@ namespace TotalUpdater.Next.Infrastructure.Installation
                     try
                     {
                         EnsureSafe(manifest, record);
-                        File.Replace(temporary, target, null);
+                        AtomicFile.Replace(temporary, target);
                     }
                     finally { if (File.Exists(temporary)) File.Delete(temporary); }
                 }

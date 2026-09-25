@@ -42,7 +42,7 @@ namespace TotalUpdater.Next.Tests
             public Fixture(PluginType type, bool x64 = false, string iniText = null, bool x64Only = false, bool unicodeOnly = false)
             {
                 Type = type;
-                Root = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tu-new-tests-" + Guid.NewGuid().ToString("N"));
+                Root = Path.Combine(Path.GetTempPath(), "TotalUpdaterNext", "tests", "new-" + Guid.NewGuid().ToString("N"));
                 Tc = Path.Combine(Root, "TotalCmd"); Directory.CreateDirectory(Tc);
                 File.WriteAllBytes(Path.Combine(Tc, "TOTALCMD.EXE"), new byte[] { 1 });
                 BackupRoot = Path.Combine(Root, "backups");
@@ -59,7 +59,7 @@ namespace TotalUpdater.Next.Tests
                 }
                 Package = new PackageInspector().Inspect(zip);
                 Entry = new PluginCatalogEntry { Id = "sample-" + type.ToString().ToLowerInvariant(), Name = "Sample", Type = type.ToString(), Aliases = new List<string> { "sample" + ext } };
-                if (type == PluginType.Wcx) { var binary = Package.Files.Single(x => x.RelativePath.Equals("sample" + ext, StringComparison.OrdinalIgnoreCase)); Entry.IdentityEvidenceName = "VerifiedPackage"; Entry.WcxRegistration = new WcxRegistrationEvidence { Extensions = new List<string> { "7z", "zip" }, PackerCaps = 735, PackageSha256 = Package.PackageSha256, BinarySha256 = binary.Sha256, Architecture = "x86", VerifiedUtc = DateTime.UtcNow, Source = "test" }; }
+                if (type == PluginType.Wcx) { var binary = Package.Files.Single(x => x.RelativePath.Equals("sample" + ext, StringComparison.OrdinalIgnoreCase)); Entry.IdentityEvidenceName = "VerifiedPackage"; Entry.WcxRegistration = new WcxRegistrationEvidence { Extensions = new List<string> { "7z", "zip" }, PackerCaps = 735, PackageSha256 = Package.PackageSha256, X86BinarySha256 = binary.Sha256, X64BinarySha256 = x64 || x64Only ? Package.Files.Single(x => x.RelativePath.Equals("sample" + ext + "64", StringComparison.OrdinalIgnoreCase)).Sha256 : null, VerifiedUtc = DateTime.UtcNow, Source = "test" }; }
                 Candidate = new CatalogInstallCandidate { Entry = Entry, Version = VersionValue.Parse("2.0"), DownloadUrl = new Uri("https://example.test/sample.zip") };
                 Reload();
             }
@@ -90,7 +90,7 @@ namespace TotalUpdater.Next.Tests
             public void Dispose()
             {
                 if (Package != null && Directory.Exists(Package.StagingDirectory)) Directory.Delete(Package.StagingDirectory, true);
-                if (Root != null && Root.StartsWith(Path.GetFullPath(AppDomain.CurrentDomain.BaseDirectory), StringComparison.OrdinalIgnoreCase) && Directory.Exists(Root)) Directory.Delete(Root, true);
+                if (Root != null && Root.StartsWith(Path.Combine(Path.GetTempPath(), "TotalUpdaterNext", "tests"), StringComparison.OrdinalIgnoreCase) && Directory.Exists(Root)) Directory.Delete(Root, true);
             }
         }
         private static void Write(ZipArchive zip, string name, string value)
@@ -102,6 +102,9 @@ namespace TotalUpdater.Next.Tests
         private static bool EncodingFails(Action action) { try { action(); return false; } catch (EncodingConflictException) { return true; } }
         public static void Run(Action<bool, string> check)
         {
+            check(WcxProbeRunner.ParseOutput("True|0|x86|read-only").Success && WcxProbeRunner.ParseOutput("True|0|x86|read-only").Caps == 0, "WCX probe accepts caps zero read-only result");
+            check(!WcxProbeRunner.ParseOutput("True|-1|x86|bad").Success && !WcxProbeRunner.ParseOutput("broken").Success, "WCX probe rejects negative and malformed helper output");
+            check(WcxProbeRunner.ExpectedArchitecture("C:\\x\\sample.wcx") == "x86" && WcxProbeRunner.ExpectedArchitecture("C:\\x\\sample.uwcx") == "x86" && WcxProbeRunner.ExpectedArchitecture("C:\\x\\sample.wcx64") == "x64", "WCX probe routes extensions to architecture-specific helpers");
             IList<string> extensions;
             check(WcxRegistration.TryNormalizeExtensions(" .7z, zip ,7Z ", out extensions) && extensions.Count == 2 && extensions[0] == "7z" && extensions[1] == "zip", "WCX extension normalization and duplicate removal");
             check(!WcxRegistration.TryNormalizeExtensions("7z,bad=value", out extensions) && !WcxRegistration.TryNormalizeExtensions("", out extensions), "WCX invalid or empty extensions blocked");
@@ -204,8 +207,27 @@ namespace TotalUpdater.Next.Tests
             }
             using (var f = new Fixture(PluginType.Wcx))
             {
-                f.Entry.WcxRegistration.PackerCaps = 0; check(Fails(() => f.Build()), "WCX missing packerCaps blocked");
-                f.Entry.WcxRegistration.PackerCaps = 735; f.Entry.WcxRegistration.BinarySha256 = new string('0', 64); check(Fails(() => f.Build()), "WCX stale hash-bound evidence blocked");
+                f.Entry.WcxRegistration.PackerCaps = 0; check(f.Build() != null, "WCX caps zero is valid read-only registration");
+                f.Entry.WcxRegistration.PackerCaps = -1; check(Fails(() => f.Build()), "WCX negative packerCaps blocked");
+                f.Entry.WcxRegistration.PackerCaps = 735; f.Entry.WcxRegistration.X86BinarySha256 = new string('0', 64); check(Fails(() => f.Build()), "WCX stale hash-bound evidence blocked");
+            }
+            using (var f = new Fixture(PluginType.Wcx, x64: true))
+            {
+                var harvested = WcxRegistrationEvidenceBuilder.FromInspectedPackage(f.Entry, f.Package, new WcxProbeResult { Success = true, Caps = 735, Architecture = "x86" }, new WcxProbeResult { Success = true, Caps = 735, Architecture = "x64" }, "fixture");
+                check(harvested.Status == WcxRegistrationHarvest.VerifiedRegistration && harvested.Evidence.X86BinarySha256 != null && harvested.Evidence.X64BinarySha256 != null, "WCX harvest fixture creates dual hash evidence");
+                check(WcxRegistrationEvidenceBuilder.FromInspectedPackage(f.Entry, f.Package, new WcxProbeResult { Success = true, Caps = 1, Architecture = "x86" }, new WcxProbeResult { Success = true, Caps = 2, Architecture = "x64" }, "fixture").Status == WcxRegistrationHarvest.CapsMismatch, "WCX harvest fixture blocks caps mismatch");
+                check(WcxRegistrationEvidenceBuilder.FromInspectedPackage(f.Entry, f.Package, new WcxProbeResult { Success = true, Caps = 735, Architecture = "x64" }, new WcxProbeResult { Success = true, Caps = 735, Architecture = "x64" }, "fixture").Status == WcxRegistrationHarvest.ProbeArchitectureMismatch, "WCX harvest fixture classifies helper architecture mismatch");
+                check(WcxRegistrationEvidenceBuilder.FromInspectedPackage(f.Entry, f.Package, new WcxProbeResult { Success = false, Error = "WcxProbe timeout." }, new WcxProbeResult { Success = true, Caps = 735, Architecture = "x64" }, "fixture").Status == WcxRegistrationHarvest.ProbeTimeout, "WCX harvest fixture classifies helper timeout");
+                var localHarvest = new WcxRegistrationHarvester(
+                    (entry, token) => System.Threading.Tasks.Task.FromResult(new CatalogInstallCandidate { Entry = entry, DownloadUrl = new Uri("https://example.test/renamed-package.zip") }),
+                    (url, token) => System.Threading.Tasks.Task.FromResult(f.Package.PackagePath),
+                    path => new WcxProbeResult { Success = true, Caps = 735, Architecture = WcxProbeRunner.ExpectedArchitecture(path) });
+                var localFinding = localHarvest.HarvestAsync(f.Entry, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+                check(localFinding.Status == WcxRegistrationHarvest.VerifiedRegistration && localFinding.Evidence.Source.EndsWith("renamed-package.zip") && localFinding.Evidence.X86BinarySha256 != null && localFinding.Evidence.X64BinarySha256 != null, "WCX local harvest fixture resolves source, ZIP, pluginst, identity and both probes without filename convention");
+                File.WriteAllBytes(Path.Combine(f.Tc, "TOTALCMD64.EXE"), new byte[] { 1 });
+                check(f.Build() != null, "dual WCX validates x86 and x64 evidence hashes");
+                f.Entry.WcxRegistration.X64BinarySha256 = new string('0', 64);
+                check(Fails(() => f.Build()), "dual WCX rejects mismatched x64 evidence hash");
             }
             using (var f = new Fixture(PluginType.Wcx, false, "[PackerPlugins]\n7z=123,other.wcx\n"))
                 check(Fails(() => f.Build()), "WCX occupied extension conflict blocked");

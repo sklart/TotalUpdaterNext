@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net48</TargetFramework><LangVersion>latest</LangVersion><AssemblyName>WcxProbe.x64</AssemblyName><PlatformTarget>x64</PlatformTarget></PropertyGroup>
+  <ItemGroup><Compile Include="..\WcxProbeHelper\Program.cs" Link="Program.cs" /></ItemGroup>
+</Project>

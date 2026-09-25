@@ -17,7 +17,7 @@ namespace TotalUpdater.Next.Tests
         private static readonly List<string> StagingDirectories = new List<string>();
         public static void Run(Action<bool, string> check)
         {
-            var root = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tu-install-tests-" + Guid.NewGuid().ToString("N"));
+            var root = Path.Combine(Path.GetTempPath(), "TotalUpdaterNext", "tests", "install-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(root);
             try
             {

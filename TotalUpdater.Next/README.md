@@ -1,4 +1,4 @@
-# Total Updater Next — Phase 11 / 0.11.0 — WCX New Installation
+# Total Updater Next — Phase 11 / 0.11.1 — WCX New Installation
 
 WPF-программа для Windows 7 SP1+ под .NET Framework 4.8. Это независимая новая реализация: старый Total Updater и его бинарные ресурсы не используются.
 
@@ -23,7 +23,7 @@ dotnet run --project .\TotalUpdater.Next.Tests\TotalUpdater.Next.Tests.csproj
 
 ## Single EXE
 
-Release-архив [`../release/TotalUpdater-0.11.0-win7plus.zip`](../release/TotalUpdater-0.11.0-win7plus.zip) содержит только `TotalUpdater.exe`. Стандартный каталог находится внутри EXE как embedded resource; внешний JSON не требуется на первом запуске.
+Release-архив [`../release/TotalUpdater-0.11.1-win7plus.zip`](../release/TotalUpdater-0.11.1-win7plus.zip) содержит только `TotalUpdater.exe`. Стандартный каталог находится внутри EXE как embedded resource; внешний JSON не требуется на первом запуске.
 
 Maintenance-команды тестового приложения: `--audit-catalog-aliases` проверяет collisions и расширения, `--audit-installed-coverage --ini=<путь>` показывает Exact/Alias/RemoteExact/Ambiguous/NotFound и процент покрытия; `--offline` отключает сетевой fallback. Remote lookup ничего не устанавливает и не переписывает каталог пользователя.
 
@@ -31,5 +31,7 @@ Maintenance-команды тестового приложения: `--audit-cat
 
 Пользовательская БД создаётся только по явной команде: рядом с EXE в portable-режиме либо в `%APPDATA%\TotalUpdaterNext` при read-only установке.
 
-Загруженные EXE/MSI не запускаются. Новая регистрация WCX, установка Total Commander и self-update не реализованы. Требующие прав администратора операции остаются недоступными без UAC/helper.
+Загруженные EXE/MSI не запускаются. Новая установка WCX разрешена только при проверенном registration evidence: SHA-256 ZIP и нужных x86/x64 binaries, `packerCaps`, extensions и source проходят повторную проверку до транзакционной записи. Для остальных WCX новая регистрация заблокирована. Установка Total Commander и self-update не реализованы. Требующие прав администратора операции остаются недоступными без UAC/helper.
+
+Maintenance-команда `--harvest-wcx-registration --id <catalog-id> --output <evidence.json>` обрабатывает один явно указанный WCX через source providers, ZIP/`pluginst.inf`/alias identity и изолированные x86/x64 probe helpers; имя ZIP не связано с catalog ID. `--merge-wcx-registration-evidence` добавляет только валидные `VerifiedRegistration` evidence.
 0.9.4 maintenance: `TotalUpdater.Next.Tests.exe --harvest-full-catalog` явно запускает `..\tools\Harvest-FullSourceCatalog.ps1`, который импортирует все типизированные записи TotalCmd.net и официальной страницы Ghisler как `MetadataOnly`, с official name/type/package URL, но без сгенерированных aliases. `..\tools\Harvest-CatalogEvidence.ps1` проверяет TotalCmd ZIP, а `..\tools\Harvest-GhislerEvidence.ps1` — ZIP из Ghisler; только извлечённые из архива точные aliases переводят запись в `VerifiedPackage` и `MetadataAndDownload`. `..\tools\Merge-CatalogEvidence.ps1` сохраняет проверенные правила. `TotalUpdater.Next.Tests.exe --audit-full-catalog` выводит размер, типы, evidence, отсутствующие sources и alias collisions.

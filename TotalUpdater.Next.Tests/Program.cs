@@ -4,6 +4,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text;
+using System.Diagnostics;
 using TotalUpdater.Next.Catalog;
 using TotalUpdater.Next.Core;
 using TotalUpdater.Next.Core.Versions;
@@ -33,14 +34,36 @@ namespace TotalUpdater.Next.Tests
                 if (args != null && args.Any(x => x.Equals("--audit-catalog-aliases", StringComparison.OrdinalIgnoreCase))) return AuditCatalogAliases();
                 if (args != null && args.Any(x => x.Equals("--audit-full-catalog", StringComparison.OrdinalIgnoreCase))) return AuditFullCatalog();
                 if (args != null && args.Any(x => x.Equals("--audit-wcx-registration", StringComparison.OrdinalIgnoreCase))) return AuditWcxRegistration();
-                if (args != null && args.Any(x => x.Equals("--harvest-wcx-registration", StringComparison.OrdinalIgnoreCase))) return RunMaintenanceScript("Harvest-WcxRegistration.ps1");
+                if (args != null && args.Any(x => x.Equals("--harvest-wcx-registration", StringComparison.OrdinalIgnoreCase))) return HarvestWcxRegistration(args);
+                if (args != null && args.Any(x => x.Equals("--merge-wcx-registration-evidence", StringComparison.OrdinalIgnoreCase))) return RunMaintenanceScript("Merge-WcxRegistrationEvidence.ps1", args);
                 if (args != null && args.Any(x => x.Equals("--audit-installed-coverage", StringComparison.OrdinalIgnoreCase))) return AuditInstalledCoverage(args);
                 if (args != null && args.Any(x => x.Equals("--audit-installed-version-drift", StringComparison.OrdinalIgnoreCase))) return AuditInstalledVersionDrift(args);
-                Versions(); Paths(); DiscoveryRealIniFormats(); ArchitectureAwareDiscovery(); FamilyIdentityAndConflict(); CatalogV2AndProviders(); CatalogScaleAndCache(); AuthorityResolution(); DownloadProvenance(); AuthorityRuntimeFinalization(); LazySourcesAndCache(); SourceInputHardening(); ScalableCheckRunner(); FileInfoPeVersionStrategy(); StrategyPriorityAndFallback(); ConfigurationDetection(); ConfigurationPrecedenceFinalization(); RedirectSections(); IniEncodingsAndPathExpansion(); CatalogAliases(); CatalogCoverageMatching(); SourceFidelityRegressions(); PersistentSourceCacheContracts(); SettingsContracts(); ApplicationMetadataAndUserAgent(); InstallationTests.Run(Assert); RecoveryTests.Run(Assert); NewPluginInstallationTests.Run(Assert);
+                var groups = TestGroups();
+                if (args != null && args.Any(x => x.Equals("--list-test-groups", StringComparison.OrdinalIgnoreCase))) { foreach (var name in groups.Keys) { Console.WriteLine(name); Console.Out.Flush(); } return 0; }
+                var runIndex = args == null ? -1 : Array.FindIndex(args, x => x.Equals("--run-test-group", StringComparison.OrdinalIgnoreCase));
+                if (runIndex >= 0) { if (runIndex + 1 >= args.Length || !groups.TryGetValue(args[runIndex + 1], out var selected)) throw new ArgumentException("Unknown test group."); RunGroup(args[runIndex + 1], selected); Console.WriteLine("PASS " + _count + " tests"); return 0; }
+                foreach (var group in groups) RunGroup(group.Key, group.Value);
                 Console.WriteLine("PASS " + _count + " tests"); return 0;
             }
             catch (Exception ex) { Console.Error.WriteLine("FAIL: " + ex); return 1; }
         }
+        private static IDictionary<string, Action> TestGroups()
+        {
+            return new Dictionary<string, Action>(StringComparer.OrdinalIgnoreCase) {
+                { "Versions", Versions }, { "Paths", Paths }, { "Discovery", () => { DiscoveryRealIniFormats(); ArchitectureAwareDiscovery(); FamilyIdentityAndConflict(); } },
+                { "Catalog", () => { CatalogV2AndProviders(); CatalogScaleAndCache(); CatalogAliases(); CatalogCoverageMatching(); } },
+                { "Sources", () => { RunStep("Sources.AuthorityResolution", AuthorityResolution); RunStep("Sources.DownloadProvenance", DownloadProvenance); RunStep("Sources.AuthorityRuntimeFinalization", AuthorityRuntimeFinalization); RunStep("Sources.LazySourcesAndCache", LazySourcesAndCache); RunStep("Sources.SourceInputHardening", SourceInputHardening); RunStep("Sources.ScalableCheckRunner", ScalableCheckRunner); RunStep("Sources.SourceFidelityRegressions", SourceFidelityRegressions); RunStep("Sources.PersistentSourceCacheContracts", PersistentSourceCacheContracts); } },
+                { "Configuration", () => { FileInfoPeVersionStrategy(); StrategyPriorityAndFallback(); ConfigurationDetection(); ConfigurationPrecedenceFinalization(); RedirectSections(); IniEncodingsAndPathExpansion(); } },
+                { "Settings", SettingsContracts }, { "ApplicationMetadata", ApplicationMetadataAndUserAgent },
+                { "WcxProbe", () => WcxProbeTests.Run(Assert) },
+                { "InstallationTests", () => InstallationTests.Run(Assert) }, { "RecoveryTests", () => RecoveryTests.Run(Assert) }, { "NewPluginInstallationTests", () => NewPluginInstallationTests.Run(Assert) }
+            };
+        }
+        private static void RunGroup(string name, Action action)
+        {
+            Console.WriteLine("[RUN ] " + name); Console.Out.Flush(); var stopwatch = Stopwatch.StartNew(); action(); stopwatch.Stop(); Console.WriteLine("[PASS] " + name + " (" + stopwatch.ElapsedMilliseconds + " ms)"); Console.Out.Flush();
+        }
+        private static void RunStep(string name, Action action) { RunGroup(name, action); }
         private static void ValidateCatalog()
         {
             var catalog = new CatalogService(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".json")); var result = catalog.LoadWithDiagnostics();
@@ -59,14 +82,14 @@ namespace TotalUpdater.Next.Tests
             }
         }
 
-        private static int RunMaintenanceScript(string scriptName)
+        private static int RunMaintenanceScript(string scriptName, string[] commandArgs = null)
         {
             var script = FindMaintenanceScript(scriptName);
             if (script != null)
             {
                 var start = new System.Diagnostics.ProcessStartInfo
                 {
-                    FileName = "powershell.exe", Arguments = "-NoProfile -File \"" + script + "\"",
+                    FileName = "powershell.exe", Arguments = "-NoProfile -File \"" + script + "\" " + String.Join(" ", (commandArgs ?? new string[0]).Where(x => !String.Equals(x, "--harvest-wcx-registration", StringComparison.OrdinalIgnoreCase) && !String.Equals(x, "--merge-wcx-registration-evidence", StringComparison.OrdinalIgnoreCase)).Select(x => "\"" + x.Replace("\"", "\\\"") + "\"")),
                     UseShellExecute = false
                 };
                 using (var process = System.Diagnostics.Process.Start(start)) { process.WaitForExit(); return process.ExitCode; }
