@@ -37,29 +37,81 @@ namespace TotalUpdater.Next.Tests
             Console.WriteLine("Missing source: " + entries.Count(x => x.Sources == null || x.Sources.Count == 0)); Console.WriteLine("Alias collisions: " + collisions);
             return catalog.Diagnostics.Count(x => x.Severity == CatalogDiagnosticSeverity.Error) == 0 && collisions == 0 ? 0 : 1;
         }
-        private static int AuditWcxRegistration()
+        private static int AuditWcxRegistration(string[] args)
         {
             var catalog = new CatalogService(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".json")).Load();
-            var findings = WcxRegistrationHarvest.Read(Path.Combine(Environment.CurrentDirectory, "TotalUpdater.Next", "Catalog", "wcx-registration-harvest.json"));
-            var report = WcxRegistrationAudit.Audit(catalog, findings);
-            Console.WriteLine("WCX total=" + report.WcxTotal + "; Downloadable=" + report.Downloadable + "; VerifiedRegistration=" + report.VerifiedRegistration + "; MissingPackage=" + report.MissingPackage + "; MissingPluginst=" + report.MissingPluginst + "; MissingDefaultExtension=" + report.MissingDefaultExtension + "; AmbiguousBinary=" + report.AmbiguousBinary + "; ProbeFailed=" + report.ProbeFailed + "; ProbeTimeout=" + report.ProbeTimeout + "; ProbeArchitectureMismatch=" + report.ProbeArchitectureMismatch + "; CapsMismatch=" + report.CapsMismatch + "; PackageIdentityMismatch=" + report.PackageIdentityMismatch + "; HashMismatch=" + report.HashMismatch + "; NotHarvested=" + report.NotHarvested);
+            var input = CommandValue(args, "--input");
+            var findings = String.IsNullOrWhiteSpace(input)
+                ? catalog.Where(x => x.PluginType == PluginType.Wcx && x.WcxRegistration != null).Select(x => new WcxRegistrationHarvestFinding { Id = x.Id, Status = WcxRegistrationHarvest.VerifiedRegistration, Evidence = x.WcxRegistration }).ToList()
+                : WcxRegistrationHarvest.Read(input);
+            PrintWcxRegistrationAudit(WcxRegistrationAudit.Audit(catalog, findings));
+            return 0;
+        }
+        private static void PrintWcxRegistrationAudit(WcxRegistrationAuditReport report)
+        {
+            Console.WriteLine("WCX total=" + report.WcxTotal + "; Downloadable=" + report.Downloadable + "; VerifiedRegistration=" + report.VerifiedRegistration + "; MissingPackage=" + report.MissingPackage + "; MissingPluginst=" + report.MissingPluginst + "; MissingDefaultExtension=" + report.MissingDefaultExtension + "; UnsupportedArchive=" + report.UnsupportedArchive + "; AmbiguousBinary=" + report.AmbiguousBinary + "; ProbeFailed=" + report.ProbeFailed + "; ProbeTimeout=" + report.ProbeTimeout + "; ProbeArchitectureMismatch=" + report.ProbeArchitectureMismatch + "; CapsMismatch=" + report.CapsMismatch + "; PackageIdentityMismatch=" + report.PackageIdentityMismatch + "; HashMismatch=" + report.HashMismatch + "; SourceUnavailable=" + report.SourceUnavailable + "; NotHarvested=" + report.NotHarvested);
+        }
+        private static int ValidateWcxRegistrationEvidence()
+        {
+            var catalog = new CatalogService(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".json")).Load();
+            var diagnostics = WcxRegistrationEvidenceAudit.Validate(catalog);
+            foreach (var diagnostic in diagnostics) Console.WriteLine(diagnostic);
+            Console.WriteLine("WCX registration evidence: entries=" + catalog.Count(x => x.WcxRegistration != null) + "; errors=" + diagnostics.Count);
+            return diagnostics.Count == 0 ? 0 : 1;
+        }
+        private static int MergeWcxRegistrationEvidence(string[] args)
+        {
+            var input = CommandValue(args, "--input");
+            var dryRun = args != null && args.Any(x => String.Equals(x, "--dry-run", StringComparison.OrdinalIgnoreCase));
+            if (String.IsNullOrWhiteSpace(input) || !File.Exists(input)) { Console.Error.WriteLine("Использование: --merge-wcx-registration-evidence --input <evidence.json> [--dry-run]"); return 1; }
+            var catalogPath = Path.Combine(Environment.CurrentDirectory, "TotalUpdater.Next", "Catalog", "plugin-catalog.json");
+            var entries = CatalogJsonFile.Read(catalogPath);
+            var findings = WcxRegistrationHarvest.Read(input);
+            var plan = WcxRegistrationEvidenceMerger.Plan(entries, findings);
+            foreach (var item in plan) Console.WriteLine(item.Action.ToString().ToUpperInvariant() + " " + item.Id + (String.IsNullOrWhiteSpace(item.Detail) ? "" : " " + item.Detail));
+            if (plan.Any(x => x.Action == WcxRegistrationMergeAction.Reject)) return 1;
+            if (dryRun) { Console.WriteLine("Dry run: no catalog changes."); return 0; }
+            string error;
+            if (!WcxRegistrationEvidenceMerger.TryApply(entries, findings, out error)) { Console.Error.WriteLine(error); return 1; }
+            var catalogDiagnostics = CatalogService.Validate(entries);
+            if (catalogDiagnostics.Any(x => x.Severity == CatalogDiagnosticSeverity.Error)) { foreach (var item in catalogDiagnostics) Console.Error.WriteLine(item.EntryId + ": " + item.Message); return 1; }
+            var aliasIssues = CatalogAliasAudit.Audit(entries);
+            if (aliasIssues.Count != 0) { foreach (var item in aliasIssues) Console.Error.WriteLine(item.Kind + " | " + item.Alias + " | " + item.Entries); return 1; }
+            var audit = WcxRegistrationEvidenceAudit.Validate(entries);
+            if (audit.Count != 0) { foreach (var item in audit) Console.Error.WriteLine(item); return 1; }
+            CatalogJsonFile.ReplaceWcxRegistrationEvidence(catalogPath, findings.Where(x => plan.Any(d => String.Equals(d.Id, x.Id, StringComparison.OrdinalIgnoreCase) && (d.Action == WcxRegistrationMergeAction.Add || d.Action == WcxRegistrationMergeAction.Update))));
+            Console.WriteLine("Merged VerifiedRegistration=" + plan.Count(x => x.Action == WcxRegistrationMergeAction.Add || x.Action == WcxRegistrationMergeAction.Update));
+            Console.WriteLine("Catalog validation: entries=" + entries.Count + "; errors=0");
+            Console.WriteLine("Alias audit: entries=" + entries.Count + "; issues=0");
+            PrintWcxRegistrationAudit(WcxRegistrationAudit.Audit(entries, findings));
             return 0;
         }
         private static int HarvestWcxRegistration(string[] args)
         {
             var id = CommandValue(args, "--id");
+            var ids = CommandValue(args, "--ids");
             var output = CommandValue(args, "--output");
-            if (String.IsNullOrWhiteSpace(id) || String.IsNullOrWhiteSpace(output))
+            var authorityName = CommandValue(args, "--authority");
+            var all = args != null && args.Any(x => String.Equals(x, "--all", StringComparison.OrdinalIgnoreCase));
+            var resume = args != null && args.Any(x => String.Equals(x, "--resume", StringComparison.OrdinalIgnoreCase));
+            var selectorCount = (String.IsNullOrWhiteSpace(id) ? 0 : 1) + (String.IsNullOrWhiteSpace(ids) ? 0 : 1) + (all ? 1 : 0);
+            if (selectorCount != 1 || String.IsNullOrWhiteSpace(output))
             {
-                Console.Error.WriteLine("Использование: --harvest-wcx-registration --id <catalog-id> --output <evidence.json>");
+                Console.Error.WriteLine("Использование: --harvest-wcx-registration (--all | --id <catalog-id> | --ids <id1,id2>) --output <evidence.json> [--resume]");
                 return 1;
             }
-            // Deliberately one explicit catalog ID per invocation.  It keeps
-            // download/probe consent narrow; batch orchestration can call this
-            // maintenance command repeatedly and aggregate the JSON findings.
             var catalog = new CatalogService(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".json"));
-            var entry = catalog.FindById(id);
-            if (entry == null || entry.PluginType != PluginType.Wcx) { Console.Error.WriteLine("WCX запись каталога не найдена: " + id); return 1; }
+            var requestedIds = String.IsNullOrWhiteSpace(ids) ? new string[0] : ids.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim()).Where(x => x.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            var entries = all ? catalog.Load().Where(x => x.PluginType == PluginType.Wcx).ToList() : new[] { id }.Concat(requestedIds).Select(catalog.FindById).ToList();
+            if (entries.Any(x => x == null || x.PluginType != PluginType.Wcx)) { Console.Error.WriteLine("Одна или несколько WCX-записей каталога не найдены."); return 1; }
+            if (!String.IsNullOrWhiteSpace(authorityName))
+            {
+                SourceAuthority authority;
+                if (!Enum.TryParse(authorityName, true, out authority)) { Console.Error.WriteLine("Неизвестный authority: " + authorityName); return 1; }
+                entries = entries.Where(x => x.Sources != null && x.Sources.Any(s => s.AuthorityValue == authority)).ToList();
+                if (entries.Count == 0) { Console.Error.WriteLine("Для authority нет WCX-записей: " + authorityName); return 1; }
+            }
+            var existing = resume ? WcxRegistrationHarvest.Read(output) : new List<WcxRegistrationHarvestFinding>();
             var root = Path.Combine(Path.GetTempPath(), "TotalUpdaterNext", "wcx-harvest", Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(root);
             try
@@ -72,16 +124,30 @@ namespace TotalUpdater.Next.Tests
                     var harvester = new WcxRegistrationHarvester(
                         (candidateEntry, token) => candidates.CheckAsync(candidateEntry, token),
                         (url, token) => downloads.DownloadAsync(url, root, token));
-                    var finding = harvester.HarvestAsync(entry, CancellationToken.None).GetAwaiter().GetResult();
-                    WcxRegistrationHarvest.Write(output, new[] { finding });
-                    Console.WriteLine(entry.Id + " | " + finding.Status + " | " + output);
-                    return String.Equals(finding.Status, WcxRegistrationHarvest.VerifiedRegistration, StringComparison.Ordinal) ? 0 : 2;
+                    var batch = new WcxRegistrationBatchHarvester((entry, token) => harvester.HarvestAsync(entry, token));
+                    var result = batch.RunAsync(entries, existing, resume, 2,
+                        step => Console.WriteLine("[" + step.Completed + "/" + step.Total + "] " + step.Entry.Name + " -> " + step.Finding.Status),
+                        findings => WcxRegistrationHarvest.Write(output, findings), CancellationToken.None).GetAwaiter().GetResult();
+                    if (result.Processed == 0 && !File.Exists(output)) WcxRegistrationHarvest.Write(output, result.Findings);
+                    PrintWcxHarvestSummary(result);
+                    return result.Count(WcxRegistrationHarvest.VerifiedRegistration) > 0 ? 0 : 2;
                 }
             }
             finally
             {
                 if (Directory.Exists(root)) { try { Directory.Delete(root, true); } catch { } }
             }
+        }
+        private static void PrintWcxHarvestSummary(WcxRegistrationBatchResult result)
+        {
+            Console.WriteLine("WCX total=" + result.Total + "; processed=" + result.Processed + "; skipped/resumed=" + result.Skipped +
+                "; VerifiedRegistration=" + result.Count(WcxRegistrationHarvest.VerifiedRegistration) + "; MissingPackage=" + result.Count(WcxRegistrationHarvest.MissingPackage) +
+                "; MissingPluginst=" + result.Count(WcxRegistrationHarvest.MissingPluginst) + "; MissingDefaultExtension=" + result.Count(WcxRegistrationHarvest.MissingDefaultExtension) +
+                "; UnsupportedArchive=" + result.Count(WcxRegistrationHarvest.UnsupportedArchive) + "; AmbiguousBinary=" + result.Count(WcxRegistrationHarvest.AmbiguousBinary) +
+                "; PackageIdentityMismatch=" + result.Count(WcxRegistrationHarvest.PackageIdentityMismatch) + "; ProbeFailed=" + result.Count(WcxRegistrationHarvest.ProbeFailed) +
+                "; ProbeTimeout=" + result.Count(WcxRegistrationHarvest.ProbeTimeout) + "; ProbeArchitectureMismatch=" + result.Count(WcxRegistrationHarvest.ProbeArchitectureMismatch) +
+                "; CapsMismatch=" + result.Count(WcxRegistrationHarvest.CapsMismatch) + "; HashMismatch=" + result.Count(WcxRegistrationHarvest.HashMismatch) +
+                "; SourceUnavailable=" + result.Count(WcxRegistrationHarvest.SourceUnavailable));
         }
         private static string CommandValue(string[] args, string name)
         {
@@ -162,10 +228,62 @@ namespace TotalUpdater.Next.Tests
             string mergeError;
             Assert(WcxRegistrationEvidenceMerger.TryApply(new List<PluginCatalogEntry> { mergeEntry }, new[] { validMerge }, out mergeError) && mergeEntry.WcxRegistration != validMerge.Evidence && mergeEntry.Name == originalName && mergeEntry.Version == originalVersion && String.Join("|", mergeEntry.Aliases) == originalAliases && mergeEntry.Sources[0].Url == originalSource, "WCX merge updates only registration evidence");
             Assert(!WcxRegistrationEvidenceMerger.TryApply(new List<PluginCatalogEntry> { mergeEntry }, new[] { validMerge, validMerge }, out mergeError), "WCX merge rejects duplicate verified findings atomically");
+            var mergePlan = WcxRegistrationEvidenceMerger.Plan(new List<PluginCatalogEntry> { mergeEntry }, new[] { validMerge });
+            Assert(mergePlan.Single().Action == WcxRegistrationMergeAction.Unchanged && WcxRegistrationEvidenceMerger.Plan(new List<PluginCatalogEntry> { new PluginCatalogEntry { Id = "merge-wcx", Type = "Wcx" } }, new[] { validMerge }).Single().Action == WcxRegistrationMergeAction.Add,
+                "WCX dry-run merge reports UNCHANGED and ADD without mutating catalog");
+            var updateEntry = new PluginCatalogEntry { Id = "update-wcx", Name = "Update WCX", Type = "Wcx", WcxRegistration = new WcxRegistrationEvidence { PackageSha256 = new string('1', 64), X86BinarySha256 = new string('2', 64), PackerCaps = 0, Extensions = new List<string> { "zip" }, VerifiedUtc = DateTime.UtcNow, Source = "fixture" } };
+            var updateFinding = new WcxRegistrationHarvestFinding { Id = "update-wcx", Status = WcxRegistrationHarvest.VerifiedRegistration, Evidence = new WcxRegistrationEvidence { PackageSha256 = new string('3', 64), X86BinarySha256 = new string('4', 64), PackerCaps = 0, Extensions = new List<string> { "zip" }, VerifiedUtc = DateTime.UtcNow, Source = "fixture" } };
+            var invalidEntry = new PluginCatalogEntry { Id = "invalid-wcx", Name = "Invalid WCX", Type = "Wcx" };
+            var invalidFinding = new WcxRegistrationHarvestFinding { Id = "invalid-wcx", Status = WcxRegistrationHarvest.VerifiedRegistration, Evidence = new WcxRegistrationEvidence { PackageSha256 = new string('5', 64), X86BinarySha256 = new string('6', 64), PackerCaps = -1, Extensions = new List<string> { "zip" }, VerifiedUtc = DateTime.UtcNow, Source = "fixture" } };
+            var updatePlan = WcxRegistrationEvidenceMerger.Plan(new List<PluginCatalogEntry> { updateEntry, invalidEntry }, new[] { updateFinding, invalidFinding });
+            Assert(updatePlan.Single(x => x.Id == "update-wcx").Action == WcxRegistrationMergeAction.Update && updatePlan.Single(x => x.Id == "invalid-wcx").Action == WcxRegistrationMergeAction.Reject &&
+                !WcxRegistrationEvidenceMerger.TryApply(new List<PluginCatalogEntry> { invalidEntry }, new[] { invalidFinding }, out mergeError) && invalidEntry.WcxRegistration == null,
+                "WCX merge reports UPDATE and REJECT, while invalid evidence leaves catalog unchanged");
+            Assert(WcxRegistrationEvidenceAudit.Validate(new[] { new PluginCatalogEntry { Id = "audit-wcx", Type = "Wcx", WcxRegistration = validMerge.Evidence } }).Count == 0 &&
+                WcxRegistrationEvidenceAudit.Validate(new[] { new PluginCatalogEntry { Id = "audit-non-wcx", Type = "Wlx", WcxRegistration = validMerge.Evidence } }).Count == 1,
+                "WCX embedded evidence audit accepts valid WCX and rejects non-WCX evidence");
             var evidencePath = Path.Combine(NewRoot(), "renamed-evidence.json");
             WcxRegistrationHarvest.Write(evidencePath, new[] { validMerge });
             var roundTrip = WcxRegistrationHarvest.Read(evidencePath).Single();
             Assert(roundTrip.Id == "merge-wcx" && roundTrip.Evidence.PackerCaps == 0 && roundTrip.Evidence.X86BinarySha256 == validMerge.Evidence.X86BinarySha256 && roundTrip.Evidence.VerifiedUtc != default(DateTime), "WCX evidence JSON round-trip preserves caps-zero hashes and verification UTC");
+            var catalogRoundTripPath = Path.Combine(NewRoot(), "catalog-roundtrip.json");
+            var catalogRoundTripEntries = new List<PluginCatalogEntry> { mergeEntry, new PluginCatalogEntry { Id = "plain-wlx", Name = "Plain WLX", Type = "Wlx", Version = "2.0", Aliases = new List<string> { "plain.wlx" } } };
+            CatalogJsonFile.Write(catalogRoundTripPath, catalogRoundTripEntries);
+            var catalogRoundTrip = CatalogJsonFile.Read(catalogRoundTripPath);
+            Assert(catalogRoundTrip.Count == 2 && catalogRoundTrip.Single(x => x.Id == "plain-wlx").Aliases.Single() == "plain.wlx" &&
+                WcxRegistrationEvidenceMerger.TryApply(catalogRoundTrip, new[] { validMerge }, out mergeError) && catalogRoundTrip.Single(x => x.Id == "merge-wcx").WcxRegistration != null,
+                "WCX atomic catalog merge round-trip preserves unrelated entries and applies only registration evidence");
+            CatalogJsonFile.Write(catalogRoundTripPath, catalogRoundTrip);
+            Assert(CatalogJsonFile.Read(catalogRoundTripPath).Count == 2, "WCX atomic catalog writer replaces existing catalog without truncation");
+            var embeddedCatalogPath = Path.Combine(Environment.CurrentDirectory, "TotalUpdater.Next", "Catalog", "plugin-catalog.json");
+            var embeddedCatalogEntries = CatalogJsonFile.Read(embeddedCatalogPath);
+            var embeddedCatalogCopy = Path.Combine(NewRoot(), "embedded-catalog-copy.json");
+            CatalogJsonFile.Write(embeddedCatalogCopy, embeddedCatalogEntries);
+            var embeddedCatalogCopyEntries = CatalogJsonFile.Read(embeddedCatalogCopy);
+            Assert(embeddedCatalogCopyEntries.Count == embeddedCatalogEntries.Count && embeddedCatalogCopyEntries.Select(x => x.Id).OrderBy(x => x).SequenceEqual(embeddedCatalogEntries.Select(x => x.Id).OrderBy(x => x)) &&
+                embeddedCatalogCopyEntries.Count(x => x.WcxRegistration != null) == embeddedCatalogEntries.Count(x => x.WcxRegistration != null),
+                "WCX catalog writer round-trips the complete embedded catalog without entry or evidence loss");
+            var textualMergePath = Path.Combine(NewRoot(), "textual-merge.json");
+            File.WriteAllText(textualMergePath, "[\n  {\n    \"id\": \"merge-wcx\",\n    \"name\": \"Merge WCX\",\n    \"wcxRegistration\": null\n  }\n]\n");
+            CatalogJsonFile.ReplaceWcxRegistrationEvidence(textualMergePath, new[] { validMerge });
+            var textualMerge = File.ReadAllText(textualMergePath);
+            Assert(textualMerge.Contains("\n    \"name\": \"Merge WCX\",") && textualMerge.Contains("\"wcxRegistration\": {") && !textualMerge.Contains("\"wcxRegistration\": null"),
+                "WCX textual merge replaces only registration value without reformatting unrelated catalog fields");
+            var textualAddPath = Path.Combine(NewRoot(), "textual-add.json");
+            File.WriteAllText(textualAddPath, "[\n  {\n    \"id\": \"merge-wcx\",\n    \"name\": \"Merge WCX\"\n  }\n]\n");
+            CatalogJsonFile.ReplaceWcxRegistrationEvidence(textualAddPath, new[] { validMerge });
+            Assert(File.ReadAllText(textualAddPath).Contains("\"name\": \"Merge WCX\",") && File.ReadAllText(textualAddPath).Contains("\"wcxRegistration\": {"),
+                "WCX textual merge adds absent registration member without rewriting entry");
+            var batchSource = new CatalogSource { Id = "batch-source", Provider = "totalcmd.net", Priority = 1, Authority = "CommunityCatalog", Purpose = "MetadataAndDownload" };
+            var resumedEntry = new PluginCatalogEntry { Id = "batch-resume", Name = "Batch resume", Type = "Wcx", Version = "1.0", Sources = new List<CatalogSource> { batchSource } };
+            var failedEntry = new PluginCatalogEntry { Id = "batch-failure", Name = "Batch failure", Type = "Wcx", Version = "1.0", Sources = new List<CatalogSource> { batchSource } };
+            var resumed = new WcxRegistrationHarvestFinding { Id = resumedEntry.Id, Status = WcxRegistrationHarvest.VerifiedRegistration, Evidence = new WcxRegistrationEvidence { PackageSha256 = new string('e', 64), X86BinarySha256 = new string('f', 64), PackerCaps = 0, Extensions = new List<string> { "zip" }, VerifiedUtc = DateTime.UtcNow, Source = "https://example.test/resume.zip", PackageUrl = "https://example.test/resume.zip", Version = "1.0", SourceId = "batch-source", SourceFingerprint = WcxRegistrationHarvester.SourceFingerprint(batchSource) } };
+            var checkpoints = 0;
+            var batch = new WcxRegistrationBatchHarvester((entry, token) => entry.Id == failedEntry.Id ? Task.FromException<WcxRegistrationHarvestFinding>(new TimeoutException("fixture timeout")) : Task.FromResult(resumed));
+            var batchResult = batch.RunAsync(new[] { failedEntry, resumedEntry }, new[] { resumed }, true, 10, null, findings => checkpoints++, CancellationToken.None).GetAwaiter().GetResult();
+            Assert(batchResult.Skipped == 1 && batchResult.Processed == 1 && batchResult.Count(WcxRegistrationHarvest.SourceUnavailable) == 1 && checkpoints == 1, "WCX batch resumes valid evidence and continues after source failure with concurrency cap");
+            var deterministic = Path.Combine(NewRoot(), "batch.json"); WcxRegistrationHarvest.Write(deterministic, batchResult.Findings); var firstJson = File.ReadAllText(deterministic); WcxRegistrationHarvest.Write(deterministic, batchResult.Findings.Reverse());
+            Assert(firstJson == File.ReadAllText(deterministic) && WcxRegistrationHarvest.Read(deterministic).Select(x => x.Id).SequenceEqual(WcxRegistrationHarvest.Read(deterministic).Select(x => x.Id).OrderBy(x => x, StringComparer.OrdinalIgnoreCase)), "WCX batch evidence output is deterministic and atomically replaceable");
             var remoteEntry = RemoteCatalogLookup.BuildVerifiedEntry(new[] { new RemoteIndexCandidate { Id = "Sample", Name = "Sample", Type = PluginType.Wlx,
                 Official = true, PackageUrl = "https://plugins.ghisler.com/lsplugins/sample.zip" } }, "sample.wlx");
             Assert(remoteEntry.Sources.Single().EphemeralVerifiedPackageUrl.EndsWith("sample.zip") && remoteEntry.Sources.Single().PurposeValue == SourcePurpose.MetadataAndDownload,

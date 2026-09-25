@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
 
 namespace TotalUpdater.Next.Core.Installation
 {
@@ -26,6 +27,14 @@ namespace TotalUpdater.Next.Core.Installation
         {
             var a = NormalizeExtensions(String.Join(",", left ?? Enumerable.Empty<string>())); var b = NormalizeExtensions(String.Join(",", right ?? Enumerable.Empty<string>()));
             return a.Count > 0 && a.Count == b.Count && a.All(x => b.Contains(x, StringComparer.OrdinalIgnoreCase));
+        }
+        public static string FamilyName(string path)
+        {
+            var name = Path.GetFileName(path ?? "");
+            if (name.EndsWith(".wcx64", StringComparison.OrdinalIgnoreCase)) return name.Substring(0, name.Length - 6);
+            if (name.EndsWith(".uwcx", StringComparison.OrdinalIgnoreCase)) return name.Substring(0, name.Length - 5);
+            if (name.EndsWith(".wcx", StringComparison.OrdinalIgnoreCase)) return name.Substring(0, name.Length - 4);
+            return Path.GetFileNameWithoutExtension(name);
         }
     }
 }

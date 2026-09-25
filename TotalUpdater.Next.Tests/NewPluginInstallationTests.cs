@@ -224,6 +224,12 @@ namespace TotalUpdater.Next.Tests
                     path => new WcxProbeResult { Success = true, Caps = 735, Architecture = WcxProbeRunner.ExpectedArchitecture(path) });
                 var localFinding = localHarvest.HarvestAsync(f.Entry, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
                 check(localFinding.Status == WcxRegistrationHarvest.VerifiedRegistration && localFinding.Evidence.Source.EndsWith("renamed-package.zip") && localFinding.Evidence.X86BinarySha256 != null && localFinding.Evidence.X64BinarySha256 != null, "WCX local harvest fixture resolves source, ZIP, pluginst, identity and both probes without filename convention");
+                var archiveFinding = new WcxRegistrationHarvester((entry, token) => System.Threading.Tasks.Task.FromResult(new CatalogInstallCandidate { Entry = entry, DownloadUrl = new Uri("https://example.test/plugin.exe") }),
+                    (url, token) => System.Threading.Tasks.Task.FromResult(Path.Combine(f.Root, "plugin.exe"))).HarvestAsync(f.Entry, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+                check(archiveFinding.Status == WcxRegistrationHarvest.UnsupportedArchive, "WCX harvest distinguishes unsupported archive from missing package");
+                var unavailableFinding = new WcxRegistrationHarvester((entry, token) => System.Threading.Tasks.Task.FromResult(new CatalogInstallCandidate { Entry = entry, Observations = new List<RemoteVersionObservation> { new RemoteVersionObservation { Status = SourceQueryStatus.Unavailable } } }),
+                    (url, token) => System.Threading.Tasks.Task.FromResult(f.Package.PackagePath)).HarvestAsync(f.Entry, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+                check(unavailableFinding.Status == WcxRegistrationHarvest.SourceUnavailable, "WCX harvest distinguishes source unavailable from missing package");
                 File.WriteAllBytes(Path.Combine(f.Tc, "TOTALCMD64.EXE"), new byte[] { 1 });
                 check(f.Build() != null, "dual WCX validates x86 and x64 evidence hashes");
                 f.Entry.WcxRegistration.X64BinarySha256 = new string('0', 64);

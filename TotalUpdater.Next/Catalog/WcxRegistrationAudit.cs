@@ -18,6 +18,8 @@ namespace TotalUpdater.Next.Catalog
         public int CapsMismatch { get; set; }
         public int PackageIdentityMismatch { get; set; }
         public int HashMismatch { get; set; }
+        public int SourceUnavailable { get; set; }
+        public int UnsupportedArchive { get; set; }
         public int AmbiguousBinary { get; set; }
         public int NotHarvested { get; set; }
     }
@@ -44,6 +46,8 @@ namespace TotalUpdater.Next.Catalog
                 else if (finding.Status == WcxRegistrationHarvest.CapsMismatch) report.CapsMismatch++;
                 else if (finding.Status == WcxRegistrationHarvest.PackageIdentityMismatch) report.PackageIdentityMismatch++;
                 else if (finding.Status == WcxRegistrationHarvest.HashMismatch) report.HashMismatch++;
+                else if (finding.Status == WcxRegistrationHarvest.SourceUnavailable) report.SourceUnavailable++;
+                else if (finding.Status == WcxRegistrationHarvest.UnsupportedArchive) report.UnsupportedArchive++;
                 else report.ProbeFailed++;
             }
             return report;

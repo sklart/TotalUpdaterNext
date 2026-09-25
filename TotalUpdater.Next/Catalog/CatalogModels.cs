@@ -48,6 +48,12 @@ namespace TotalUpdater.Next.Catalog
         [DataMember(Name = "x64BinarySha256")] public string X64BinarySha256 { get; set; }
         [DataMember(Name = "verifiedUtc")] public DateTime VerifiedUtc { get; set; }
         [DataMember(Name = "source")] public string Source { get; set; }
+        // Diagnostic harvest context. It is never used to authorize install;
+        // only the hash-bound fields above do that.
+        [DataMember(Name = "version", EmitDefaultValue = false)] public string Version { get; set; }
+        [DataMember(Name = "sourceId", EmitDefaultValue = false)] public string SourceId { get; set; }
+        [DataMember(Name = "packageUrl", EmitDefaultValue = false)] public string PackageUrl { get; set; }
+        [DataMember(Name = "sourceFingerprint", EmitDefaultValue = false)] public string SourceFingerprint { get; set; }
         public bool IsComplete { get { return PackerCaps >= 0 && Extensions != null && Extensions.Count > 0 && IsSha(PackageSha256) && (IsSha(X86BinarySha256) || IsSha(X64BinarySha256)) && VerifiedUtc != default(DateTime) && !String.IsNullOrWhiteSpace(Source); } }
         public static bool IsSha(string value) { return !String.IsNullOrWhiteSpace(value) && value.Length == 64 && value.All(c => Uri.IsHexDigit(c)); }
     }

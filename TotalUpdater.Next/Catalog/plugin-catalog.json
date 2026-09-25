@@ -177,7 +177,8 @@
         "purpose": "MetadataAndDownload",
         "priority": 100
       }
-    ]
+    ],
+    "wcxRegistration": {"extensions":["sqx"],"packageSha256":"3d17acb75755fca8d99b5cb3fefe22cd7b272488b9cb4c58d2fe6f3637a1538d","packageUrl":"https:\/\/totalcmd.net\/download.php?id=totalsqx","packerCaps":607,"source":"https:\/\/totalcmd.net\/download.php?id=totalsqx","sourceFingerprint":"f1b2e03d24d4874be60ab46cd0e1c968f08506d537a0ac01a5294307a5cf7af0","sourceId":"totalsqx","verifiedUtc":"\/Date(1790344932582)\/","version":"2.11","x64BinarySha256":"ab36c94e5d6850b3f1d86b6732fb9dd1871957abbb7abb788d9ab32b1b884452","x86BinarySha256":"4aecc21b2307861d96e1ebea7465bbff25c0286fdff281da377a18362eb4835e"}
   },
   {
     "id": "webdav",
@@ -336,7 +337,8 @@
         "purpose": "MetadataAndDownload",
         "priority": 100
       }
-    ]
+    ],
+    "wcxRegistration": {"extensions":["TotalObserver"],"packageSha256":"42b7087ca775602813c7e1eb0a5b988e03d85cd7bdcdf698f2daddc0abdf8979","packageUrl":"https:\/\/totalcmd.net\/download.php?id=totalobserver","packerCaps":68,"source":"https:\/\/totalcmd.net\/download.php?id=totalobserver","sourceFingerprint":"010565cbbc0e6f145463b26640c58561076848ff9799ddc6a1114b986db516ce","sourceId":"totalobserver","verifiedUtc":"\/Date(1790344929539)\/","version":"1.2.0","x64BinarySha256":"d6e834793977cbd8eb0be5d8c4812c5a969d19fe551710d479930cfc0f3c7e38","x86BinarySha256":"eab0e136c5deb7df2fc98e359d310c81109e7919dca4289101423362c76cbcc6"}
   },
   {
     "id": "chmdir",
@@ -353,7 +355,8 @@
         "purpose": "MetadataAndDownload",
         "priority": 100
       }
-    ]
+    ],
+    "wcxRegistration": {"extensions":["chm","its"],"packageSha256":"b1c99b67dd943cb6a40753b13d6151726d06f2a572ccd2709c5fdb6e017c6a2f","packageUrl":"https:\/\/totalcmd.net\/download.php?id=chmdir","packerCaps":479,"source":"https:\/\/totalcmd.net\/download.php?id=chmdir","sourceFingerprint":"0e73cb8ac0d129944ae8248e476dbec6791501e34c7d3f8c89cfb4a7a182665e","sourceId":"chmdir","verifiedUtc":"\/Date(1790344793914)\/","version":"0.41","x64BinarySha256":"db5e698ecd50fec26587d0c68e3ef3e7df4c41cea02b09d28017c8fea70339fc","x86BinarySha256":"29826d3e42ba39bcd8d3ec14b7bf2534caa282cfe29701e9e24790e928c89544"}
   },
   {
     "id": "setfolderdate",
@@ -468,7 +471,8 @@
         "purpose": "MetadataAndDownload",
         "priority": 100
       }
-    ]
+    ],
+    "wcxRegistration": {"extensions":["scl"],"packageSha256":"713b7a674c2ed2c28d2be558b987afba2cb96817c8986b7db470cd1688cb5bd8","packageUrl":"https:\/\/totalcmd.net\/download.php?id=inscl","packerCaps":31,"source":"https:\/\/totalcmd.net\/download.php?id=inscl","sourceFingerprint":"a3f07064d25d27d4e47faea251b6528f143c61181f1a331523f848ae2233009a","sourceId":"inscl","verifiedUtc":"\/Date(1790344903379)\/","version":"6.54","x64BinarySha256":"f4922a4fc89291fa9465559d3882e4751ba02252ec52d0e165229ec58ec7af1d","x86BinarySha256":"4c9cafb16f7e8f15c762c268efd5256005637faf13dc3bfcef4c46711968e714"}
   },
   {
     "id": "msi",
@@ -517,7 +521,8 @@
         "purpose": "MetadataAndDownload",
         "priority": 100
       }
-    ]
+    ],
+    "wcxRegistration": {"extensions":["trd"],"packageSha256":"2581533c48fc30dca9450dd42fd68a0b27f0af44cd2379ba489bb4789dcbb46a","packageUrl":"https:\/\/totalcmd.net\/download.php?id=intrd","packerCaps":31,"source":"https:\/\/totalcmd.net\/download.php?id=intrd","sourceFingerprint":"26f4f0748ad900f0d2bb44373897049825c7a3d7e5db9733fae4a3304b03cb84","sourceId":"intrd","verifiedUtc":"\/Date(1790344904149)\/","version":"6.54","x64BinarySha256":"2bad9e8718ed4e418847ba98f6b14be560d406550ec34a3ceb00b74928ffb56d","x86BinarySha256":"105bc786e1ec6523a5eb861f7f9b2229b727b90b3c1eb64ba73a25bbc4e39fff"}
   },
   {
     "id": "zstd",
@@ -534,7 +539,8 @@
         "purpose": "MetadataAndDownload",
         "priority": 100
       }
-    ]
+    ],
+    "wcxRegistration": {"extensions":["zst"],"packageSha256":"371b5ddc7d247883160b94bc4a50750f697af2d37f3b403e0ac8fe282886bf4d","packageUrl":"https:\/\/totalcmd.net\/download.php?id=zstdwcx","packerCaps":241,"source":"https:\/\/totalcmd.net\/download.php?id=zstdwcx","sourceFingerprint":"484efe67316e0eff82eaef05c70bf7ac9062eae3f024e57669dc079459559fb1","sourceId":"zstdwcx","verifiedUtc":"\/Date(1790344946329)\/","version":"1.1.3.5","x64BinarySha256":"1e4de81c148089dc63033a016985a2635b569a46ad94dd9f35e945282b6553eb","x86BinarySha256":"dd411ec703fa29166eb58785627ce4931a1efbfbb3034ce4b81b699258780a5d"}
   },
   {
     "id": "arcview",
@@ -1148,7 +1154,8 @@
         "purpose": "MetadataAndDownload",
         "priority": 100
       }
-    ]
+    ],
+    "wcxRegistration": {"extensions":["mht","mhtml","msg","b64","uue","xxe"],"packageSha256":"483f7eec98bd5a6419b08c6411e44d2425d184680a7950658baf8214e6d1acc4","packageUrl":"https:\/\/totalcmd.net\/download.php?id=MhtUnPack","packerCaps":415,"source":"https:\/\/totalcmd.net\/download.php?id=MhtUnPack","sourceFingerprint":"fbd9db2f3c72c72c37f9d7a2c68cce2999b7e12c374a0420ac5c639ca56139f5","sourceId":"MhtUnPack","verifiedUtc":"\/Date(1790344908646)\/","version":"2.4","x64BinarySha256":"2e81b5f53edb829b5cc69b0ae5a5b40860614c75d6282edcc9e4d5c5742062ef","x86BinarySha256":"af39e17911dad3e9c96ca97e9df3201764c2b43541fe2a429a9358604d421846"}
   },
   {
     "id": "catalogmaker",
@@ -1173,7 +1180,8 @@
         "purpose": "MetadataAndDownload",
         "priority": 100
       }
-    ]
+    ],
+    "wcxRegistration": {"extensions":["lst"],"packageSha256":"ba0620934752e9c418bc7ea8e2745d036e7e27306caaef1bb0d4490acc34c3f0","packageUrl":"https:\/\/totalcmd.net\/download.php?id=catalogmaker","packerCaps":23,"source":"https:\/\/totalcmd.net\/download.php?id=catalogmaker","sourceFingerprint":"322869e437a8c7601ff62fc3430831e7ba16de9f76c344df95cc1d63edced58e","sourceId":"catalogmaker","verifiedUtc":"\/Date(1790344792114)\/","version":"4.1.3","x64BinarySha256":"363be00dd86046a4bf4cd302b7b6d378386d464063a345637187812243832069","x86BinarySha256":"d680aaa341a78582210f18405cb5c1e38448db2f4ebbd2fd2f6a208906f47569"}
   },
   {
     "id": "archview64",
@@ -1223,7 +1231,8 @@
         "purpose": "MetadataAndDownload",
         "priority": 100
       }
-    ]
+    ],
+    "wcxRegistration": {"extensions":["icl","icl32"],"packageSha256":"345b550057dfa955d7ea5126c32e7bbe6a0a29460b62c791eb27e5370e123520","packageUrl":"https:\/\/totalcmd.net\/download.php?id=iclread","packerCaps":15,"source":"https:\/\/totalcmd.net\/download.php?id=iclread","sourceFingerprint":"7db573113afa89461eea5c100b4afa8e232b6a8b6b69c05e70a39da4357903ec","sourceId":"iclread","verifiedUtc":"\/Date(1790344902943)\/","version":"1.5.4.4","x64BinarySha256":"bb4a00a3b08d6f77442324aabc336f321684642d666d4051e876aff272177d6f","x86BinarySha256":"0c23353396c311fd7268d5aaeba01e2391b202cde0121975a6808232480701ac"}
   },
   {
     "id": "shelldetails",
@@ -2064,7 +2073,8 @@
         "purpose": "MetadataAndDownload",
         "priority": 100
       }
-    ]
+    ],
+    "wcxRegistration": {"extensions":["WdxInfo"],"packageSha256":"cc41fe0b83c4d1b73954719fc5cc85a32178bd349a764106e4114c79f5df0a48","packageUrl":"https:\/\/totalcmd.net\/download.php?id=tc-WdxInfoPacker","packerCaps":277,"source":"https:\/\/totalcmd.net\/download.php?id=tc-WdxInfoPacker","sourceFingerprint":"8c8ca30827dfae545d535dfaf21dde3f39d0ebfbd440276bd93d129ada2d3f95","sourceId":"tc-WdxInfoPacker","verifiedUtc":"\/Date(1790344922908)\/","version":"2.0.1","x64BinarySha256":"21ed08c015d05155fbaa28b1c626bbaf24608c4794b003ec1844bfcfa0bd8a48","x86BinarySha256":"175fabc08dcefd1819f5972d238f623599000cb937b6f137c65b4bca0f4d76f1"}
   },
   {
     "id": "tc-mailfs",
@@ -2188,7 +2198,8 @@
         "purpose": "MetadataAndDownload",
         "priority": 100
       }
-    ]
+    ],
+    "wcxRegistration": {"extensions":["dump"],"packageSha256":"4dd6d94da5b43cf1e006f3d25fd737fc96a35c92694b805e1b7deeb19fa4347a","packageUrl":"https:\/\/totalcmd.net\/download.php?id=pgdump","packerCaps":832,"source":"https:\/\/totalcmd.net\/download.php?id=pgdump","sourceFingerprint":"a77465067d0cc07c1068c5c204f7aab658890f92a418ce965ecc94211dbc855b","sourceId":"pgdump","verifiedUtc":"\/Date(1790344914234)\/","version":"2.0","x64BinarySha256":"cf4f2a69ea55240125d3bcc3faf4335af6a19aa7b1c9e1a7be0fff15b0a179a5","x86BinarySha256":null}
   },
   {
     "id": "pgdump_lister",
@@ -2236,7 +2247,8 @@
         "purpose": "MetadataAndDownload",
         "priority": 100
       }
-    ]
+    ],
+    "wcxRegistration": {"extensions":["fsa"],"packageSha256":"7286e14090cea296a903b1a39df821e7ceabd299c6aec6c0b2f5be9ddf35a1a8","packageUrl":"https:\/\/totalcmd.net\/download.php?id=ergfsa","packerCaps":832,"source":"https:\/\/totalcmd.net\/download.php?id=ergfsa","sourceFingerprint":"5b0dbdd31853ab789b34928c23bb2a06d59fb2951267beff6ae66ab1fa7df9b6","sourceId":"ergfsa","verifiedUtc":"\/Date(1790344900295)\/","version":"1.0","x64BinarySha256":"5584f3ca19056e3c3d0b4e7b4a263afa4f67354a2f39bfa37d496ceb973f8d77","x86BinarySha256":null}
   },
   {
     "id": "tc-textline",
@@ -3083,7 +3095,8 @@
         "purpose": "MetadataAndDownload",
         "priority": 100
       }
-    ]
+    ],
+    "wcxRegistration": {"extensions":["M3U","M3U8"],"packageSha256":"661254849709f17c3370c7e1eba5d793b29cb5e3cf1ce0ff9d30c29b9ccc06b1","packageUrl":"https:\/\/totalcmd.net\/download.php?id=M3U","packerCaps":287,"source":"https:\/\/totalcmd.net\/download.php?id=M3U","sourceFingerprint":"827b5efb274a21d1ebcccc40b35a0db94e4785ab5c860f69a1ff4e6a60e8a95e","sourceId":"M3U","verifiedUtc":"\/Date(1790344907573)\/","version":"1.0.0","x64BinarySha256":"328109ae88563e378be569847256bc069b7297cc4d55e5321d9ea4b892d9dbe5","x86BinarySha256":"be0ba7278ba8b9d01514fb0f234ba8506c243908928ef07ea455312b46e2ad7e"}
   },
   {
     "id": "tiffinfo",
@@ -3283,7 +3296,8 @@
         "purpose": "MetadataAndDownload",
         "priority": 100
       }
-    ]
+    ],
+    "wcxRegistration": {"extensions":["lstW"],"packageSha256":"ba6af520d632d73657c21d2ff6a9b3672d0debf3a2b97e05c556b0053fabade6","packageUrl":"https:\/\/totalcmd.net\/download.php?id=diskdirw","packerCaps":21,"source":"https:\/\/totalcmd.net\/download.php?id=diskdirw","sourceFingerprint":"5eae2b77195e5a88fadf68a29d0cfd83a111c190156471de708cc273697cbae2","sourceId":"diskdirw","verifiedUtc":"\/Date(1790344896368)\/","version":"1.2.4","x64BinarySha256":"3875f9a43fc005819313b2c6738101640e8af89ff142b783e5aaedc725632dfe","x86BinarySha256":"3156c18a18a4bcce64ac2ea837da320b0e1c5e8c6ecbc824f75b8520d9f47f99"}
   },
   {
     "id": "diskdircrc",
@@ -3741,7 +3755,8 @@
         "purpose": "MetadataAndDownload",
         "priority": 100
       }
-    ]
+    ],
+    "wcxRegistration": {"extensions":["zip0"],"packageSha256":"08855588479c68efda9a7aef4c4a63dc86557612c46ad285883ce59893159b25","packageUrl":"https:\/\/totalcmd.net\/download.php?id=zip2zero","packerCaps":277,"source":"https:\/\/totalcmd.net\/download.php?id=zip2zero","sourceFingerprint":"1aabf521b944950ef3a483027e7ad8c03eeb615b406b75f4d480bf9b1fc44fdf","sourceId":"zip2zero","verifiedUtc":"\/Date(1790344944828)\/","version":"1.0.1.0","x64BinarySha256":"d4e720fd512e04aa9f402cbf35a026a003b47b90e06db8d87fd80d9e9d8f7518","x86BinarySha256":"8cbff6aa5ffeb9e9f867568d95debcb31258922c33f91885ffd32a04934c5059"}
   },
   {
     "id": "mthumbs.wlx",
@@ -4188,7 +4203,8 @@
         "purpose": "MetadataAndDownload",
         "priority": 100
       }
-    ]
+    ],
+    "wcxRegistration": {"extensions":["storage"],"packageSha256":"6b230df6b7c429b1bf25bd2ca3119db64b9d2d7fe7445e6ebf315ad8806cc82e","packageUrl":"https:\/\/totalcmd.net\/download.php?id=wcx_storage","packerCaps":324,"source":"https:\/\/totalcmd.net\/download.php?id=wcx_storage","sourceFingerprint":"2e75a3e3b9bee586ecc159398781a26811169cd960b2ef9ed720e165a7bc8482","sourceId":"wcx_storage","verifiedUtc":"\/Date(1790344941604)\/","version":"1.0","x64BinarySha256":"829168587ff4367dcb56c781fdda96f0a0f9d5f5265458aab2fde44d61b8e58f","x86BinarySha256":"cf0bca9b5aee66c963f6a7e1e6f4df03ceb0fa9f94e815fe64292d8e7ea57b36"}
   },
   {
     "id": "msie_cache2",
@@ -4384,7 +4400,8 @@
         "purpose": "MetadataAndDownload",
         "priority": 100
       }
-    ]
+    ],
+    "wcxRegistration": {"extensions":["Separate"],"packageSha256":"bf686ea166c8b5ac8e3921dcdc4ec03c3555b81326fc14ad4c0b780930b16050","packageUrl":"https:\/\/totalcmd.net\/download.php?id=mover64","packerCaps":263,"source":"https:\/\/totalcmd.net\/download.php?id=mover64","sourceFingerprint":"8f7eb58619508612eeeac3b99e1d6a7bd8bc370e69ccfc6e40a39a6d036e54ac","sourceId":"mover64","verifiedUtc":"\/Date(1790344909947)\/","version":"2.0.0.2","x64BinarySha256":"e5998272d86f4cd71925cb9c540ba872f96563a3575e996b4f8ff189d4c30d3c","x86BinarySha256":"e2151727864a080eee3b222884a191474c406cc31e755d7b086555b41da667b6"}
   },
   {
     "id": "akfont",
@@ -4608,7 +4625,8 @@
         "purpose": "MetadataAndDownload",
         "priority": 100
       }
-    ]
+    ],
+    "wcxRegistration": {"extensions":["cas"],"packageSha256":"999dcb332a8460e26c3f4b5b7610ffc555d95bbdc4d761c4580b32c0bc47fc75","packageUrl":"https:\/\/totalcmd.net\/download.php?id=casMSXwcx","packerCaps":15,"source":"https:\/\/totalcmd.net\/download.php?id=casMSXwcx","sourceFingerprint":"08ca283815f657052b55708e4979d59a1d89aa06cf95a9963883e22cb19f315d","sourceId":"casMSXwcx","verifiedUtc":"\/Date(1790344790763)\/","version":"1.3","x64BinarySha256":"5c5571930ed52b3a51d060e5a9bca544781c54f95ca50d97a17c3ce2e379f967","x86BinarySha256":"91a90ec7b82503fe1e91c470e203bb4a9605cc9ae18385c8a79aba667b2164d9"}
   },
   {
     "id": "decbin",
@@ -5221,7 +5239,8 @@
         "purpose": "MetadataAndDownload",
         "priority": 100
       }
-    ]
+    ],
+    "wcxRegistration": {"extensions":["Create_HardLink"],"packageSha256":"0302319f49247939fbd62613b33b6da11d196843a17a78003bebb354a3e37005","packageUrl":"https:\/\/totalcmd.net\/download.php?id=hardlink_meta_packer","packerCaps":277,"source":"https:\/\/totalcmd.net\/download.php?id=hardlink_meta_packer","sourceFingerprint":"10235c1a92f402c079071902a01bf4245e2c25945fd42185599e01798307ff8a","sourceId":"hardlink_meta_packer","verifiedUtc":"\/Date(1790344901325)\/","version":"1.0","x64BinarySha256":null,"x86BinarySha256":"edfa578a4c53532371821a729921f241fd911ce7abfb9e4b5753a5106fd85ed8"}
   },
   {
     "id": "stalker_db",
@@ -5249,7 +5268,8 @@
         "purpose": "MetadataAndDownload",
         "priority": 100
       }
-    ]
+    ],
+    "wcxRegistration": {"extensions":["db0"],"packageSha256":"5ddbbcbd8b4aa54ceaac4576bccbf3e49ba3776a5610b5b0d98b614f2d5b79ec","packageUrl":"https:\/\/totalcmd.net\/download.php?id=stalker_db","packerCaps":448,"source":"https:\/\/totalcmd.net\/download.php?id=stalker_db","sourceFingerprint":"1d800315ae35df3b27552d8208564c48aa8cda25bdd31a14be78633951d66dad","sourceId":"stalker_db","verifiedUtc":"\/Date(1790344919052)\/","version":"0.0.3","x64BinarySha256":"ff0a360616a8ebdb7a7ffbecf09bbb2b4119cbe1585c18602e15374b33444c22","x86BinarySha256":"1ff1ca1783af6ac8a63cd4ef3ef5861c82d3ddfd4e18b4eacc7b86ffdf78a1a5"}
   },
   {
     "id": "stalker_db_explorer",
@@ -17503,7 +17523,8 @@
         "purpose": "MetadataAndDownload",
         "priority": 200
       }
-    ]
+    ],
+    "wcxRegistration": {"extensions":["avi"],"packageSha256":"f6999d1ae939c56a958c1c6f9c8e84c2642ed2b54c23c36b043e4d580a31e214","packageUrl":"https:\/\/plugins.ghisler.com\/plugins\/aviwcx.zip","packerCaps":277,"source":"https:\/\/plugins.ghisler.com\/plugins\/aviwcx.zip","sourceFingerprint":"4af971f7d6d6be1f569b8143bde2f74f6d61cb09e0a30064405335208e3cca2b","sourceId":"AVI","verifiedUtc":"\/Date(1790342297527)\/","version":"1.5","x64BinarySha256":"55ef95b49806e24c1fe3607ca46e4d6aa0f96482a8989ee1e331bd6f0fb7504f","x86BinarySha256":"0339dc3cb13f9f9a685b1725b8e315f9f30d8bf51ff6ca307a3a4f8add5fad68"}
   },
   {
     "id": "ghisler-wcx-bzip2",
@@ -17597,7 +17618,8 @@
         "purpose": "MetadataAndDownload",
         "priority": 200
       }
-    ]
+    ],
+    "wcxRegistration": {"extensions":["dbx"],"packageSha256":"2bb0c32894266f635fba54fe8550d2246caecf28993e39e9b83c547c5f557cca","packageUrl":"https:\/\/plugins.ghisler.com\/plugins\/dbxplug.zip","packerCaps":0,"source":"https:\/\/plugins.ghisler.com\/plugins\/dbxplug.zip","sourceFingerprint":"29374fdc888ebceb071d910b17890f9329c7679fae9eaf15e863800b572370dc","sourceId":"DBX","verifiedUtc":"\/Date(1790342299435)\/","version":"1.2","x64BinarySha256":null,"x86BinarySha256":"7713e74d93bea2e66143da6eace4e5530167a985787aa0e66f8fdb1e00e25ce1"}
   },
   {
     "id": "ghisler-wcx-diskdir",
@@ -17660,7 +17682,8 @@
         "purpose": "MetadataAndDownload",
         "priority": 200
       }
-    ]
+    ],
+    "wcxRegistration": {"extensions":["gif"],"packageSha256":"e47bb4ce02499f4ad3118da71561b5422e6c15e116b17154cf3f4a36426cb4e0","packageUrl":"https:\/\/plugins.ghisler.com\/plugins\/gifwcx.zip","packerCaps":287,"source":"https:\/\/plugins.ghisler.com\/plugins\/gifwcx.zip","sourceFingerprint":"df680f807efe2f506acd012d69d30149bbb91ad8c074135edad2d00d290c88cf","sourceId":"GIF","verifiedUtc":"\/Date(1790342300654)\/","version":"1.3","x64BinarySha256":"c6ff8386a3982a16d65533ca382a685ca55462e8819353fc0a3b8153012a7dd4","x86BinarySha256":"e4a9e1fa9d8536400eef4c90f6eb9f4e81cd663a5e59594d5f68c45ead42b36e"}
   },
   {
     "id": "ghisler-wcx-grp",
@@ -17783,7 +17806,8 @@
         "purpose": "MetadataAndDownload",
         "priority": 200
       }
-    ]
+    ],
+    "wcxRegistration": {"extensions":["lzma"],"packageSha256":"48550574e8092660b03bb78ce3188b5b57b646d3dfcbe6d92ffab2d6cee1cfff","packageUrl":"https:\/\/plugins.ghisler.com\/plugins\/wcx_lzma21.zip","packerCaps":187,"source":"https:\/\/plugins.ghisler.com\/plugins\/wcx_lzma21.zip","sourceFingerprint":"40531dbe504b1fd6935d3ef3783cb6fd73bbf1a6d45bddbe05dbbe479abf1127","sourceId":"lzma","verifiedUtc":"\/Date(1790342302937)\/","version":"2.1","x64BinarySha256":"d022beff309368382ffa2ba69ae5a03bd1f1ea4bdbdb087355b2e07ad044f4a2","x86BinarySha256":"96603a7789fd93ac7511c5bc75acae405c6a70646b3f553fe83eb1d0aa1e435a"}
   },
   {
     "id": "ghisler-wcx-lzop",
@@ -17805,7 +17829,8 @@
         "purpose": "MetadataAndDownload",
         "priority": 200
       }
-    ]
+    ],
+    "wcxRegistration": {"extensions":["lzo"],"packageSha256":"2b2f1eeb48606abf65470ee3e3ea997ba63250cea0558f88a41f6003ffa760ac","packageUrl":"https:\/\/plugins.ghisler.com\/plugins\/lzop.zip","packerCaps":0,"source":"https:\/\/plugins.ghisler.com\/plugins\/lzop.zip","sourceFingerprint":"69a23a4fcb4ba85332053f0e8c54c3f796a1df9e10d4cc03e8a6df82434dd90e","sourceId":"LZOP","verifiedUtc":"\/Date(1790342303511)\/","version":"1.0","x64BinarySha256":null,"x86BinarySha256":"f07855b70ef179702e4dd4f34a925b7122472af0e91a78a796d1e9545676c235"}
   },
   {
     "id": "ghisler-wcx-lzx",
@@ -17828,7 +17853,8 @@
         "purpose": "MetadataAndDownload",
         "priority": 200
       }
-    ]
+    ],
+    "wcxRegistration": {"extensions":["lzx"],"packageSha256":"777a71c3798962acceaf6b6573f832b93f881b3821eae7cfe041ececf0d37752","packageUrl":"https:\/\/plugins.ghisler.com\/plugins\/lzx_plugin.zip","packerCaps":128,"source":"https:\/\/plugins.ghisler.com\/plugins\/lzx_plugin.zip","sourceFingerprint":"d5c3123f3e76e59a87d0b98eb96b589edb32ddab99fd0c5b66360c32c76553ae","sourceId":"LZX","verifiedUtc":"\/Date(1790342304353)\/","version":"2.2","x64BinarySha256":"11132dea9bc4b6d5a58fa0223c737a7b6f02c65c14632ba6849f11a106cfdf1d","x86BinarySha256":"6cda2c944eb586744336f3735a9d82702067fa9657b000e8fe9fb354038f3db0"}
   },
   {
     "id": "ghisler-wcx-makebat",
@@ -17851,7 +17877,8 @@
         "purpose": "MetadataAndDownload",
         "priority": 200
       }
-    ]
+    ],
+    "wcxRegistration": {"extensions":["bat"],"packageSha256":"f5c645f8665b65860cf876c365c6e9dbf33870ba81f519324ccf6870eb87f6c4","packageUrl":"https:\/\/plugins.ghisler.com\/plugins\/makebat.zip","packerCaps":279,"source":"https:\/\/plugins.ghisler.com\/plugins\/makebat.zip","sourceFingerprint":"461bb591ceb5d736098e28449d973f12b96820cd349b8a825ecfd9b8981b642d","sourceId":"MakeBAT","verifiedUtc":"\/Date(1790342305321)\/","version":"1.5","x64BinarySha256":"79b285277e99f85646277ad1fb4d2fdd158d4ab23b2eea74c1a3824b827bfa9b","x86BinarySha256":"0496fcbf1502e310ece0ad88973135ddcafa702b5746d220f8a331bf44c53578"}
   },
   {
     "id": "ghisler-wcx-msi",
@@ -17893,7 +17920,8 @@
         "purpose": "MetadataAndDownload",
         "priority": 200
       }
-    ]
+    ],
+    "wcxRegistration": {"extensions":["pak"],"packageSha256":"9694af0bc55e2a57634bae5392d6b0bbdfc09f66d958f6b471726bf3b303d46e","packageUrl":"https:\/\/plugins.ghisler.com\/plugins\/pack_plugin.zip","packerCaps":31,"source":"https:\/\/plugins.ghisler.com\/plugins\/pack_plugin.zip","sourceFingerprint":"58f83963edf60fdec216f97d121ce572d0cd09d9a7f696f4f59b6c6267890428","sourceId":"PACK","verifiedUtc":"\/Date(1790342306425)\/","version":"1.1","x64BinarySha256":null,"x86BinarySha256":"2927eb82b31392050a640b749f648be3e41097dec54d326628d8ef2a1575f427"}
   },
   {
     "id": "ghisler-wcx-ppmd",
@@ -17915,7 +17943,8 @@
         "purpose": "MetadataAndDownload",
         "priority": 200
       }
-    ]
+    ],
+    "wcxRegistration": {"extensions":["ppm"],"packageSha256":"9baac48eb2858df6d75c9ee16b37b6b29bba5502cc30f4be53f6e0f60b596b05","packageUrl":"https:\/\/plugins.ghisler.com\/plugins\/ppmd_plugin.zip","packerCaps":17,"source":"https:\/\/plugins.ghisler.com\/plugins\/ppmd_plugin.zip","sourceFingerprint":"4e6d98260c6b89b42a9f8d2805297e27164338868de7e3ffbe9a322961c468f3","sourceId":"PPMd","verifiedUtc":"\/Date(1790342307125)\/","version":"1.0","x64BinarySha256":null,"x86BinarySha256":"b17389b94de92934996b4fcf8fcd571b7fd80491f8aed4e95d34574dfb685bea"}
   },
   {
     "id": "ghisler-wcx-progress-pl",
@@ -17977,7 +18006,8 @@
         "purpose": "MetadataAndDownload",
         "priority": 200
       }
-    ]
+    ],
+    "wcxRegistration": {"extensions":["sff"],"packageSha256":"346e2b1dedd66e4ed4822abbc3ba7abc8a53b810f4a4868e6de5a5a0da3c8130","packageUrl":"https:\/\/plugins.ghisler.com\/plugins\/wcx_sff-1.2.zip","packerCaps":5,"source":"https:\/\/plugins.ghisler.com\/plugins\/wcx_sff-1.2.zip","sourceFingerprint":"47be7a35a6b4bb5d13a5ceb605e8174314ba2ef20e3d87c97ac9f48538d75137","sourceId":"SFF","verifiedUtc":"\/Date(1790342308481)\/","version":"1.2","x64BinarySha256":null,"x86BinarySha256":"5067e4a0beeba2a6d561ff09a1c914bb9076311faf3981b107a754372e3ffb76"}
   },
   {
     "id": "ghisler-wcx-sis",
@@ -18060,7 +18090,8 @@
         "purpose": "MetadataAndDownload",
         "priority": 200
       }
-    ]
+    ],
+    "wcxRegistration": {"extensions":["TreeCopyPlus"],"packageSha256":"4ac2c7fcd167ccf445a825d71983a72a1ae6b91ad8465df68c4b206adf015540","packageUrl":"https:\/\/plugins.ghisler.com\/plugins\/treecopyplus.zip","packerCaps":21,"source":"https:\/\/plugins.ghisler.com\/plugins\/treecopyplus.zip","sourceFingerprint":"304e8320235a52c0fb73b02d1d7978b16e5ce7901d568dbb1b39c7ed8d996e68","sourceId":"TreeCopyPlus","verifiedUtc":"\/Date(1790342310234)\/","version":"1.051","x64BinarySha256":"cc41b83d88e3a05d6e8b6e42cdfbb72f56926edde014b2eb7e7f1ed57eb91547","x86BinarySha256":"360deccfe4f6336df4f27f4a969bca59074e2e27460ce581ccfa8f9693c38bf2"}
   },
   {
     "id": "ghisler-wcx-xz",
@@ -18083,7 +18114,8 @@
         "purpose": "MetadataAndDownload",
         "priority": 200
       }
-    ]
+    ],
+    "wcxRegistration": {"extensions":["xz"],"packageSha256":"676d00eef0c4fa444647cd03d79012f49e3eee63706409d739b389f1c916c9ce","packageUrl":"https:\/\/plugins.ghisler.com\/plugins\/wcx_xz12.zip","packerCaps":187,"source":"https:\/\/plugins.ghisler.com\/plugins\/wcx_xz12.zip","sourceFingerprint":"3d04be6385be30fef7ec7a4eaaf4cb016d2afad8667ffbfd780d4db7efda1335","sourceId":"xz","verifiedUtc":"\/Date(1790342311688)\/","version":"1.2","x64BinarySha256":"2a2e0fb727f7f9a63c55d6dee5ce5754396abb8fcd6ffd984dbf6d573cefecbd","x86BinarySha256":"5d5c96e51b064ebbc3999f16e272ac5c5b7a8aeed57b81662818c7c3e7a57e97"}
   },
   {
     "id": "ghisler-wcx-z",
@@ -18106,7 +18138,8 @@
         "purpose": "MetadataAndDownload",
         "priority": 200
       }
-    ]
+    ],
+    "wcxRegistration": {"extensions":["z"],"packageSha256":"a8cdd4103c3604100ae5814ae2e06db087354325aa8f073da309a4e8a736eca4","packageUrl":"https:\/\/plugins.ghisler.com\/plugins\/zplugin.zip","packerCaps":11,"source":"https:\/\/plugins.ghisler.com\/plugins\/zplugin.zip","sourceFingerprint":"4408f7b0d641d34d02df4e64530590624ee8346b2db75b00a908ac71aeca2d81","sourceId":"Z","verifiedUtc":"\/Date(1790342312528)\/","version":"1.0","x64BinarySha256":"cb1ae045cb09c6065751d01625612a8fd306b3472a285f04af647090ab9dc083","x86BinarySha256":"2fe27051e815c8aeacf2b75cbc0a863ce60c1482bbf40057b141baa1b439be7b"}
   },
   {
     "id": "ghisler-wcx-wcx-plugin-guide",

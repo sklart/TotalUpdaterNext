@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
+using TotalUpdater.Next.Infrastructure.Installation;
 
 namespace TotalUpdater.Next.Catalog
 {
@@ -30,6 +31,8 @@ namespace TotalUpdater.Next.Catalog
         public const string CapsMismatch = "CapsMismatch";
         public const string PackageIdentityMismatch = "PackageIdentityMismatch";
         public const string HashMismatch = "HashMismatch";
+        public const string SourceUnavailable = "SourceUnavailable";
+        public const string UnsupportedArchive = "UnsupportedArchive";
 
         public static IList<WcxRegistrationHarvestFinding> Read(string path)
         {
@@ -46,15 +49,16 @@ namespace TotalUpdater.Next.Catalog
             var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
             try
             {
-                using (var stream = File.Create(temporary)) new DataContractJsonSerializer(typeof(List<WcxRegistrationHarvestFinding>)).WriteObject(stream, (findings ?? Enumerable.Empty<WcxRegistrationHarvestFinding>()).ToList());
-                if (File.Exists(path)) File.Replace(temporary, path, null); else File.Move(temporary, path);
+                using (var stream = File.Create(temporary)) new DataContractJsonSerializer(typeof(List<WcxRegistrationHarvestFinding>)).WriteObject(stream,
+                    (findings ?? Enumerable.Empty<WcxRegistrationHarvestFinding>()).Where(x => x != null).OrderBy(x => x.Id ?? "", StringComparer.OrdinalIgnoreCase).ToList());
+                if (File.Exists(path)) AtomicFile.Replace(temporary, path); else File.Move(temporary, path);
             }
             finally { if (File.Exists(temporary)) File.Delete(temporary); }
         }
 
         public static bool IsKnownStatus(string status)
         {
-            return new[] { Downloadable, VerifiedRegistration, MissingPackage, MissingPluginst, MissingDefaultExtension, AmbiguousBinary, ProbeFailed, ProbeTimeout, ProbeArchitectureMismatch, CapsMismatch, PackageIdentityMismatch, HashMismatch }.Contains(status ?? "", StringComparer.Ordinal);
+            return new[] { Downloadable, VerifiedRegistration, MissingPackage, MissingPluginst, MissingDefaultExtension, AmbiguousBinary, ProbeFailed, ProbeTimeout, ProbeArchitectureMismatch, CapsMismatch, PackageIdentityMismatch, HashMismatch, SourceUnavailable, UnsupportedArchive }.Contains(status ?? "", StringComparer.Ordinal);
         }
 
         public static bool IsValidVerifiedFinding(WcxRegistrationHarvestFinding finding)

@@ -29,6 +29,14 @@ namespace TotalUpdater.Next.Catalog
             return LoadWithDiagnostics().Entries;
         }
 
+        public static IList<CatalogDiagnostic> Validate(IEnumerable<PluginCatalogEntry> candidates)
+        {
+            var diagnostics = new List<CatalogDiagnostic>();
+            var entries = new Dictionary<string, PluginCatalogEntry>(StringComparer.OrdinalIgnoreCase);
+            AddEntries(candidates ?? Enumerable.Empty<PluginCatalogEntry>(), entries, diagnostics, false);
+            return diagnostics;
+        }
+
         public CatalogLoadResult LoadWithDiagnostics()
         {
             var diagnostics = new List<CatalogDiagnostic>();

@@ -33,9 +33,10 @@ namespace TotalUpdater.Next.Tests
                 if (args != null && args.Any(x => x.Equals("--harvest-full-catalog", StringComparison.OrdinalIgnoreCase))) return RunMaintenanceScript("Harvest-FullSourceCatalog.ps1");
                 if (args != null && args.Any(x => x.Equals("--audit-catalog-aliases", StringComparison.OrdinalIgnoreCase))) return AuditCatalogAliases();
                 if (args != null && args.Any(x => x.Equals("--audit-full-catalog", StringComparison.OrdinalIgnoreCase))) return AuditFullCatalog();
-                if (args != null && args.Any(x => x.Equals("--audit-wcx-registration", StringComparison.OrdinalIgnoreCase))) return AuditWcxRegistration();
+                if (args != null && args.Any(x => x.Equals("--audit-wcx-registration", StringComparison.OrdinalIgnoreCase))) return AuditWcxRegistration(args);
+                if (args != null && args.Any(x => x.Equals("--validate-wcx-registration-evidence", StringComparison.OrdinalIgnoreCase))) return ValidateWcxRegistrationEvidence();
                 if (args != null && args.Any(x => x.Equals("--harvest-wcx-registration", StringComparison.OrdinalIgnoreCase))) return HarvestWcxRegistration(args);
-                if (args != null && args.Any(x => x.Equals("--merge-wcx-registration-evidence", StringComparison.OrdinalIgnoreCase))) return RunMaintenanceScript("Merge-WcxRegistrationEvidence.ps1", args);
+                if (args != null && args.Any(x => x.Equals("--merge-wcx-registration-evidence", StringComparison.OrdinalIgnoreCase))) return MergeWcxRegistrationEvidence(args);
                 if (args != null && args.Any(x => x.Equals("--audit-installed-coverage", StringComparison.OrdinalIgnoreCase))) return AuditInstalledCoverage(args);
                 if (args != null && args.Any(x => x.Equals("--audit-installed-version-drift", StringComparison.OrdinalIgnoreCase))) return AuditInstalledVersionDrift(args);
                 var groups = TestGroups();
@@ -89,7 +90,7 @@ namespace TotalUpdater.Next.Tests
             {
                 var start = new System.Diagnostics.ProcessStartInfo
                 {
-                    FileName = "powershell.exe", Arguments = "-NoProfile -File \"" + script + "\" " + String.Join(" ", (commandArgs ?? new string[0]).Where(x => !String.Equals(x, "--harvest-wcx-registration", StringComparison.OrdinalIgnoreCase) && !String.Equals(x, "--merge-wcx-registration-evidence", StringComparison.OrdinalIgnoreCase)).Select(x => "\"" + x.Replace("\"", "\\\"") + "\"")),
+                    FileName = "powershell.exe", Arguments = "-NoProfile -ExecutionPolicy Bypass -File \"" + script + "\" " + String.Join(" ", (commandArgs ?? new string[0]).Where(x => !String.Equals(x, "--harvest-wcx-registration", StringComparison.OrdinalIgnoreCase) && !String.Equals(x, "--merge-wcx-registration-evidence", StringComparison.OrdinalIgnoreCase)).Select(x => String.Equals(x, "--input", StringComparison.OrdinalIgnoreCase) ? "-InputPath" : String.Equals(x, "--dry-run", StringComparison.OrdinalIgnoreCase) ? "-DryRun" : "\"" + x.Replace("\"", "\\\"") + "\"")),
                     UseShellExecute = false
                 };
                 using (var process = System.Diagnostics.Process.Start(start)) { process.WaitForExit(); return process.ExitCode; }

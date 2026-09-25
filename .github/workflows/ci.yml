@@ -25,5 +25,9 @@ jobs:
           if ($LASTEXITCODE -ne 0 -or $summary -notmatch '^Entries=(\d+); errors=0$' -or [int]$Matches[1] -lt 150) { exit 1 }
       - name: Audit catalog aliases
         run: dotnet run --project .\TotalUpdater.Next.Tests\TotalUpdater.Next.Tests.csproj -c Release --no-build -- --audit-catalog-aliases
+      - name: Validate WCX registration evidence
+        run: dotnet run --project .\TotalUpdater.Next.Tests\TotalUpdater.Next.Tests.csproj -c Release --no-build -- --validate-wcx-registration-evidence
+      - name: Audit WCX registration
+        run: dotnet run --project .\TotalUpdater.Next.Tests\TotalUpdater.Next.Tests.csproj -c Release --no-build -- --audit-wcx-registration
       - name: Validate harvested package evidence
         run: dotnet run --project .\TotalUpdater.Next.Tests\TotalUpdater.Next.Tests.csproj -c Release --no-build -- --validate-harvest-evidence
